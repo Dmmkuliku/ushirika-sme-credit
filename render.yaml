@@ -7,7 +7,7 @@ services:
     runtime: python
     plan: free
     rootDir: Backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python scripts/train_model.py || true
     startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
@@ -20,9 +20,7 @@ services:
       - key: PSEUDONYMIZATION_KEY
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: ushirika-db
-          property: connectionString
+        value: sqlite:///./data/sme_credit.db
       - key: CORS_ORIGINS
         sync: false
       - key: MODEL_DIR
@@ -30,10 +28,4 @@ services:
       - key: MIN_TRANSACTIONS_FOR_SCORE
         value: "5"
       - key: PYTHON_VERSION
-        value: "3.13.0"
-
-databases:
-  - name: ushirika-db
-    plan: free
-    databaseName: ushirika
-    user: ushirika
+        value: "3.12.8"
