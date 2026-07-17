@@ -1,0 +1,33 @@
+# Python
+Backend/.venv/
+Backend/**/__pycache__/
+Backend/**/*.pyc
+Backend/.pytest_cache/
+Backend/.mypy_cache/
+Backend/data/*.db
+Backend/data/*.db-*
+Backend/.env
+Backend/**/.env
+
+# Node / Vite
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.env
+Frontend/.env.local
+Frontend/.env.*.local
+
+# Models can be large; keep meta if small — ignore joblib dumps
+Backend/models/*.joblib
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+.cursor/
+
+# Secrets — never commit
+**/*password*
+**/*secret*
+**/*.pem
