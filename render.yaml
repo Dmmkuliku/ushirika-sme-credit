@@ -7,8 +7,8 @@ services:
     runtime: python
     plan: free
     rootDir: Backend
-    buildCommand: pip install -r requirements.txt && python scripts/train_model.py || true
-    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
     healthCheckPath: /api/health
     envVars:
       - key: APP_ENV
