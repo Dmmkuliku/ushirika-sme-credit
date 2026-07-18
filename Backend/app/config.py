@@ -23,7 +23,11 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "https://ushirika-sme-portal.vercel.app,"
+        "https://ushirika-sme-portal-dmmkuliku.vercel.app"
+    )
 
     model_dir: str = "./models"
     min_transactions_for_score: int = 5

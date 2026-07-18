@@ -1,25 +1,54 @@
 /**
  * FastAPI-aligned API client for the Tanzania SME / Lender portal.
  *
- * API base resolution (automatic switching):
- * 1. VITE_API_URL at build time (set on Vercel → your Render URL)
- * 2. In Vite dev → same-origin `/api` (proxied to local backend)
- * 3. Else localhost for preview builds without env
+ * API base resolution:
+ * 1. Same-origin `/api` on Vercel (rewritten to Render — avoids CORS/cold-start flakes)
+ * 2. VITE_API_URL at build time
+ * 3. Vite DEV → `/api` proxy
+ * 4. Hard fallback to the live Render API
  */
 
+const RENDER_API = 'https://ushirika-api.onrender.com/api';
+
 function resolveApiBase() {
+  try {
+    const host = typeof window !== 'undefined' ? window.location.hostname : '';
+    if (host && (host.endsWith('.vercel.app') || host.includes('ushirika-sme-portal'))) {
+      return '/api';
+    }
+  } catch {
+    /* ignore */
+  }
+
   const configured = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
   if (configured) {
     return configured.endsWith('/api') ? configured : `${configured}/api`;
   }
-  // Local Vite: use proxy so we always hit the running backend
   if (import.meta.env.DEV) {
     return '/api';
   }
-  return 'http://localhost:8000/api';
+  return RENDER_API;
 }
 
 const API_BASE = resolveApiBase();
+
+export function getApiBase() {
+  return API_BASE;
+}
+
+async function wakeApiIfNeeded() {
+  // Free Render instances sleep; ping health before the first real call.
+  const healthUrl = API_BASE.startsWith('http')
+    ? `${API_BASE}/health`
+    : `${RENDER_API}/health`;
+  try {
+    await fetch(healthUrl, { method: 'GET', cache: 'no-store' });
+  } catch {
+    /* ignore — retry loop below handles failure */
+  }
+}
+
+let didWake = false;
 
 export class ApiError extends Error {
   constructor(message, { status = 0, detail = null, body = null } = {}) {
@@ -86,7 +115,7 @@ async function parseBody(response) {
  * @param {RequestInit & { auth?: boolean, raw?: boolean }} options
  */
 export async function request(path, options = {}) {
-  const { auth = true, raw = false, headers: customHeaders, ...init } = options;
+  const { auth = true, raw = false, headers: customHeaders, retries = 2, ...init } = options;
   const headers = new Headers(customHeaders || {});
 
   if (auth) {
@@ -98,13 +127,31 @@ export async function request(path, options = {}) {
     headers.set('Content-Type', 'application/json');
   }
 
+  if (!didWake) {
+    didWake = true;
+    await wakeApiIfNeeded();
+  }
+
   let response;
-  try {
-    response = await fetch(`${API_BASE}${path}`, { ...init, headers });
-  } catch (err) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      response = await fetch(`${API_BASE}${path}`, { ...init, headers });
+      lastErr = null;
+      break;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+        await wakeApiIfNeeded();
+        continue;
+      }
+    }
+  }
+  if (lastErr || !response) {
     throw new ApiError('Unable to reach the server. Check your connection and API URL.', {
       status: 0,
-      detail: err?.message || String(err),
+      detail: lastErr?.message || String(lastErr || 'No response'),
     });
   }
 

@@ -48,6 +48,7 @@ export function renderAuthPage(mode = 'login') {
 
   return `
     <div class="auth-layout">
+      <div class="auth-lang-bar">${langSwitchHtml('lang-switch-auth')}</div>
       <div class="auth-visual" aria-hidden="true">
         <div class="auth-visual-inner">
           <p class="auth-eyebrow">${escapeHtml(t('brand.eyebrow'))}</p>
@@ -56,7 +57,6 @@ export function renderAuthPage(mode = 'login') {
         </div>
       </div>
       <div class="auth-panel">
-        <div class="auth-lang-bar">${langSwitchHtml('lang-switch-auth')}</div>
         <main id="main" class="auth-main" tabindex="-1">
           <h1 class="auth-heading">${escapeHtml(heading)}</h1>
           <p class="auth-lead">${escapeHtml(lead)}</p>

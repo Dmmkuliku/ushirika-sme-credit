@@ -9,19 +9,11 @@
 
 ## 1. How real machine learning works in this system
 
-1. **Feature engineering** — Each SME’s supply-chain transactions are turned into numeric features (payment reliability, delays, typical volume, partner diversity, days between deals, etc.).
-2. **Training** — Two classifiers are fit with GridSearchCV on an 80/20 stratified hold-out:
-   - **Random Forest** (ensemble, primary)
-   - **Logistic Regression** (linear baseline)
-3. **Live data loop** — When an SME records or uploads transactions and has at least 5 deals, the backend:
-   - rebuilds features for all eligible SMEs from the database,
-   - **mixes those real rows into training** (upsampled) with synthetic bootstrap data,
-   - re-saves `.joblib` models + `models/model_meta.json`,
-   - reloads the in-memory predictor,
-   - runs a fresh **prediction** (credit score + risk band + eligible financing).
-4. **Explainability** — Score components are shown with **plain-language labels** (not programmer variable names).
-
-This is real sklearn training and inference — not a hard-coded score table.
+1. **Feature engineering** — Each SME’s supply-chain transactions are turned into numeric features.
+2. **Train / test split (mandatory)** — Data is split with `train_test_split` (80% train / 20% hold-out, stratified). Models are fit **only** on the training split. Hold-out metrics are computed on the unseen test set.
+3. **Cross-validated tuning** — GridSearchCV (ROC-AUC) tunes Random Forest and Logistic Regression on the training fold only.
+4. **Live data loop** — When an SME records or uploads enough transactions, features from live SMEs are mixed into training, models are re-saved, and the predictor is reloaded before scoring.
+5. **Evidence** — `models/model_meta.json` stores `train_test_protocol` (train/test sizes, CV folds) plus RF/LR test metrics.
 
 ---
 

@@ -208,11 +208,33 @@ def train_models(db_session=None, include_real_data: bool = True) -> dict[str, A
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "real_sme_profiles_used": real_rows,
         "training_source": "synthetic+real_sme_transactions" if real_rows else "synthetic_bootstrap",
+        "train_test_protocol": {
+            "method": "sklearn.model_selection.train_test_split",
+            "test_size": 0.2,
+            "stratified": bool(stratify is not None),
+            "train_rows": int(len(X_train)),
+            "test_rows": int(len(X_test)),
+            "cv_folds": int(n_splits),
+            "selection_metric": "roc_auc",
+            "notes": (
+                "Models are fit ONLY on the training split (with GridSearchCV). "
+                "Hold-out test metrics are reported separately — predictions are never scored "
+                "without a prior train/test training run."
+            ),
+        },
         "notes": (
             "Random Forest is primary. Live SME transaction features are mixed into retraining "
             "so predictions reflect uploaded data. Financing caps ignore outlier amounts."
         ),
     }
+    logger.info(
+        "Trained models v%s | train=%s test=%s | RF ROC-AUC=%.4f | LR ROC-AUC=%.4f",
+        version,
+        len(X_train),
+        len(X_test),
+        rf_metrics["roc_auc"],
+        lr_metrics["roc_auc"],
+    )
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
 
