@@ -22,7 +22,7 @@ services:
       - key: DATABASE_URL
         value: sqlite:///./data/sme_credit.db
       - key: CORS_ORIGINS
-        sync: false
+        value: "https://ushirika-sme-portal.vercel.app,https://ushirika-sme-portal-dmmkuliku.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
       - key: MODEL_DIR
         value: ./models
       - key: MIN_TRANSACTIONS_FOR_SCORE
