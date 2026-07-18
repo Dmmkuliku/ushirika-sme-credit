@@ -27,6 +27,7 @@ import {
   mountChartResize,
 } from '../ui.js';
 import { openProfileModal } from './profile.js';
+import { t, featureLabel } from '../i18n.js';
 
 function bindSmeShell(onLogout) {
   bindShellActions({
@@ -53,7 +54,6 @@ function closeTxModal() {
 function toInputDate(val) {
   if (!val) return '';
   const raw = String(val);
-  // Prefer calendar date from ISO string to avoid timezone day-shift
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
   const d = new Date(val);
   if (Number.isNaN(d.getTime())) return raw.slice(0, 10);
@@ -72,10 +72,40 @@ function toApiDateTime(val) {
   return `${s}T00:00:00`;
 }
 
-function truncateHash(hash) {
-  if (!hash) return '—';
-  const s = String(hash);
-  return s.length <= 12 ? s : `${s.slice(0, 8)}…${s.slice(-4)}`;
+function paymentLabel(status) {
+  const key = String(status || '').toLowerCase();
+  const map = {
+    pending: t('payment.pending'),
+    paid: t('payment.paid'),
+    partial: t('payment.partial'),
+    overdue: t('payment.overdue'),
+    defaulted: t('payment.defaulted'),
+  };
+  return map[key] || capitalize(String(status || '—'));
+}
+
+function partyLabel(type) {
+  const key = String(type || '').toLowerCase();
+  if (key === 'buyer') return t('party.buyer');
+  if (key === 'seller') return t('party.seller');
+  return capitalize(String(type || '—'));
+}
+
+function orderLabel(type) {
+  const key = String(type || '').toLowerCase();
+  if (key === 'sale') return t('order.sale');
+  if (key === 'purchase') return t('order.purchase');
+  if (key === 'service') return t('order.service');
+  return capitalize(String(type || '—'));
+}
+
+function riskLabel(risk, locked) {
+  if (locked) return t('risk.pending');
+  const key = String(risk || '').toLowerCase();
+  if (key.includes('low')) return t('risk.low');
+  if (key.includes('medium') || key.includes('med')) return t('risk.medium');
+  if (key.includes('high')) return t('risk.high');
+  return capitalize(String(risk || '—'));
 }
 
 function transactionCount(overview) {
@@ -96,19 +126,44 @@ function isScoreLocked(overview) {
   return Number(transactionCount(overview)) < 5;
 }
 
+/** Prefer score_components_display; fall back to snake_case map via featureLabel. */
 function componentsList(overview) {
+  const display = overview?.score_components_display;
+  if (Array.isArray(display) && display.length) {
+    return display.map((c) => ({
+      name: c.name || (c.key ? featureLabel(c.key) : 'Factor'),
+      value: c.value,
+      key: c.key,
+    }));
+  }
+
   const raw =
     overview?.score_components ||
     overview?.components ||
     overview?.explainability ||
     overview?.factors ||
     [];
-  if (Array.isArray(raw)) return raw;
-  if (raw && typeof raw === 'object') {
-    return Object.entries(raw).map(([name, value]) => {
-      if (value && typeof value === 'object') return { name, ...value };
-      return { name, value, contribution: value };
+  if (Array.isArray(raw)) {
+    return raw.map((c) => {
+      if (c && typeof c === 'object') {
+        const key = c.key || c.name;
+        return {
+          name: c.name || (key ? featureLabel(key) : 'Factor'),
+          value: c.contribution ?? c.value ?? c.score ?? c.weight,
+          key,
+        };
+      }
+      return { name: String(c), value: null };
     });
+  }
+  if (raw && typeof raw === 'object') {
+    return Object.entries(raw)
+      .filter(([, v]) => !Array.isArray(v) && typeof v !== 'object')
+      .map(([name, value]) => ({
+        name: featureLabel(name),
+        value,
+        key: name,
+      }));
   }
   return [];
 }
@@ -120,7 +175,7 @@ export function renderSmeOverviewLoading(session) {
     role: 'sme',
     user: session.user,
     activeNav: 'overview',
-    mainHtml: loadingBlock('Loading your credit overview…'),
+    mainHtml: loadingBlock(t('sme.loadingOverview')),
   });
 }
 
@@ -150,7 +205,7 @@ export async function loadSmeOverview(session, { onLogout }) {
       role: 'sme',
       user: session.user,
       activeNav: 'overview',
-      mainHtml: errorBlock('Could not load overview', getErrorMessage(err), 'retry-overview'),
+      mainHtml: errorBlock(t('sme.couldNotLoadOverview'), getErrorMessage(err), 'retry-overview'),
     });
     bindSmeShell(onLogout);
     document.getElementById('retry-overview')?.addEventListener('click', () => {
@@ -172,20 +227,30 @@ function renderSmeOverview(session, overview, historyPayload, { onLogout }) {
     null;
   const components = componentsList(overview);
   const history = normalizeListPayload(historyPayload, ['months', 'history', 'items', 'data', 'series']);
+  const outlierCount = overview?.outlier_transaction_count;
+  const modelVersion = overview?.model_version;
 
   const lockNote = locked
-    ? `Score unlocks after at least 5 recorded transactions. You currently have ${formatNumber(txCount, 0)}.`
-    : `Based on ${formatNumber(txCount, 0)} transactions.`;
+    ? t('sme.scoreUnlocks', { count: formatNumber(txCount, 0) })
+    : t('sme.basedOnTx', { count: formatNumber(txCount, 0) });
+
+  const notesHtml = [
+    outlierCount != null && Number(outlierCount) > 0
+      ? `<p class="score-note">${escapeHtml(t('sme.outlierNote', { count: formatNumber(outlierCount, 0) }))}</p>`
+      : '',
+    modelVersion
+      ? `<p class="score-note score-note-muted">${escapeHtml(t('sme.modelVersion', { version: modelVersion }))}</p>`
+      : '',
+  ].join('');
 
   const componentsHtml =
     components.length === 0
-      ? emptyBlock('No explainability data', 'Component indicators will appear once scoring is available.')
+      ? emptyBlock(t('sme.noExplain'), t('sme.componentsAppear'))
       : `<ul class="component-list">
           ${components
             .map((c) => {
-              const name = c.name || c.label || c.component || 'Factor';
-              const value = c.contribution ?? c.value ?? c.score ?? c.weight;
-              const impact = c.impact || c.direction || c.explanation || c.description || '';
+              const name = c.name || 'Factor';
+              const value = c.value;
               const pct =
                 value != null && Math.abs(Number(value)) <= 1 && Number(value) !== 0
                   ? `${formatNumber(Number(value) * 100, 0)}%`
@@ -198,7 +263,6 @@ function renderSmeOverview(session, overview, historyPayload, { onLogout }) {
                     <span class="component-name">${escapeHtml(name)}</span>
                     <span class="component-value">${escapeHtml(pct)}</span>
                   </div>
-                  ${impact ? `<p class="component-impact">${escapeHtml(impact)}</p>` : ''}
                   <div class="component-bar" aria-hidden="true">
                     <span style="width:${Math.min(100, Math.abs(Number(value) <= 1 ? Number(value) * 100 : Number(value)) || 0)}%"></span>
                   </div>
@@ -209,67 +273,66 @@ function renderSmeOverview(session, overview, historyPayload, { onLogout }) {
 
   const chartSection =
     history.length === 0
-      ? emptyBlock('No monthly history yet', 'Upload transactions to build your score history.')
-      : `<div class="chart-wrap"><canvas id="score-chart" width="640" height="240" role="img" aria-label="Monthly credit score history"></canvas></div>`;
+      ? emptyBlock(t('sme.noHistory'), t('sme.uploadForHistory'))
+      : `<div class="chart-wrap"><canvas id="score-chart" width="640" height="240" role="img" aria-label="${escapeHtml(t('sme.monthlyHistory'))}"></canvas></div>`;
 
   const mainHtml = `
     <div class="page-header">
       <div>
-        <h1>Credit overview</h1>
+        <h1>${escapeHtml(t('sme.creditOverview'))}</h1>
         <p class="page-lead">${escapeHtml(lockNote)}</p>
+        ${notesHtml}
       </div>
       <div class="page-actions">
-        <button type="button" class="btn btn-secondary" id="btn-export-overview">Download e-statement</button>
-        <a class="btn btn-primary" href="#/sme/upload">Upload CSV</a>
+        <button type="button" class="btn btn-secondary" id="btn-export-overview">${escapeHtml(t('sme.downloadStatement'))}</button>
+        <a class="btn btn-primary" href="#/sme/upload">${escapeHtml(t('sme.uploadCsv'))}</a>
       </div>
     </div>
     <section class="metric-grid" aria-label="Key credit metrics">
       <article class="metric-card metric-score ${locked ? 'is-locked' : ''}">
-        <h2 class="metric-label">Credit score</h2>
+        <h2 class="metric-label">${escapeHtml(t('sme.creditScore'))}</h2>
         <div class="score-display">
           ${scoreRingSvg(locked ? 0 : score, locked)}
           <div class="score-display-text">
             ${locked
-              ? `<span class="score-locked-label">Locked</span>
-                 <span class="score-locked-hint">${escapeHtml(`${txCount}/5 transactions`)}</span>`
+              ? `<span class="score-locked-label">${escapeHtml(t('sme.locked'))}</span>
+                 <span class="score-locked-hint">${escapeHtml(`${txCount}/5`)}</span>`
               : `<span class="score-number">${escapeHtml(formatScore(score))}</span>
-                 <span class="score-hint">out of 850</span>`
+                 <span class="score-hint">${escapeHtml(t('sme.outOf850'))}</span>`
             }
           </div>
         </div>
       </article>
       <article class="metric-card">
-        <h2 class="metric-label">Risk band</h2>
+        <h2 class="metric-label">${escapeHtml(t('sme.riskBand'))}</h2>
         <p class="metric-value">
-          <span class="risk-badge ${riskClass(locked ? '' : risk)}">${escapeHtml(
-            locked ? 'Pending' : capitalize(String(risk))
-          )}</span>
+          <span class="risk-badge ${riskClass(locked ? '' : risk)}">${escapeHtml(riskLabel(risk, locked))}</span>
         </p>
-        <p class="metric-hint">Portfolio risk classification</p>
+        <p class="metric-hint">${escapeHtml(t('sme.portfolioRisk'))}</p>
       </article>
       <article class="metric-card">
-        <h2 class="metric-label">Est. eligible financing</h2>
+        <h2 class="metric-label">${escapeHtml(t('sme.estFinancing'))}</h2>
         <p class="metric-value metric-tzs">${escapeHtml(locked ? '—' : formatTZS(eligible))}</p>
-        <p class="metric-hint">Indicative TZS capacity</p>
+        <p class="metric-hint">${escapeHtml(t('sme.indicativeTzs'))}</p>
       </article>
       <article class="metric-card">
-        <h2 class="metric-label">Transactions</h2>
+        <h2 class="metric-label">${escapeHtml(t('sme.transactions'))}</h2>
         <p class="metric-value">${escapeHtml(formatNumber(txCount, 0))}</p>
-        <p class="metric-hint">${locked ? 'Need 5+ to unlock score' : 'Feeding your score model'}</p>
+        <p class="metric-hint">${escapeHtml(locked ? t('sme.need5') : t('sme.feedingModel'))}</p>
       </article>
     </section>
     <div class="split-panels">
       <section class="panel" aria-labelledby="components-title">
         <div class="panel-header">
-          <h2 id="components-title">Score components</h2>
-          <p>Explainability indicators behind your score</p>
+          <h2 id="components-title">${escapeHtml(t('sme.scoreComponents'))}</h2>
+          <p>${escapeHtml(t('sme.explainability'))}</p>
         </div>
-        ${locked ? emptyBlock('Components locked', 'Upload at least 5 transactions to view explainability.') : componentsHtml}
+        ${locked ? emptyBlock(t('sme.componentsLocked'), t('sme.upload5Explain')) : componentsHtml}
       </section>
       <section class="panel" aria-labelledby="history-title">
         <div class="panel-header">
-          <h2 id="history-title">Monthly transaction history</h2>
-          <p>Volume trend over recent months</p>
+          <h2 id="history-title">${escapeHtml(t('sme.monthlyHistory'))}</h2>
+          <p>${escapeHtml(t('sme.volumeTrend'))}</p>
         </div>
         ${chartSection}
       </section>
@@ -292,11 +355,119 @@ function renderSmeOverview(session, overview, historyPayload, { onLogout }) {
   document.getElementById('btn-export-overview')?.addEventListener('click', async () => {
     try {
       await api.exportSmeStatement();
-      showToast('E-statement download started.', 'success');
+      showToast(t('sme.statementStarted'), 'success');
     } catch (err) {
-      showToast(getErrorMessage(err, 'Export failed'), 'error');
+      showToast(getErrorMessage(err, t('sme.exportFailed')), 'error');
     }
   });
+}
+
+/* ─── Transaction form fields (create + edit) ──────────── */
+
+function recordTxFieldsHtml(prefix, row = null) {
+  const id = (name) => `${prefix}-${name}`;
+  const val = (key, fallback = '') => (row ? escapeHtml(String(row[key] ?? fallback)) : '');
+  const sel = (field, options) =>
+    options
+      .map(([v, label]) => {
+        const selected = row && String(row[field] || '').toLowerCase() === v ? ' selected' : '';
+        return `<option value="${v}"${selected}>${escapeHtml(label)}</option>`;
+      })
+      .join('');
+
+  return `
+    <div class="form-grid-2">
+      <div class="field">
+        <label for="${id('ref')}">${escapeHtml(t('sme.reference'))}</label>
+        <input id="${id('ref')}" name="transaction_ref" type="text" required value="${val('transaction_ref')}" />
+      </div>
+      <div class="field">
+        <label for="${id('cp-tin')}">${escapeHtml(t('sme.otherPartyTin'))}</label>
+        <input id="${id('cp-tin')}" name="counterparty_tin" type="text" required minlength="9" maxlength="20" value="${val('counterparty_tin')}" />
+        <p class="field-hint">${escapeHtml(t('sme.otherPartyTinHint'))}</p>
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="field">
+        <label for="${id('cp-name')}">${escapeHtml(t('sme.otherPartyName'))}</label>
+        <input id="${id('cp-name')}" name="counterparty_name" type="text" required value="${val('counterparty_name')}" />
+      </div>
+      <div class="field">
+        <label for="${id('cp-type')}">${escapeHtml(t('sme.partyType'))}</label>
+        <select id="${id('cp-type')}" name="counterparty_type" required>
+          <option value="">${escapeHtml(t('common.select'))}</option>
+          ${sel('counterparty_type', [
+            ['buyer', t('party.buyer')],
+            ['seller', t('party.seller')],
+          ])}
+        </select>
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="field">
+        <label for="${id('order-type')}">${escapeHtml(t('sme.orderType'))}</label>
+        <select id="${id('order-type')}" name="order_type" required>
+          <option value="">${escapeHtml(t('common.select'))}</option>
+          ${sel('order_type', [
+            ['sale', t('order.sale')],
+            ['purchase', t('order.purchase')],
+            ['service', t('order.service')],
+          ])}
+        </select>
+      </div>
+      <div class="field">
+        <label for="${id('amount')}">${escapeHtml(t('sme.amountTzs'))}</label>
+        <input id="${id('amount')}" name="amount_tzs" type="number" min="0" step="1" required value="${row ? escapeHtml(String(row.amount_tzs ?? row.amount ?? '')) : ''}" />
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="field">
+        <label for="${id('status')}">${escapeHtml(t('sme.paymentStatus'))}</label>
+        <select id="${id('status')}" name="payment_status" required>
+          <option value="">${escapeHtml(t('common.select'))}</option>
+          ${sel('payment_status', [
+            ['pending', t('payment.pending')],
+            ['paid', t('payment.paid')],
+            ['partial', t('payment.partial')],
+            ['overdue', t('payment.overdue')],
+            ['defaulted', t('payment.defaulted')],
+          ])}
+        </select>
+      </div>
+      <div class="field">
+        <label for="${id('date')}">${escapeHtml(t('sme.transactionDate'))}</label>
+        <input id="${id('date')}" name="transaction_date" type="date" required value="${row ? escapeHtml(toInputDate(row.transaction_date || row.date)) : ''}" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="${id('notes')}">${escapeHtml(t('sme.notes'))} <span class="optional">${escapeHtml(t('common.optional'))}</span></label>
+      <input id="${id('notes')}" name="notes" type="text" value="${val('notes')}" />
+    </div>
+  `;
+}
+
+function parseTxFormData(fd) {
+  return {
+    transaction_ref: String(fd.get('transaction_ref') || '').trim(),
+    counterparty_tin: String(fd.get('counterparty_tin') || '').trim().replace(/[^a-zA-Z0-9]/g, ''),
+    counterparty_name: String(fd.get('counterparty_name') || '').trim(),
+    counterparty_type: String(fd.get('counterparty_type') || ''),
+    order_type: String(fd.get('order_type') || ''),
+    amount_tzs: Number(fd.get('amount_tzs')),
+    payment_status: String(fd.get('payment_status') || ''),
+    transaction_date: toApiDateTime(fd.get('transaction_date')),
+    notes: String(fd.get('notes') || '').trim() || undefined,
+  };
+}
+
+function validateTxData(data) {
+  if (!data.transaction_ref || data.counterparty_tin.length < 9 || !(data.amount_tzs > 0) || !data.transaction_date) {
+    return t('sme.fillRequired');
+  }
+  if (!data.counterparty_name || !data.counterparty_type || !data.order_type || !data.payment_status) {
+    return t('sme.fillRequired');
+  }
+  return null;
 }
 
 /* ─── Transactions ─────────────────────────────────────── */
@@ -310,80 +481,42 @@ export async function loadSmeTransactions(session, { onLogout }) {
     mainHtml: `
       <div class="page-header">
         <div>
-          <h1>Transactions</h1>
-          <p class="page-lead">Record, filter and review your activity</p>
+          <h1>${escapeHtml(t('sme.txTitle'))}</h1>
+          <p class="page-lead">${escapeHtml(t('sme.txLead'))}</p>
         </div>
         <div class="page-actions">
-          <button type="button" class="btn btn-secondary" id="btn-toggle-record">Record Transaction</button>
-          <button type="button" class="btn btn-secondary" id="btn-export-tx">Export CSV</button>
+          <button type="button" class="btn btn-secondary" id="btn-toggle-record">${escapeHtml(t('sme.recordTx'))}</button>
+          <button type="button" class="btn btn-secondary" id="btn-export-tx">${escapeHtml(t('sme.exportCsv'))}</button>
         </div>
       </div>
 
       <section id="record-tx-section" class="panel record-tx-panel" hidden>
-        <div class="panel-header"><h3>Record a Transaction</h3></div>
+        <div class="panel-header"><h3>${escapeHtml(t('sme.recordPanelTitle'))}</h3></div>
         <form id="record-tx-form" class="auth-form" novalidate>
-          <div class="form-grid-2">
-            <div class="field"><label for="rtx-ref">Reference</label><input id="rtx-ref" name="transaction_ref" type="text" required /></div>
-            <div class="field"><label for="rtx-cp-name">Counterparty Name</label><input id="rtx-cp-name" name="counterparty_name" type="text" required /></div>
-          </div>
-          <div class="form-grid-2">
-            <div class="field"><label for="rtx-cp-type">Counterparty Type</label>
-              <select id="rtx-cp-type" name="counterparty_type" required>
-                <option value="">Select…</option>
-                <option value="supplier">Supplier</option>
-                <option value="buyer">Buyer</option>
-                <option value="distributor">Distributor</option>
-                <option value="logistics">Logistics</option>
-              </select>
-            </div>
-            <div class="field"><label for="rtx-order-type">Order Type</label>
-              <select id="rtx-order-type" name="order_type" required>
-                <option value="">Select…</option>
-                <option value="purchase">Purchase</option>
-                <option value="sale">Sale</option>
-                <option value="service">Service</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-grid-2">
-            <div class="field"><label for="rtx-amount">Amount (TZS)</label><input id="rtx-amount" name="amount_tzs" type="number" min="0" step="1" required /></div>
-            <div class="field"><label for="rtx-status">Payment Status</label>
-              <select id="rtx-status" name="payment_status" required>
-                <option value="">Select…</option>
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-                <option value="partial">Partial</option>
-                <option value="overdue">Overdue</option>
-                <option value="defaulted">Defaulted</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-grid-2">
-            <div class="field"><label for="rtx-due">Due Date</label><input id="rtx-due" name="due_date" type="date" required /></div>
-            <div class="field"><label for="rtx-paid">Paid Date <span class="optional">(optional)</span></label><input id="rtx-paid" name="paid_date" type="date" /></div>
-          </div>
-          <div class="form-grid-2">
-            <div class="field"><label for="rtx-date">Transaction Date</label><input id="rtx-date" name="transaction_date" type="date" required /></div>
-            <div class="field"><label for="rtx-notes">Notes <span class="optional">(optional)</span></label><input id="rtx-notes" name="notes" type="text" /></div>
-          </div>
+          ${recordTxFieldsHtml('rtx')}
           <div id="record-tx-error" class="form-error" hidden></div>
-          <button type="submit" class="btn btn-primary" id="record-tx-submit">Save Transaction</button>
+          <button type="submit" class="btn btn-primary" id="record-tx-submit">${escapeHtml(t('sme.saveTx'))}</button>
         </form>
       </section>
 
       <form id="tx-filters" class="filter-bar" aria-label="Filter transactions">
-        <div class="field"><label for="tx-from">From</label><input type="date" id="tx-from" name="from" /></div>
-        <div class="field"><label for="tx-to">To</label><input type="date" id="tx-to" name="to" /></div>
-        <div class="field"><label for="tx-type">Order type</label>
-          <select id="tx-type" name="type"><option value="">All</option><option value="sale">Sale</option><option value="purchase">Purchase</option><option value="service">Service</option></select>
+        <div class="field"><label for="tx-from">${escapeHtml(t('sme.from'))}</label><input type="date" id="tx-from" name="from" /></div>
+        <div class="field"><label for="tx-to">${escapeHtml(t('sme.to'))}</label><input type="date" id="tx-to" name="to" /></div>
+        <div class="field"><label for="tx-type">${escapeHtml(t('sme.orderType'))}</label>
+          <select id="tx-type" name="type">
+            <option value="">${escapeHtml(t('common.all'))}</option>
+            <option value="sale">${escapeHtml(t('order.sale'))}</option>
+            <option value="purchase">${escapeHtml(t('order.purchase'))}</option>
+            <option value="service">${escapeHtml(t('order.service'))}</option>
+          </select>
         </div>
-        <div class="field field-grow"><label for="tx-q">Search</label><input type="search" id="tx-q" name="q" placeholder="Description or reference" /></div>
+        <div class="field field-grow"><label for="tx-q">${escapeHtml(t('common.search'))}</label><input type="search" id="tx-q" name="q" placeholder="${escapeHtml(t('sme.searchPlaceholder'))}" /></div>
         <div class="filter-actions">
-          <button type="submit" class="btn btn-primary">Apply</button>
-          <button type="reset" class="btn btn-ghost">Reset</button>
+          <button type="submit" class="btn btn-primary">${escapeHtml(t('common.apply'))}</button>
+          <button type="reset" class="btn btn-ghost">${escapeHtml(t('common.reset'))}</button>
         </div>
       </form>
-      <div id="tx-table-host">${loadingBlock('Loading transactions…')}</div>
+      <div id="tx-table-host">${loadingBlock(t('sme.loadingTx'))}</div>
       <div id="tx-modal-host"></div>
     `,
   });
@@ -402,43 +535,36 @@ export async function loadSmeTransactions(session, { onLogout }) {
     e.preventDefault();
     const errEl = document.getElementById('record-tx-error');
     if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
-    const fd = new FormData(recordForm);
-    const data = {
-      transaction_ref: String(fd.get('transaction_ref') || '').trim(),
-      counterparty_name: String(fd.get('counterparty_name') || '').trim(),
-      counterparty_type: fd.get('counterparty_type'),
-      order_type: fd.get('order_type'),
-      amount_tzs: Number(fd.get('amount_tzs')),
-      payment_status: fd.get('payment_status'),
-      due_date: toApiDateTime(fd.get('due_date')),
-      paid_date: toApiDateTime(fd.get('paid_date')),
-      transaction_date: toApiDateTime(fd.get('transaction_date')),
-      notes: String(fd.get('notes') || '').trim() || undefined,
-    };
+    const data = parseTxFormData(new FormData(recordForm));
+    const validationError = validateTxData(data);
+    if (validationError) {
+      if (errEl) { errEl.hidden = false; errEl.textContent = validationError; }
+      return;
+    }
     showCreateConfirmModal(data, async () => {
       const btn = document.getElementById('record-tx-submit');
       btn.disabled = true;
-      btn.textContent = 'Saving…';
+      btn.textContent = t('sme.saving');
       try {
         await api.createTransaction(data);
-        showToast('Transaction recorded.', 'success');
+        showToast(t('sme.txRecorded'), 'success');
         recordForm.reset();
         recordSection.hidden = true;
         fetchAndRender();
       } catch (err) {
-        const msg = getErrorMessage(err, 'Failed to record transaction');
+        const msg = getErrorMessage(err, t('sme.failedRecord'));
         if (errEl) { errEl.hidden = false; errEl.textContent = msg; }
         showToast(msg, 'error');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Save Transaction';
+        btn.textContent = t('sme.saveTx');
       }
     });
   });
 
   async function fetchAndRender() {
     const fd = new FormData(form);
-    host.innerHTML = loadingBlock('Loading transactions…');
+    host.innerHTML = loadingBlock(t('sme.loadingTx'));
     try {
       const payload = await api.getSmeTransactions();
       let rows = normalizeListPayload(payload, ['transactions', 'items', 'data', 'results']);
@@ -454,7 +580,7 @@ export async function loadSmeTransactions(session, { onLogout }) {
         if (to && d && !Number.isNaN(d.getTime()) && d > new Date(`${to}T23:59:59`)) return false;
         if (type && String(row.order_type || '').toLowerCase() !== type) return false;
         if (q) {
-          const hay = `${row.transaction_ref || ''} ${row.notes || ''} ${row.counterparty_type || ''} ${row.counterparty_name || ''} ${row.order_type || ''}`.toLowerCase();
+          const hay = `${row.transaction_ref || ''} ${row.notes || ''} ${row.counterparty_tin || ''} ${row.counterparty_name || ''} ${row.order_type || ''}`.toLowerCase();
           if (!hay.includes(q)) return false;
         }
         return true;
@@ -462,7 +588,7 @@ export async function loadSmeTransactions(session, { onLogout }) {
       host.innerHTML = renderTxTable(rows);
       bindTxTableActions(rows, fetchAndRender);
     } catch (err) {
-      host.innerHTML = errorBlock('Could not load transactions', getErrorMessage(err), 'retry-tx');
+      host.innerHTML = errorBlock(t('sme.couldNotLoadTx'), getErrorMessage(err), 'retry-tx');
       document.getElementById('retry-tx')?.addEventListener('click', fetchAndRender);
     }
   }
@@ -480,9 +606,9 @@ export async function loadSmeTransactions(session, { onLogout }) {
         type: fd.get('type') || undefined,
         q: fd.get('q') || undefined,
       });
-      showToast('CSV export started.', 'success');
+      showToast(t('sme.csvExportStarted'), 'success');
     } catch (err) {
-      showToast(getErrorMessage(err, 'Export failed'), 'error');
+      showToast(getErrorMessage(err, t('sme.exportFailed')), 'error');
     }
   });
 
@@ -494,23 +620,22 @@ function showCreateConfirmModal(data, onConfirm) {
   host.innerHTML = `
     <div class="modal-backdrop" id="tx-confirm-backdrop">
       <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tx-confirm-title">
-        <h3 id="tx-confirm-title">Confirm transaction</h3>
-        <p>Please review the details before saving.</p>
+        <h3 id="tx-confirm-title">${escapeHtml(t('sme.confirmTitle'))}</h3>
+        <p>${escapeHtml(t('sme.confirmLead'))}</p>
         <ul class="confirm-summary">
-          <li><span class="confirm-summary-label">Reference</span><span>${escapeHtml(data.transaction_ref || '—')}</span></li>
-          <li><span class="confirm-summary-label">Counterparty</span><span>${escapeHtml(data.counterparty_name || '—')}</span></li>
-          <li><span class="confirm-summary-label">Counterparty type</span><span>${escapeHtml(capitalize(data.counterparty_type || '—'))}</span></li>
-          <li><span class="confirm-summary-label">Order type</span><span>${escapeHtml(capitalize(data.order_type || '—'))}</span></li>
-          <li><span class="confirm-summary-label">Amount (TZS)</span><span>${escapeHtml(formatTZS(data.amount_tzs))}</span></li>
-          <li><span class="confirm-summary-label">Payment status</span><span>${escapeHtml(capitalize(data.payment_status || '—'))}</span></li>
-          <li><span class="confirm-summary-label">Due date</span><span>${escapeHtml(formatDate(data.due_date))}</span></li>
-          <li><span class="confirm-summary-label">Paid date</span><span>${escapeHtml(data.paid_date ? formatDate(data.paid_date) : '—')}</span></li>
-          <li><span class="confirm-summary-label">Transaction date</span><span>${escapeHtml(formatDate(data.transaction_date))}</span></li>
-          ${data.notes ? `<li><span class="confirm-summary-label">Notes</span><span>${escapeHtml(data.notes)}</span></li>` : ''}
+          <li><span class="confirm-summary-label">${escapeHtml(t('sme.reference'))}</span><span>${escapeHtml(data.transaction_ref || '—')}</span></li>
+          <li><span class="confirm-summary-label">${escapeHtml(t('sme.otherPartyName'))}</span><span>${escapeHtml(data.counterparty_name || '—')}</span></li>
+          <li><span class="confirm-summary-label">${escapeHtml(t('sme.otherPartyTin'))}</span><span>${escapeHtml(data.counterparty_tin || '—')}</span></li>
+          <li><span class="confirm-summary-label">${escapeHtml(t('sme.partyType'))}</span><span>${escapeHtml(partyLabel(data.counterparty_type))}</span></li>
+          <li><span class="confirm-summary-label">${escapeHtml(t('sme.orderType'))}</span><span>${escapeHtml(orderLabel(data.order_type))}</span></li>
+          <li><span class="confirm-summary-label">${escapeHtml(t('sme.amountTzs'))}</span><span>${escapeHtml(formatTZS(data.amount_tzs))}</span></li>
+          <li><span class="confirm-summary-label">${escapeHtml(t('sme.paymentStatus'))}</span><span>${escapeHtml(paymentLabel(data.payment_status))}</span></li>
+          <li><span class="confirm-summary-label">${escapeHtml(t('sme.transactionDate'))}</span><span>${escapeHtml(formatDate(data.transaction_date))}</span></li>
+          ${data.notes ? `<li><span class="confirm-summary-label">${escapeHtml(t('sme.notes'))}</span><span>${escapeHtml(data.notes)}</span></li>` : ''}
         </ul>
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" id="tx-confirm-cancel">Cancel / Edit</button>
-          <button type="button" class="btn btn-primary" id="tx-confirm-save">Confirm &amp; Save</button>
+          <button type="button" class="btn btn-ghost" id="tx-confirm-cancel">${escapeHtml(t('sme.cancelEdit'))}</button>
+          <button type="button" class="btn btn-primary" id="tx-confirm-save">${escapeHtml(t('sme.confirmSave'))}</button>
         </div>
       </div>
     </div>
@@ -551,11 +676,11 @@ function showDeleteTxConfirm(id, ref, refresh) {
   host.innerHTML = `
     <div class="modal-backdrop" id="tx-delete-backdrop">
       <div class="modal-dialog" role="dialog" aria-modal="true">
-        <h3>Delete transaction?</h3>
-        <p>Delete reference <strong>${escapeHtml(ref)}</strong>? This cannot be undone.</p>
+        <h3>${escapeHtml(t('sme.deleteTitle'))}</h3>
+        <p>${escapeHtml(t('sme.deleteConfirm', { ref }))}</p>
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" id="tx-delete-cancel">Cancel</button>
-          <button type="button" class="btn btn-danger" id="tx-delete-confirm">Delete</button>
+          <button type="button" class="btn btn-ghost" id="tx-delete-cancel">${escapeHtml(t('common.cancel'))}</button>
+          <button type="button" class="btn btn-danger" id="tx-delete-confirm">${escapeHtml(t('common.delete'))}</button>
         </div>
       </div>
     </div>
@@ -566,15 +691,15 @@ function showDeleteTxConfirm(id, ref, refresh) {
   });
   document.getElementById('tx-delete-confirm')?.addEventListener('click', async () => {
     const btn = document.getElementById('tx-delete-confirm');
-    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+    if (btn) { btn.disabled = true; btn.textContent = t('sme.deleting'); }
     try {
       await api.deleteTransaction(id);
       closeTxModal();
-      showToast('Transaction deleted.', 'success');
+      showToast(t('sme.txDeleted'), 'success');
       await refresh();
     } catch (err) {
-      if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
-      showToast(getErrorMessage(err, 'Delete failed'), 'error');
+      if (btn) { btn.disabled = false; btn.textContent = t('common.delete'); }
+      showToast(getErrorMessage(err, t('sme.deleteFailed')), 'error');
     }
   });
 }
@@ -584,54 +709,13 @@ function openEditTxModal(row, refresh) {
   host.innerHTML = `
     <div class="modal-backdrop" id="tx-edit-backdrop">
       <div class="modal-dialog profile-modal-wide" role="dialog" aria-modal="true" aria-labelledby="tx-edit-title">
-        <h3 id="tx-edit-title">Edit transaction</h3>
+        <h3 id="tx-edit-title">${escapeHtml(t('sme.editTitle'))}</h3>
         <form id="edit-tx-form" class="auth-form" novalidate>
-          <div class="form-grid-2">
-            <div class="field"><label for="etx-ref">Reference</label><input id="etx-ref" name="transaction_ref" type="text" required value="${escapeHtml(row.transaction_ref || '')}" /></div>
-            <div class="field"><label for="etx-cp-hash">Counterparty hash</label><input id="etx-cp-hash" type="text" readonly value="${escapeHtml(truncateHash(row.counterparty_hash))}" title="${escapeHtml(row.counterparty_hash || '')}" /></div>
-          </div>
-          <div class="field">
-            <label for="etx-cp-name">New counterparty name <span class="optional">(leave blank to keep)</span></label>
-            <input id="etx-cp-name" name="counterparty_name" type="text" />
-          </div>
-          <div class="form-grid-2">
-            <div class="field"><label for="etx-cp-type">Counterparty type</label>
-              <select id="etx-cp-type" name="counterparty_type" required>
-                ${['supplier', 'buyer', 'distributor', 'logistics'].map((v) =>
-                  `<option value="${v}"${String(row.counterparty_type || '').toLowerCase() === v ? ' selected' : ''}>${capitalize(v)}</option>`
-                ).join('')}
-              </select>
-            </div>
-            <div class="field"><label for="etx-order-type">Order type</label>
-              <select id="etx-order-type" name="order_type" required>
-                ${['purchase', 'sale', 'service'].map((v) =>
-                  `<option value="${v}"${String(row.order_type || '').toLowerCase() === v ? ' selected' : ''}>${capitalize(v)}</option>`
-                ).join('')}
-              </select>
-            </div>
-          </div>
-          <div class="form-grid-2">
-            <div class="field"><label for="etx-amount">Amount (TZS)</label><input id="etx-amount" name="amount_tzs" type="number" min="0" step="1" required value="${escapeHtml(String(row.amount_tzs ?? row.amount ?? ''))}" /></div>
-            <div class="field"><label for="etx-status">Payment status</label>
-              <select id="etx-status" name="payment_status" required>
-                ${['pending', 'paid', 'partial', 'overdue', 'defaulted'].map((v) =>
-                  `<option value="${v}"${String(row.payment_status || row.status || '').toLowerCase() === v ? ' selected' : ''}>${capitalize(v)}</option>`
-                ).join('')}
-              </select>
-            </div>
-          </div>
-          <div class="form-grid-2">
-            <div class="field"><label for="etx-due">Due date</label><input id="etx-due" name="due_date" type="date" required value="${escapeHtml(toInputDate(row.due_date))}" /></div>
-            <div class="field"><label for="etx-paid">Paid date <span class="optional">(optional)</span></label><input id="etx-paid" name="paid_date" type="date" value="${escapeHtml(toInputDate(row.paid_date))}" /></div>
-          </div>
-          <div class="form-grid-2">
-            <div class="field"><label for="etx-date">Transaction date</label><input id="etx-date" name="transaction_date" type="date" required value="${escapeHtml(toInputDate(row.transaction_date || row.date))}" /></div>
-            <div class="field"><label for="etx-notes">Notes <span class="optional">(optional)</span></label><input id="etx-notes" name="notes" type="text" value="${escapeHtml(row.notes || '')}" /></div>
-          </div>
+          ${recordTxFieldsHtml('etx', row)}
           <div id="edit-tx-error" class="form-error" hidden></div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-ghost" id="etx-cancel">Cancel</button>
-            <button type="submit" class="btn btn-primary" id="etx-save">Save changes</button>
+            <button type="button" class="btn btn-ghost" id="etx-cancel">${escapeHtml(t('common.cancel'))}</button>
+            <button type="submit" class="btn btn-primary" id="etx-save">${escapeHtml(t('sme.saveChanges'))}</button>
           </div>
         </form>
       </div>
@@ -649,80 +733,66 @@ function openEditTxModal(row, refresh) {
     const saveBtn = document.getElementById('etx-save');
     if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
 
-    const fd = new FormData(e.target);
-    const data = {
-      transaction_ref: String(fd.get('transaction_ref') || '').trim(),
-      counterparty_type: fd.get('counterparty_type'),
-      order_type: fd.get('order_type'),
-      amount_tzs: Number(fd.get('amount_tzs')),
-      payment_status: fd.get('payment_status'),
-      due_date: toApiDateTime(fd.get('due_date')),
-      paid_date: toApiDateTime(fd.get('paid_date')) || null,
-      transaction_date: toApiDateTime(fd.get('transaction_date')),
-      notes: String(fd.get('notes') || '').trim() || null,
-    };
-    const cpName = String(fd.get('counterparty_name') || '').trim();
-    if (cpName) data.counterparty_name = cpName;
-
-    if (!data.transaction_ref || !data.due_date || !data.transaction_date || !(data.amount_tzs > 0)) {
-      const msg = 'Please fill reference, amount, due date, and transaction date.';
-      if (errEl) { errEl.hidden = false; errEl.textContent = msg; }
+    const data = parseTxFormData(new FormData(e.target));
+    const validationError = validateTxData(data);
+    if (validationError) {
+      if (errEl) { errEl.hidden = false; errEl.textContent = validationError; }
       return;
     }
 
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
+    saveBtn.textContent = t('sme.saving');
     try {
       await api.updateTransaction(row.id, data);
-      showToast('Transaction updated.', 'success');
+      showToast(t('sme.txUpdated'), 'success');
       closeTxModal();
       await refresh();
     } catch (err) {
-      const msg = getErrorMessage(err, 'Update failed');
+      const msg = getErrorMessage(err, t('sme.updateFailed'));
       if (errEl) { errEl.hidden = false; errEl.textContent = msg; }
       showToast(msg, 'error');
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save changes';
+      saveBtn.textContent = t('sme.saveChanges');
     }
   });
 }
 
 function renderTxTable(rows) {
-  if (!rows.length) return emptyBlock('No transactions found', 'Adjust filters or upload a CSV statement.');
+  if (!rows.length) return emptyBlock(t('sme.noTx'), t('sme.adjustFilters'));
   return `
     <div class="table-wrap" role="region" aria-label="Transaction table" tabindex="0">
       <table class="data-table">
         <thead>
           <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Counterparty</th>
-            <th scope="col">Order type</th>
-            <th scope="col">Amount (TZS)</th>
-            <th scope="col">Status</th>
-            <th scope="col">Reference</th>
-            <th scope="col">Actions</th>
+            <th scope="col">${escapeHtml(t('sme.colDate'))}</th>
+            <th scope="col">${escapeHtml(t('sme.colName'))}</th>
+            <th scope="col">${escapeHtml(t('sme.colTin'))}</th>
+            <th scope="col">${escapeHtml(t('sme.colAmount'))}</th>
+            <th scope="col">${escapeHtml(t('sme.colStatus'))}</th>
+            <th scope="col">${escapeHtml(t('common.edit'))} / ${escapeHtml(t('common.delete'))}</th>
           </tr>
         </thead>
         <tbody>
           ${rows
             .map((row) => {
-              const type = String(row.order_type || row.type || row.transaction_type || '').toLowerCase();
               const amount = row.amount_tzs ?? row.amount ?? row.value ?? 0;
               const status = row.payment_status || row.status || '—';
               const txId = row.id;
               const ref = row.transaction_ref || row.reference || row.ref || txId || '—';
+              const outlier = row.is_outlier
+                ? ` <span class="outlier-badge" title="${escapeHtml(t('sme.outlierBadge'))}">${escapeHtml(t('sme.outlierBadge'))}</span>`
+                : '';
               return `
-                <tr>
+                <tr class="${row.is_outlier ? 'is-outlier' : ''}">
                   <td>${escapeHtml(formatDate(row.date || row.transaction_date || row.posted_at))}</td>
-                  <td>${escapeHtml(row.counterparty_name || truncateHash(row.counterparty_hash) || row.counterparty_type || row.description || '—')}</td>
-                  <td><span class="type-pill type-${escapeHtml(type || 'unknown')}">${escapeHtml(capitalize(type || '—'))}</span></td>
+                  <td>${escapeHtml(row.counterparty_name || '—')}${outlier}</td>
+                  <td>${escapeHtml(row.counterparty_tin || '—')}</td>
                   <td class="num">${escapeHtml(formatTZS(amount))}</td>
-                  <td>${escapeHtml(capitalize(String(status)))}</td>
-                  <td>${escapeHtml(ref)}</td>
+                  <td>${escapeHtml(paymentLabel(status))}</td>
                   <td class="action-cell table-actions">
-                    <button type="button" class="btn btn-ghost btn-sm" data-tx-edit="${escapeHtml(txId)}" aria-label="Edit transaction">Edit</button>
-                    <button type="button" class="btn btn-danger btn-sm" data-tx-delete="${escapeHtml(txId)}" data-tx-ref="${escapeHtml(ref)}" aria-label="Delete transaction">Delete</button>
+                    <button type="button" class="btn btn-ghost btn-sm" data-tx-edit="${escapeHtml(txId)}" aria-label="${escapeHtml(t('common.edit'))}">${escapeHtml(t('common.edit'))}</button>
+                    <button type="button" class="btn btn-danger btn-sm" data-tx-delete="${escapeHtml(txId)}" data-tx-ref="${escapeHtml(ref)}" aria-label="${escapeHtml(t('common.delete'))}">${escapeHtml(t('common.delete'))}</button>
                   </td>
                 </tr>`;
             })
@@ -744,49 +814,49 @@ export function loadSmeUpload(session, { onLogout }) {
     mainHtml: `
       <div class="page-header">
         <div>
-          <h1>Upload CSV statement</h1>
-          <p class="page-lead">Import bank transactions to update your credit profile</p>
+          <h1>${escapeHtml(t('sme.uploadTitle'))}</h1>
+          <p class="page-lead">${escapeHtml(t('sme.uploadLead'))}</p>
         </div>
       </div>
       <div class="upload-layout">
         <section class="panel upload-panel" aria-labelledby="upload-title">
-          <h2 id="upload-title">Select file</h2>
+          <h2 id="upload-title">${escapeHtml(t('sme.selectFile'))}</h2>
           <p class="help-text">
-            Accepted format: CSV. Required columns:
-            <code>transaction_ref</code>, <code>counterparty_name</code>, <code>counterparty_type</code>,
-            <code>order_type</code>, <code>amount_tzs</code>, <code>payment_status</code>,
-            <code>due_date</code>, <code>transaction_date</code>.
+            ${escapeHtml(t('sme.acceptedFormat'))}
+            <code>transaction_ref</code>, <code>counterparty_tin</code>, <code>counterparty_name</code>,
+            <code>counterparty_type</code>, <code>order_type</code>, <code>amount_tzs</code>,
+            <code>payment_status</code>, <code>transaction_date</code>.
           </p>
           <div class="upload-actions">
-            <button type="button" class="btn btn-secondary" id="btn-template">Download template</button>
-            <button type="button" class="btn btn-ghost" id="btn-help" aria-expanded="false" aria-controls="upload-help">Formatting help</button>
+            <button type="button" class="btn btn-secondary" id="btn-template">${escapeHtml(t('sme.downloadTemplate'))}</button>
+            <button type="button" class="btn btn-ghost" id="btn-help" aria-expanded="false" aria-controls="upload-help">${escapeHtml(t('sme.formattingHelp'))}</button>
           </div>
           <div id="upload-help" class="help-panel" hidden>
-            <h3>CSV guidelines</h3>
+            <h3>${escapeHtml(t('sme.csvGuidelines'))}</h3>
             <ul>
-              <li>Use UTF-8 encoding with a header row.</li>
-              <li>Dates as ISO timestamps, e.g. <code>2025-01-15</code>.</li>
-              <li>Amounts as positive numbers in TZS (no currency symbols).</li>
-              <li><code>payment_status</code> one of: <code>pending</code>, <code>paid</code>, <code>partial</code>, <code>overdue</code>, <code>defaulted</code>.</li>
-              <li>One supply-chain transaction per row.</li>
+              <li>${escapeHtml(t('sme.csvUtf8'))}</li>
+              <li>${escapeHtml(t('sme.csvDates'))}</li>
+              <li>${escapeHtml(t('sme.csvAmounts'))}</li>
+              <li>${escapeHtml(t('sme.csvStatus'))}</li>
+              <li>${escapeHtml(t('sme.csvOneRow'))}</li>
             </ul>
           </div>
           <form id="upload-form" class="upload-form">
             <label class="file-drop" for="csv-file">
               <input type="file" id="csv-file" name="file" accept=".csv,text/csv" required />
-              <span class="file-drop-label"><strong>Choose a CSV file</strong><span>or drag and drop here</span></span>
+              <span class="file-drop-label"><strong>${escapeHtml(t('sme.chooseCsv'))}</strong><span>${escapeHtml(t('sme.orDrag'))}</span></span>
               <span id="file-name" class="file-name"></span>
             </label>
             <div id="upload-feedback" class="form-error" role="alert" hidden></div>
-            <button type="submit" class="btn btn-primary" id="btn-upload">Upload &amp; process</button>
+            <button type="submit" class="btn btn-primary" id="btn-upload">${escapeHtml(t('sme.uploadProcess'))}</button>
           </form>
         </section>
         <aside class="panel tip-panel">
-          <h2>Before you upload</h2>
+          <h2>${escapeHtml(t('sme.beforeUpload'))}</h2>
           <ol>
-            <li>Download the template to match column names.</li>
-            <li>Export your e-statement from your bank if available.</li>
-            <li>After 5+ transactions, your credit score unlocks on Overview.</li>
+            <li>${escapeHtml(t('sme.tip1'))}</li>
+            <li>${escapeHtml(t('sme.tip2'))}</li>
+            <li>${escapeHtml(t('sme.tip3'))}</li>
           </ol>
         </aside>
       </div>
@@ -812,9 +882,9 @@ export function loadSmeUpload(session, { onLogout }) {
   document.getElementById('btn-template')?.addEventListener('click', async () => {
     try {
       await api.downloadSmeCsvTemplate();
-      showToast('Template download started.', 'success');
+      showToast(t('sme.templateStarted'), 'success');
     } catch (err) {
-      showToast(getErrorMessage(err, 'Could not download template'), 'error');
+      showToast(getErrorMessage(err, t('sme.templateFailed')), 'error');
     }
   });
 
@@ -843,32 +913,32 @@ export function loadSmeUpload(session, { onLogout }) {
     if (feedback) { feedback.hidden = true; feedback.textContent = ''; feedback.className = 'form-error'; }
     const file = fileInput?.files?.[0];
     if (!file) {
-      if (feedback) { feedback.hidden = false; feedback.textContent = 'Please choose a CSV file.'; }
+      if (feedback) { feedback.hidden = false; feedback.textContent = t('sme.pleaseChooseCsv'); }
       return;
     }
     if (!/\.csv$/i.test(file.name) && file.type && !file.type.includes('csv')) {
-      if (feedback) { feedback.hidden = false; feedback.textContent = 'File must be a CSV.'; }
+      if (feedback) { feedback.hidden = false; feedback.textContent = t('sme.mustBeCsv'); }
       return;
     }
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading…';
+    submitBtn.textContent = t('sme.uploading');
     try {
       const result = await api.uploadSmeCsv(file);
       const imported = result?.imported ?? result?.rows_imported ?? result?.count ?? result?.created ?? null;
       const msg = imported != null
-        ? `Upload successful — ${formatNumber(imported, 0)} transactions processed.`
-        : result?.message || 'Upload successful.';
+        ? t('sme.uploadOk', { count: formatNumber(imported, 0) })
+        : result?.message || t('sme.uploadOkGeneric');
       if (feedback) { feedback.hidden = false; feedback.className = 'form-success'; feedback.textContent = msg; }
       showToast(msg, 'success');
       form.reset();
       if (fileName) fileName.textContent = '';
     } catch (err) {
-      const msg = getErrorMessage(err, 'Upload failed');
+      const msg = getErrorMessage(err, t('sme.uploadFailed'));
       if (feedback) { feedback.hidden = false; feedback.className = 'form-error'; feedback.textContent = msg; }
       showToast(msg, 'error');
     } finally {
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Upload & process';
+      submitBtn.textContent = t('sme.uploadProcess');
     }
   });
 }

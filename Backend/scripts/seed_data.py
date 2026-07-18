@@ -33,6 +33,7 @@ SME_SPECS = [
         "+255712345001",
         "Dar es Salaam, Kinondoni",
         date(1990, 1, 1),
+        "100123456",
     ),
     (
         "19850515987654321098",
@@ -41,6 +42,7 @@ SME_SPECS = [
         "+255712345002",
         "Arusha, Central Market",
         date(1985, 5, 15),
+        "100234567",
     ),
     (
         "19951231456789012345",
@@ -49,6 +51,7 @@ SME_SPECS = [
         "+255712345003",
         "Mwanza, Nyamagana",
         date(1995, 12, 31),
+        "100345678",
     ),
 ]
 
@@ -119,7 +122,7 @@ def seed():
         rng = random.Random(42)
         now = datetime.now(timezone.utc)
 
-        for nida, full_name, business_type, phone, location, dob in SME_SPECS:
+        for nida, full_name, business_type, phone, location, dob, tin in SME_SPECS:
             user = User(
                 login_id=nida,
                 hashed_pin=hash_pin("1234"),
@@ -139,6 +142,7 @@ def seed():
                 nationality="Tanzanian",
                 date_of_birth=dob,
                 business_type=business_type,
+                tin=tin,
                 display_token=generate_display_token(),
             )
             db.add(profile)
@@ -150,13 +154,17 @@ def seed():
                 due_date = tx_date + timedelta(days=rng.randint(7, 30))
                 paid_date = due_date - timedelta(days=rng.randint(0, 5))
                 days_delayed = max(0, (paid_date - due_date).days)
-                amount = rng.randint(500_000, 5_000_000)
+                # Typical SME deals stay under ~1M; rare large deals become outliers
+                amount = rng.randint(80_000, 900_000) if i < 11 else rng.randint(4_000_000, 8_000_000)
+                cp_tin = f"200{rng.randint(100000, 999999)}"
 
                 db.add(
                     Transaction(
                         sme_profile_id=profile.id,
                         transaction_ref=f"TX-{nida[-4:]}-{i + 1:03d}",
-                        counterparty_hash=pseudonymize(cp_name, "counterparty"),
+                        counterparty_hash=pseudonymize(cp_tin, "counterparty"),
+                        counterparty_tin=cp_tin,
+                        counterparty_name=cp_name,
                         counterparty_type=cp_type,
                         order_type=rng.choice(["sale", "purchase", "service"]),
                         amount_tzs=float(amount),

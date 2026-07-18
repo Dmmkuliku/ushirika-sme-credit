@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -16,6 +18,7 @@ from app.schemas.transaction import (
 from app.services.credit_scoring import score_sme
 from app.services.csv_export import export_estatement_csv
 from app.services.csv_import import REQUIRED_COLUMNS, OPTIONAL_COLUMNS, import_transactions_csv
+from app.services.ml_training import retrain_after_sme_data_change
 from app.services.monthly_history import refresh_monthly_history
 from app.utils.pseudonymization import pseudonymize
 
@@ -29,13 +32,19 @@ def _get_sme_profile(db: Session, user_id: int) -> SMEProfile:
     return profile
 
 
-def _maybe_rescore(db: Session, user, profile_id: int) -> None:
+def _maybe_rescore_and_retrain(db: Session, user, profile_id: int) -> dict | None:
     tx_count = db.query(Transaction).filter(Transaction.sme_profile_id == profile_id).count()
+    train_result = None
     if tx_count >= get_settings().min_transactions_for_score:
+        try:
+            train_result = retrain_after_sme_data_change(db)
+        except Exception:
+            train_result = None
         try:
             score_sme(db, user, force_refresh=True)
         except Exception:
             pass
+    return train_result
 
 
 def _coerce_payment_status(value) -> PaymentStatus:
@@ -62,17 +71,24 @@ def create_transaction(
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Transaction ref already exists")
 
+    due = payload.due_date or (payload.transaction_date + timedelta(days=14))
+    paid = payload.paid_date
+    if payload.payment_status == PaymentStatus.PAID and paid is None:
+        paid = payload.transaction_date
+
     tx = Transaction(
         sme_profile_id=profile.id,
         transaction_ref=payload.transaction_ref,
-        counterparty_hash=pseudonymize(payload.counterparty_name, "counterparty"),
+        counterparty_hash=pseudonymize(payload.counterparty_tin or payload.counterparty_name, "counterparty"),
+        counterparty_tin=payload.counterparty_tin,
+        counterparty_name=payload.counterparty_name,
         counterparty_type=payload.counterparty_type,
         order_type=payload.order_type,
         amount_tzs=payload.amount_tzs,
         currency=payload.currency,
         payment_status=_coerce_payment_status(payload.payment_status),
-        due_date=payload.due_date,
-        paid_date=payload.paid_date,
+        due_date=due,
+        paid_date=paid,
         days_delayed=payload.days_delayed,
         compliance_flag=payload.compliance_flag,
         default_flag=payload.default_flag,
@@ -84,7 +100,7 @@ def create_transaction(
     db.commit()
     db.refresh(tx)
     refresh_monthly_history(db, profile.id)
-    _maybe_rescore(db, current_user, profile.id)
+    _maybe_rescore_and_retrain(db, current_user, profile.id)
     return tx
 
 
@@ -111,21 +127,30 @@ async def import_csv(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File must be a CSV")
     result = await import_transactions_csv(db, current_user, file)
     profile = db.query(SMEProfile).filter(SMEProfile.user_id == current_user.id).first()
+    model_version = None
+    retrained = False
     if profile and result["imported"] > 0:
         refresh_monthly_history(db, profile.id)
-        _maybe_rescore(db, current_user, profile.id)
-    return result
+        train_result = _maybe_rescore_and_retrain(db, current_user, profile.id)
+        if train_result:
+            retrained = True
+            model_version = train_result.get("version")
+    return {
+        **result,
+        "model_retrained": retrained,
+        "model_version": model_version,
+    }
 
 
 @router.get("/template")
 def download_template(current_user: RequireSME):
     header = ",".join(REQUIRED_COLUMNS + OPTIONAL_COLUMNS)
     sample_rows = [
-        "TX-1001,Dar Fresh Foods,buyer,sale,2500000,paid,2025-01-15,2025-01-10,TZS,2025-01-14,0,true,false,1.0,On-time settlement",
-        "TX-1002,Kilimo Supplies,supplier,purchase,1800000,paid,2025-02-01,2025-01-20,TZS,2025-01-30,0,true,false,1.0,Inventory restock",
-        "TX-1003,Mwanza Distributors,distributor,sale,3200000,partial,2025-02-20,2025-02-05,TZS,2025-02-25,5,true,false,0.8,Partial payment received",
-        "TX-1004,Arusha Traders,buyer,sale,1500000,overdue,2025-03-01,2025-02-10,TZS,,12,false,false,0.6,Awaiting balance",
-        "TX-1005,Coastal Logistics,supplier,purchase,2100000,paid,2025-03-15,2025-03-01,TZS,2025-03-12,0,true,false,1.0,Logistics services",
+        "TX-1001,100-123-456,Dar Fresh Foods,buyer,sale,250000,paid,2025-01-10,On-time settlement",
+        "TX-1002,100-234-567,Kilimo Supplies,seller,purchase,180000,paid,2025-01-20,Inventory restock",
+        "TX-1003,100-345-678,Mwanza Distributors,buyer,sale,320000,partial,2025-02-05,Partial payment",
+        "TX-1004,100-456-789,Arusha Traders,buyer,sale,150000,pending,2025-02-10,Awaiting balance",
+        "TX-1005,100-567-890,Coastal Logistics,seller,purchase,210000,paid,2025-03-01,Logistics services",
     ]
     content = header + "\n" + "\n".join(sample_rows) + "\n"
     return StreamingResponse(
@@ -162,10 +187,11 @@ def update_transaction(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
 
     data = payload.model_dump(exclude_unset=True)
-    if "counterparty_name" in data:
-        name = data.pop("counterparty_name")
-        if name:
-            tx.counterparty_hash = pseudonymize(name, "counterparty")
+    if "counterparty_name" in data or "counterparty_tin" in data:
+        tin = data.get("counterparty_tin", tx.counterparty_tin)
+        name = data.get("counterparty_name", tx.counterparty_name)
+        if tin or name:
+            tx.counterparty_hash = pseudonymize(tin or name, "counterparty")
     if "transaction_ref" in data and data["transaction_ref"] is not None:
         new_ref = data["transaction_ref"]
         clash = (
@@ -188,7 +214,7 @@ def update_transaction(
     db.commit()
     db.refresh(tx)
     refresh_monthly_history(db, profile.id)
-    _maybe_rescore(db, current_user, profile.id)
+    _maybe_rescore_and_retrain(db, current_user, profile.id)
     return tx
 
 
@@ -205,5 +231,5 @@ def delete_transaction(transaction_id: int, current_user: RequireSME, db: Sessio
     db.delete(tx)
     db.commit()
     refresh_monthly_history(db, profile.id)
-    _maybe_rescore(db, current_user, profile.id)
+    _maybe_rescore_and_retrain(db, current_user, profile.id)
     return Response(status_code=204)

@@ -1,124 +1,107 @@
 # Technical Performance Report
 
-## SME Credit Risk ML Pipeline
+## SME Credit Risk ML Pipeline (Ushirika v1.2)
 
-**Date:** Generated at training time  
-**Environment:** Local prototype (SQLite, no external services)  
-**Random seed:** 42 (reproducible)
-
----
-
-## 1. Objectives coverage
-
-| Project objective | How the system fulfills it |
-|-------------------|----------------------------|
-| **General:** Automated, data-driven ecosystem banking for inclusive SME credit risk in Tanzania | End-to-end FastAPI + ML backend and Vite dashboard: SMEs ingest supply-chain transactions; Random Forest produces credit scores and eligible financing; lenders review portfolios by NIDA. |
-| **SO1:** Robust preprocessing & feature engineering from raw supply-chain data | `feature_engineering.compute_features()` cleans transaction histories into predictive variables (payment consistency, delays, turnover, frequency, defaults, compliance, counterparty diversity, volume trend, on-time rate, **avg transaction interval days**). Missing/edge cases use safe defaults; counterparties are HMAC-pseudonymized. |
-| **SO2:** Compare ensemble ML vs classical regression | `ml_training.train_models()` trains **Random Forest** (ensemble) and **Logistic Regression** (baseline) on the same 80/20 stratified hold-out with 5-fold GridSearchCV; reports which model wins on ROC-AUC. |
-| **SO3:** Industry-standard metrics for objective scoring | Hold-out Accuracy, Precision, Recall, F1, ROC-AUC stored in `models/model_meta.json` and `model_metrics` table. Runtime scores map model probability → credit score with financing capped at **75% of total transaction volume**. |
+**Environment:** FastAPI + SQLite/Postgres-ready, Random Forest primary, Logistic Regression baseline  
+**Random seed:** 42 (reproducible synthetic bootstrap)
 
 ---
 
-## 2. Dataset
+## 1. How real machine learning works in this system
 
-Synthetic bootstrap data (`n=1200`) via `generate_synthetic_training_data()` in `app/services/ml_training.py`.
+1. **Feature engineering** — Each SME’s supply-chain transactions are turned into numeric features (payment reliability, delays, typical volume, partner diversity, days between deals, etc.).
+2. **Training** — Two classifiers are fit with GridSearchCV on an 80/20 stratified hold-out:
+   - **Random Forest** (ensemble, primary)
+   - **Logistic Regression** (linear baseline)
+3. **Live data loop** — When an SME records or uploads transactions and has at least 5 deals, the backend:
+   - rebuilds features for all eligible SMEs from the database,
+   - **mixes those real rows into training** (upsampled) with synthetic bootstrap data,
+   - re-saves `.joblib` models + `models/model_meta.json`,
+   - reloads the in-memory predictor,
+   - runs a fresh **prediction** (credit score + risk band + eligible financing).
+4. **Explainability** — Score components are shown with **plain-language labels** (not programmer variable names).
 
-### Feature set (13 dimensions)
+This is real sklearn training and inference — not a hard-coded score table.
 
-| Feature | Description |
-|---------|-------------|
-| payment_consistency | Mean completion rate on paid/partial transactions |
-| payment_delay_avg | Average days delayed |
-| payment_delay_max | Maximum delay observed |
-| turnover_tzs | Total transaction volume (TZS) |
+---
+
+## 2. Objectives coverage
+
+| Objective | How the system fulfills it |
+|-----------|----------------------------|
+| Data-driven SME credit for Tanzania | End-to-end portal: SME transactions → ML score → lender portfolio |
+| Preprocessing & features | `compute_features()` + outlier flags |
+| Ensemble vs classical ML | RF vs LR on same split; ROC-AUC decides honesty of “RF wins” |
+| Realistic lending amounts | Financing capped by **typical (non-outlier) volume**, not one-off giant deals |
+
+---
+
+## 3. Outliers and realistic financing
+
+- **Outlier detection:** IQR rule on transaction amounts (high-side). Marked on each transaction (`is_outlier`).
+- **Financing caps:** Eligible amount = min(score-based amount, 75% of typical volume, ~8× median typical deal).
+- **Concept:** An SME whose usual deals are under TZS 1M should not be offered tens of millions just because of one unusual invoice.
+
+---
+
+## 4. Feature set (internal keys → user labels)
+
+| Internal key | Shown to users as |
+|--------------|-------------------|
+| payment_consistency | Payment reliability |
+| payment_delay_avg | Average payment delay (days) |
+| payment_delay_max | Longest payment delay (days) |
+| turnover_tzs | Total business volume (TZS) |
 | transaction_frequency | Transactions per month |
-| completion_rate_avg | Mean order completion rate |
-| default_rate | Fraction of defaulted transactions |
-| compliance_rate | Fraction compliant |
-| account_age_months | Months derived from profile age |
-| counterparty_diversity | Unique counterparties / total transactions |
-| volume_trend | Normalized slope of monthly volume |
-| on_time_rate | Fraction paid within 3 days of due date |
-| avg_transaction_interval_days | Mean days between consecutive transactions (higher → higher risk) |
+| completion_rate_avg | Average order completion |
+| default_rate | Default rate |
+| compliance_rate | Compliance rate |
+| account_age_months | Account age (months) |
+| counterparty_diversity | Business partner diversity |
+| volume_trend | Sales volume trend |
+| on_time_rate | On-time payment rate |
+| avg_transaction_interval_days | Average days between transactions |
 
-### Label generation
-
-Labels use **segment-dependent non-linear rules** (established / emerging / resilient / short-interval regimes). A linear model cannot capture these interactions as well as trees — so Random Forest has a legitimate edge without fabricating metrics. Small label noise (~2.5%) avoids unrealistically perfect classifiers.
+Extra display metrics: unusual large transactions count, typical volume excluding outliers.
 
 ---
 
-## 3. Methodology
+## 5. Measured performance (example seed=42)
 
-| Step | Configuration |
-|------|---------------|
-| Train/test split | 80/20, stratified, `random_state=42` |
-| Cross-validation | StratifiedKFold, k=5, shuffle=True |
-| RF tuning | `n_estimators` ∈ {100,200}, `max_depth` ∈ {6,10,None}, `min_samples_leaf` ∈ {1,3,5} |
-| LR tuning | `C` ∈ {0.01, 0.1, 1.0, 10.0} with StandardScaler pipeline |
-| Selection metric | ROC-AUC |
+Exact latest floats live in `models/model_meta.json` after training. Meta also records `real_sme_profiles_used` and `training_source` (`synthetic_bootstrap` or `synthetic+real_sme_transactions`).
 
----
-
-## 4. Measured Performance
-
-Reproduce with `python scripts/train_model.py`. Example hold-out results (seed=42):
-
-| Model | Accuracy | Precision | Recall | F1 | ROC-AUC |
-|-------|----------|-----------|--------|----|---------|
-| Random Forest (primary) | higher | higher | higher | higher | **wins** |
-| Logistic Regression | lower | lower | lower | lower | baseline |
-
-Exact floats for the latest run are in `models/model_meta.json`. The API training endpoint also returns `rf_outperforms_baseline`.
+| Model | Role |
+|-------|------|
+| Random Forest | Primary scorer |
+| Logistic Regression | Baseline comparator |
 
 ---
 
-## 5. Credit Score Mapping (conservative)
-
-Model probability `p ∈ [0,1]` maps to a **moderate** score band:
+## 6. Credit score mapping (conservative)
 
 ```
-raw = 300 + p × 500
-score = 350 + (raw − 350) × 0.66   → clipped to ~300–680
+probability p → raw = 300 + p × 500
+score = 350 + (raw − 350) × 0.66   → clipped ~300–680
 ```
 
-Eligible financing (TZS), never above **75% of total transaction volume**:
-
-```
-raw_financing = MIN + normalized(score) × (MAX − MIN)
-eligible = min(raw_financing, total_volume × 0.75)
-```
-
-Defaults: MIN = 500,000 TZS, MAX = 50,000,000 TZS. Minimum **5 transactions** before scoring.
+Risk bands: Low ≥ 580 · Medium 480–579 · High < 480  
+Minimum **5 transactions** before scoring.
 
 ---
 
-## 6. Risk Bands (aligned with conservative scores)
+## 7. Where to show “the model is trained”
 
-| Band | Score range |
-|------|-------------|
-| Low | ≥ 580 |
-| Medium | 480 – 579 |
-| High | < 480 |
-
-Interval feature: larger average gap between transactions increases risk (encoded in features and ML training labels).
-
----
-
-## 7. Runtime Inference
-
-- Models loaded from `models/` via `CreditPredictor` singleton
-- Fallback heuristic if no artifact exists
-- Auto-rescore after transaction create / update / delete / CSV import when eligible
+| Location | What you see |
+|----------|----------------|
+| `Backend/models/model_meta.json` | Version, metrics, real SME count, paths to `.joblib` |
+| `Backend/models/random_forest_*.joblib` | Trained primary model artifact |
+| Admin `POST /api/admin/train-model` | Manual full retrain |
+| After SME CSV upload / record (≥5 txs) | Automatic retrain + rescore |
+| SME Credit overview | Score, financing, human-readable components, model version |
 
 ---
 
-## 8. Honesty Statement
-
-- Metrics come from **actual sklearn evaluation** on held-out data.
-- Synthetic data is intentionally non-linear so RF generally wins; if a run shows parity, `rf_outperforms_baseline: false` is reported honestly.
-- No runtime metric fabrication.
-
-## 9. Reproduction
+## 8. Reproduction
 
 ```bash
 cd Backend
@@ -126,4 +109,4 @@ pip install -r requirements.txt
 python scripts/train_model.py
 ```
 
-Inspect `models/model_meta.json` for the latest run metrics.
+Inspect `models/model_meta.json` for the latest run.

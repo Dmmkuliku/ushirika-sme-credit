@@ -146,11 +146,11 @@ function downloadBlob(blob, filename) {
 /* ─── Auth ─────────────────────────────────────────────── */
 
 /** POST /auth/register — SME self-registration */
-export function registerSme({ nida, phone, full_name, email, location, business_type, gender, nationality, date_of_birth, pin }) {
+export function registerSme({ nida, phone, full_name, email, location, business_type, gender, nationality, date_of_birth, tin, pin }) {
   return request('/auth/register', {
     method: 'POST',
     auth: false,
-    body: JSON.stringify({ nida, phone, full_name, email: email || undefined, location, business_type, gender, nationality, date_of_birth, pin }),
+    body: JSON.stringify({ nida, phone, full_name, email: email || undefined, location, business_type, gender, nationality, date_of_birth, tin, pin }),
   });
 }
 
@@ -160,6 +160,15 @@ export function login({ login_id, pin }) {
     method: 'POST',
     auth: false,
     body: JSON.stringify({ login_id, pin }),
+  });
+}
+
+/** POST /auth/forgot-pin — reset PIN via DOB verification */
+export function forgotPin({ login_id, date_of_birth, new_pin }) {
+  return request('/auth/forgot-pin', {
+    method: 'POST',
+    auth: false,
+    body: JSON.stringify({ login_id, date_of_birth, new_pin }),
   });
 }
 

@@ -46,6 +46,8 @@ def lender_dashboard(db: Session) -> DashboardSummary:
 def sme_dashboard(db: Session, user: User) -> SMEDashboardSummary:
     import json
 
+    from app.services.labels import humanize_features
+
     settings = get_settings()
     profile = db.query(SMEProfile).filter(SMEProfile.user_id == user.id).first()
     if not profile:
@@ -59,6 +61,7 @@ def sme_dashboard(db: Session, user: User) -> SMEDashboardSummary:
             score_locked=True,
             transactions_needed=settings.min_transactions_for_score,
             score_components=None,
+            score_components_display=None,
         )
 
     tx_count = db.query(Transaction).filter(Transaction.sme_profile_id == profile.id).count()
@@ -76,9 +79,15 @@ def sme_dashboard(db: Session, user: User) -> SMEDashboardSummary:
     )
     score_eligible = tx_count >= settings.min_transactions_for_score
     components = None
+    display = None
+    outlier_count = None
+    typical_vol = None
     if latest and latest.features_json:
         try:
             components = json.loads(latest.features_json)
+            display = humanize_features(components)
+            outlier_count = int(components.get("outlier_transaction_count") or 0)
+            typical_vol = components.get("typical_volume_tzs")
         except json.JSONDecodeError:
             components = None
 
@@ -92,6 +101,10 @@ def sme_dashboard(db: Session, user: User) -> SMEDashboardSummary:
         score_locked=not score_eligible or latest is None,
         transactions_needed=max(0, settings.min_transactions_for_score - tx_count),
         score_components=components,
+        score_components_display=display,
+        outlier_transaction_count=outlier_count,
+        typical_volume_tzs=typical_vol,
+        model_version=latest.model_version if latest else None,
     )
 
 

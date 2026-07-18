@@ -34,6 +34,7 @@ def register_sme(db: Session, payload: SMERegisterRequest) -> User:
         nationality=payload.nationality,
         date_of_birth=date.fromisoformat(payload.date_of_birth),
         business_type=payload.business_type,
+        tin=payload.tin,
         display_token=generate_display_token(),
     )
     db.add(profile)
@@ -132,6 +133,37 @@ def change_pin(db: Session, user: User, current_pin: str, new_pin: str) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New PIN must be different from current PIN",
         )
+    user.hashed_pin = hash_pin(new_pin)
+    db.commit()
+
+
+def reset_pin_with_birthdate(db: Session, login_id: str, date_of_birth: str, new_pin: str) -> None:
+    """Allow PIN reset when birthdate matches the SME registration record."""
+    user = db.query(User).filter(User.login_id == login_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+
+    if user.role != UserRole.SME:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="PIN recovery with birthdate is available for SME accounts. Contact your administrator for other roles.",
+        )
+
+    profile = db.query(SMEProfile).filter(SMEProfile.user_id == user.id).first()
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SME profile not found")
+
+    try:
+        dob = date.fromisoformat(date_of_birth)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date of birth")
+
+    if profile.date_of_birth != dob:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Date of birth does not match our records",
+        )
+
     user.hashed_pin = hash_pin(new_pin)
     db.commit()
 

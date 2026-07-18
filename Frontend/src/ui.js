@@ -3,6 +3,7 @@
  */
 
 import { escapeHtml, el, setText } from './utils.js';
+import { t, langSwitchHtml, toggleLang } from './i18n.js';
 
 export function showToast(message, type = 'info', durationMs = 4500) {
   const root = document.getElementById('toast-root');
@@ -28,11 +29,12 @@ export function showToast(message, type = 'info', durationMs = 4500) {
   }, durationMs);
 }
 
-export function loadingBlock(label = 'Loading…') {
+export function loadingBlock(label) {
+  const text = label || t('common.loading');
   return `
     <div class="state-block state-loading" role="status" aria-live="polite">
       <div class="spinner" aria-hidden="true"></div>
-      <p>${escapeHtml(label)}</p>
+      <p>${escapeHtml(text)}</p>
     </div>
   `;
 }
@@ -53,7 +55,7 @@ export function errorBlock(title, description = '', retryId = null) {
       ${description ? `<p>${escapeHtml(description)}</p>` : ''}
       ${
         retryId
-          ? `<button type="button" class="btn btn-secondary" id="${escapeHtml(retryId)}">Try again</button>`
+          ? `<button type="button" class="btn btn-secondary" id="${escapeHtml(retryId)}">${escapeHtml(t('common.tryAgain'))}</button>`
           : ''
       }
     </div>
@@ -61,10 +63,10 @@ export function errorBlock(title, description = '', retryId = null) {
 }
 
 function roleLabel(role) {
-  if (role === 'admin') return 'Admin';
-  if (role === 'subadmin') return 'Sub-Admin';
-  if (role === 'lender') return 'Lender';
-  return 'SME';
+  if (role === 'admin') return t('roles.admin');
+  if (role === 'subadmin') return t('roles.subadmin');
+  if (role === 'lender') return t('roles.lender');
+  return t('roles.sme');
 }
 
 function roleHome(role) {
@@ -78,19 +80,19 @@ export function renderShell({ role, user, activeNav, mainHtml }) {
     user?.full_name || user?.business_name || user?.email || roleLabel(role);
 
   const smeNav = [
-    { id: 'overview', label: 'Overview', href: '#/sme' },
-    { id: 'transactions', label: 'Transactions', href: '#/sme/transactions' },
-    { id: 'upload', label: 'Upload CSV', href: '#/sme/upload' },
+    { id: 'overview', label: t('nav.overview'), href: '#/sme' },
+    { id: 'transactions', label: t('nav.transactions'), href: '#/sme/transactions' },
+    { id: 'upload', label: t('nav.upload'), href: '#/sme/upload' },
   ];
   const lenderNav = [
-    { id: 'portfolio', label: 'Portfolio', href: '#/lender' },
+    { id: 'portfolio', label: t('nav.portfolio'), href: '#/lender' },
   ];
   const adminNav = [
-    { id: 'accounts', label: 'Accounts', href: '#/admin' },
-    { id: 'profile', label: 'My Profile', href: '#/admin/profile' },
-    { id: 'create-lender', label: 'Create Lender', href: '#/admin/create-lender' },
-    { id: 'create-sme', label: 'Create SME', href: '#/admin/create-sme' },
-    { id: 'create-subadmin', label: 'Create Sub-Admin', href: '#/admin/create-subadmin' },
+    { id: 'accounts', label: t('nav.accounts'), href: '#/admin' },
+    { id: 'profile', label: t('nav.myProfile'), href: '#/admin/profile' },
+    { id: 'create-lender', label: t('nav.createLender'), href: '#/admin/create-lender' },
+    { id: 'create-sme', label: t('nav.createSme'), href: '#/admin/create-sme' },
+    { id: 'create-subadmin', label: t('nav.createSubadmin'), href: '#/admin/create-subadmin' },
   ];
 
   let navItems;
@@ -110,28 +112,29 @@ export function renderShell({ role, user, activeNav, mainHtml }) {
     .join('');
 
   const profileBtn =
-    `<button type="button" id="btn-my-profile" class="btn btn-ghost btn-sm">Profile</button>`;
+    `<button type="button" id="btn-my-profile" class="btn btn-ghost btn-sm">${escapeHtml(t('common.profile'))}</button>`;
 
   return `
     <div class="app-shell">
       <header class="topbar">
         <div class="topbar-brand">
-          <a href="#/${roleHome(role)}" class="brand-mark" aria-label="Ushirika home">
+          <a href="#/${roleHome(role)}" class="brand-mark" aria-label="${escapeHtml(t('brand.name'))} home">
             <span class="brand-glyph" aria-hidden="true"></span>
-            <span class="brand-text">Ushirika</span>
+            <span class="brand-text">${escapeHtml(t('brand.name'))}</span>
           </a>
-          <span class="brand-sub">Tanzania SME Banking</span>
+          <span class="brand-sub">${escapeHtml(t('brand.subtitle'))}</span>
         </div>
         <nav class="topbar-nav" aria-label="Primary">
           ${navHtml}
         </nav>
         <div class="topbar-user">
+          ${langSwitchHtml()}
           <div class="user-meta">
             <span class="user-name">${escapeHtml(displayName)}</span>
             <span class="user-role">${escapeHtml(roleLabel(role))}</span>
           </div>
           ${profileBtn}
-          <button type="button" id="btn-logout" class="btn btn-ghost btn-sm">Log out</button>
+          <button type="button" id="btn-logout" class="btn btn-ghost btn-sm">${escapeHtml(t('common.logout'))}</button>
         </div>
       </header>
       <main id="main" class="main-content" tabindex="-1">
@@ -144,6 +147,9 @@ export function renderShell({ role, user, activeNav, mainHtml }) {
 export function bindShellActions({ onLogout, onProfile }) {
   document.getElementById('btn-logout')?.addEventListener('click', onLogout);
   document.getElementById('btn-my-profile')?.addEventListener('click', onProfile);
+  document.querySelectorAll('[data-lang-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => toggleLang());
+  });
 }
 
 export function bindLogout(onLogout) {

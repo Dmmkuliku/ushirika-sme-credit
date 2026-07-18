@@ -1,13 +1,14 @@
 /**
- * Login / Register screens.
+ * Login / Register / Forgot PIN screens.
  * Login: universal (NIDA / membership number + 4-digit PIN).
- * Register: SME self-registration only.
+ * Register: SME self-registration only (includes TIN).
  */
 
 import * as api from '../api.js';
 import { setSession } from '../session.js';
 import { escapeHtml, getErrorMessage } from '../utils.js';
 import { showToast } from '../ui.js';
+import { t, langSwitchHtml, toggleLang, getLang } from '../i18n.js';
 
 const BUSINESS_TYPES = [
   'Entrepreneur', 'Machinga', 'Retailer', 'Wholesaler', 'Manufacturer',
@@ -16,35 +17,57 @@ const BUSINESS_TYPES = [
 
 export function renderAuthPage(mode = 'login') {
   const isRegister = mode === 'register';
+  const isForgot = mode === 'forgot-pin';
+
+  let heading = t('auth.welcomeBack');
+  let lead = t('auth.leadLogin');
+  let submitLabel = t('auth.signIn');
+  if (isRegister) {
+    heading = t('auth.createAccount');
+    lead = t('auth.leadRegister');
+    submitLabel = t('auth.createAccountBtn');
+  } else if (isForgot) {
+    heading = t('auth.forgotTitle');
+    lead = t('auth.leadForgot');
+    submitLabel = t('auth.resetPin');
+  }
+
+  let fields;
+  if (isRegister) fields = renderRegisterFields();
+  else if (isForgot) fields = renderForgotFields();
+  else fields = renderLoginFields();
+
+  let switchHtml;
+  if (isForgot) {
+    switchHtml = `<a href="#/login">${t('auth.backToLogin')}</a>`;
+  } else if (isRegister) {
+    switchHtml = `${t('auth.alreadyRegistered')} <a href="#/login">${t('auth.signIn')}</a>`;
+  } else {
+    switchHtml = `${t('auth.newHere')} <a href="#/register">${t('auth.createAnAccount')}</a>`;
+  }
+
   return `
     <div class="auth-layout">
       <div class="auth-visual" aria-hidden="true">
         <div class="auth-visual-inner">
-          <p class="auth-eyebrow">United Republic of Tanzania</p>
-          <p class="auth-brand">Ushirika</p>
-          <p class="auth-tagline">SME ecosystem banking — transparent scores, fair access to capital.</p>
+          <p class="auth-eyebrow">${escapeHtml(t('brand.eyebrow'))}</p>
+          <p class="auth-brand">${escapeHtml(t('brand.name'))}</p>
+          <p class="auth-tagline">${escapeHtml(t('brand.tagline'))}</p>
         </div>
       </div>
       <div class="auth-panel">
+        <div class="auth-lang-bar">${langSwitchHtml('lang-switch-auth')}</div>
         <main id="main" class="auth-main" tabindex="-1">
-          <h1 class="auth-heading">${isRegister ? 'Create your SME account' : 'Welcome back'}</h1>
-          <p class="auth-lead">
-            ${isRegister
-              ? 'Lender and admin accounts are created by the system administrator.'
-              : 'Sign in with your ID and PIN.'}
-          </p>
+          <h1 class="auth-heading">${escapeHtml(heading)}</h1>
+          <p class="auth-lead">${escapeHtml(lead)}</p>
           <form id="auth-form" class="auth-form" novalidate>
-            ${isRegister ? renderRegisterFields() : renderLoginFields()}
+            ${fields}
             <div id="auth-error" class="form-error" role="alert" hidden></div>
             <button type="submit" class="btn btn-primary btn-block" id="auth-submit">
-              ${isRegister ? 'Create account' : 'Sign in'}
+              ${escapeHtml(submitLabel)}
             </button>
           </form>
-          <p class="auth-switch">
-            ${isRegister
-              ? 'Already registered? <a href="#/login">Sign in</a>'
-              : 'New here? <a href="#/register">Create an account</a>'}
-          </p>
+          <p class="auth-switch">${switchHtml}</p>
         </main>
       </div>
     </div>
@@ -54,78 +77,116 @@ export function renderAuthPage(mode = 'login') {
 function renderLoginFields() {
   return `
     <div class="field">
-      <label for="login_id">Your ID (NIDA / Membership Number)</label>
+      <label for="login_id">${escapeHtml(t('auth.loginId'))}</label>
       <input id="login_id" name="login_id" type="text" autocomplete="username" required />
     </div>
     <div class="field">
-      <label for="pin">PIN</label>
-      <input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="current-password" required placeholder="4-digit PIN" />
+      <label for="pin">${escapeHtml(t('auth.pin'))}</label>
+      <input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="current-password" required placeholder="${escapeHtml(t('auth.pinPlaceholder'))}" />
+    </div>
+    <p class="auth-forgot-link"><a href="#/forgot-pin">${escapeHtml(t('auth.forgotPinLink'))}</a></p>
+  `;
+}
+
+function renderForgotFields() {
+  return `
+    <div class="field">
+      <label for="login_id">${escapeHtml(t('auth.loginId'))}</label>
+      <input id="login_id" name="login_id" type="text" autocomplete="username" required />
+    </div>
+    <div class="field">
+      <label for="date_of_birth">${escapeHtml(t('auth.dateOfBirth'))}</label>
+      <input id="date_of_birth" name="date_of_birth" type="date" required />
+    </div>
+    <div class="field">
+      <label for="new_pin">${escapeHtml(t('auth.newPin'))}</label>
+      <input id="new_pin" name="new_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="${escapeHtml(t('auth.pinPlaceholder'))}" />
+    </div>
+    <div class="field">
+      <label for="confirm_pin">${escapeHtml(t('auth.confirmPin'))}</label>
+      <input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="${escapeHtml(t('auth.confirmPinPlaceholder'))}" />
     </div>
   `;
 }
 
 function renderRegisterFields() {
-  const bizOptions = BUSINESS_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  const bizOptions = BUSINESS_TYPES.map((bt) => `<option value="${escapeHtml(bt)}">${escapeHtml(bt)}</option>`).join('');
   return `
     <div class="field">
-      <label for="nida">NIDA (National Identity Number)</label>
-      <input id="nida" name="nida" type="text" inputmode="numeric" maxlength="20" pattern="[0-9]{20}" required placeholder="20-digit NIDA number" />
+      <label for="nida">${escapeHtml(t('auth.nida'))}</label>
+      <input id="nida" name="nida" type="text" inputmode="numeric" maxlength="20" pattern="[0-9]{20}" required placeholder="${escapeHtml(t('auth.nidaPlaceholder'))}" />
     </div>
     <div class="field">
-      <label for="full_name">Full name</label>
+      <label for="full_name">${escapeHtml(t('auth.fullName'))}</label>
       <input id="full_name" name="full_name" type="text" autocomplete="name" required maxlength="120" />
     </div>
     <div class="field">
-      <label for="phone">Phone number</label>
-      <input id="phone" name="phone" type="tel" required placeholder="+255..." />
+      <label for="tin">${escapeHtml(t('auth.tin'))}</label>
+      <input id="tin" name="tin" type="text" required minlength="9" maxlength="20" placeholder="${escapeHtml(t('auth.tinPlaceholder'))}" />
+      <p class="field-hint">${escapeHtml(t('auth.tinHint'))}</p>
     </div>
     <div class="field">
-      <label for="email">Email <span class="optional">(optional)</span></label>
+      <label for="phone">${escapeHtml(t('auth.phone'))}</label>
+      <input id="phone" name="phone" type="tel" required placeholder="${escapeHtml(t('auth.phonePlaceholder'))}" />
+    </div>
+    <div class="field">
+      <label for="email">${escapeHtml(t('auth.email'))} <span class="optional">${escapeHtml(t('common.optional'))}</span></label>
       <input id="email" name="email" type="email" autocomplete="email" maxlength="254" />
     </div>
     <div class="field">
-      <label for="location">Location / Address</label>
+      <label for="location">${escapeHtml(t('auth.location'))}</label>
       <input id="location" name="location" type="text" required />
     </div>
     <div class="field">
-      <label for="business_type">Business type</label>
+      <label for="business_type">${escapeHtml(t('auth.businessType'))}</label>
       <select id="business_type" name="business_type" required>
-        <option value="">Select…</option>
+        <option value="">${escapeHtml(t('common.select'))}</option>
         ${bizOptions}
       </select>
     </div>
     <div class="field">
-      <label for="gender">Gender</label>
+      <label for="gender">${escapeHtml(t('auth.gender'))}</label>
       <select id="gender" name="gender" required>
-        <option value="">Select…</option>
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-        <option value="Other">Other</option>
+        <option value="">${escapeHtml(t('common.select'))}</option>
+        <option value="Male">${escapeHtml(t('auth.genderMale'))}</option>
+        <option value="Female">${escapeHtml(t('auth.genderFemale'))}</option>
+        <option value="Other">${escapeHtml(t('auth.genderOther'))}</option>
       </select>
     </div>
     <div class="field">
-      <label for="nationality">Nationality</label>
+      <label for="nationality">${escapeHtml(t('auth.nationality'))}</label>
       <input id="nationality" name="nationality" type="text" value="Tanzanian" required />
     </div>
     <div class="field">
-      <label for="date_of_birth">Date of birth</label>
+      <label for="date_of_birth">${escapeHtml(t('auth.dateOfBirth'))}</label>
       <input id="date_of_birth" name="date_of_birth" type="date" required />
     </div>
     <div class="field">
-      <label for="pin">PIN</label>
-      <input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4-digit PIN" />
+      <label for="pin">${escapeHtml(t('auth.pin'))}</label>
+      <input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="${escapeHtml(t('auth.pinPlaceholder'))}" />
     </div>
     <div class="field">
-      <label for="confirm_pin">Confirm PIN</label>
-      <input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="Re-enter PIN" />
+      <label for="confirm_pin">${escapeHtml(t('auth.confirmPin'))}</label>
+      <input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="${escapeHtml(t('auth.confirmPinPlaceholder'))}" />
     </div>
   `;
 }
 
-export function bindAuthPage(mode, { onSuccess }) {
+function bindLangToggle(onLangChange) {
+  document.querySelectorAll('[data-lang-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      toggleLang();
+      onLangChange?.(getLang());
+    });
+  });
+}
+
+export function bindAuthPage(mode, { onSuccess, onLangChange }) {
   const form = document.getElementById('auth-form');
   const errorEl = document.getElementById('auth-error');
   const submitBtn = document.getElementById('auth-submit');
+
+  bindLangToggle(onLangChange);
 
   function showError(msg) {
     if (!errorEl) return;
@@ -148,15 +209,15 @@ export function bindAuthPage(mode, { onSuccess }) {
     if (mode === 'login') {
       const login_id = String(fd.get('login_id') || '').trim();
       const pin = String(fd.get('pin') || '');
-      if (!login_id) { showError('ID is required.'); return; }
-      if (!/^[0-9]{4}$/.test(pin)) { showError('PIN must be exactly 4 digits.'); return; }
+      if (!login_id) { showError(t('auth.errIdRequired')); return; }
+      if (!/^[0-9]{4}$/.test(pin)) { showError(t('auth.errPinDigits')); return; }
 
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Signing in…';
+      submitBtn.textContent = t('auth.signingIn');
       try {
         const payload = await api.login({ login_id, pin });
         if (!payload?.access_token && !payload?.token) {
-          throw new Error('Server did not return an access token.');
+          throw new Error(t('auth.errNoToken'));
         }
         const token = payload.access_token || payload.token;
         let user = payload.user;
@@ -168,67 +229,102 @@ export function bindAuthPage(mode, { onSuccess }) {
           access_token: token,
           user: { ...user, role: user.role || payload.role || 'sme' },
         });
-        showToast('Signed in.', 'success');
+        showToast(t('auth.signedIn'), 'success');
         onSuccess();
       } catch (err) {
-        const msg = getErrorMessage(err, 'Authentication failed');
+        const msg = getErrorMessage(err, t('auth.errAuth'));
         showError(msg);
         showToast(msg, 'error');
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Sign in';
+        submitBtn.textContent = t('auth.signIn');
       }
-    } else {
-      const nida = String(fd.get('nida') || '').trim();
-      const full_name = String(fd.get('full_name') || '').trim();
-      const phone = String(fd.get('phone') || '').trim();
-      const email = String(fd.get('email') || '').trim();
-      const location = String(fd.get('location') || '').trim();
-      const business_type = String(fd.get('business_type') || '');
-      const gender = String(fd.get('gender') || '');
-      const nationality = String(fd.get('nationality') || '').trim();
+      return;
+    }
+
+    if (mode === 'forgot-pin') {
+      const login_id = String(fd.get('login_id') || '').trim();
       const date_of_birth = String(fd.get('date_of_birth') || '');
-      const pin = String(fd.get('pin') || '');
+      const new_pin = String(fd.get('new_pin') || '');
       const confirm_pin = String(fd.get('confirm_pin') || '');
 
-      if (!/^[0-9]{20}$/.test(nida)) { showError('NIDA must be exactly 20 digits.'); return; }
-      if (!full_name) { showError('Full name is required.'); return; }
-      if (!phone) { showError('Phone number is required.'); return; }
-      if (!location) { showError('Location is required.'); return; }
-      if (!business_type) { showError('Please select a business type.'); return; }
-      if (!gender) { showError('Please select a gender.'); return; }
-      if (!date_of_birth) { showError('Date of birth is required.'); return; }
-      if (!/^[0-9]{4}$/.test(pin)) { showError('PIN must be exactly 4 digits.'); return; }
-      if (pin !== confirm_pin) { showError('PINs do not match.'); return; }
+      if (!login_id) { showError(t('auth.errIdRequired')); return; }
+      if (!date_of_birth) { showError(t('auth.errDob')); return; }
+      if (!/^[0-9]{4}$/.test(new_pin)) { showError(t('auth.errPinDigits')); return; }
+      if (new_pin !== confirm_pin) { showError(t('auth.errPinsMatch')); return; }
 
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Creating…';
+      submitBtn.textContent = t('auth.resetting');
       try {
-        await api.registerSme({ nida, phone, full_name, email, location, business_type, gender, nationality, date_of_birth, pin });
-        const loginPayload = await api.login({ login_id: nida, pin });
-        if (!loginPayload?.access_token && !loginPayload?.token) {
-          throw new Error('Server did not return an access token.');
-        }
-        const token = loginPayload.access_token || loginPayload.token;
-        let user = loginPayload.user;
-        if (!user) {
-          setSession({ access_token: token, user: { login_id: nida, role: 'sme' } });
-          user = await api.getMe();
-        }
-        setSession({
-          access_token: token,
-          user: { ...user, role: user.role || 'sme' },
-        });
-        showToast('Account created successfully.', 'success');
-        onSuccess();
+        await api.forgotPin({ login_id, date_of_birth, new_pin });
+        showToast(t('auth.pinReset'), 'success');
+        window.location.hash = '#/login';
       } catch (err) {
-        const msg = getErrorMessage(err, 'Registration failed');
+        const msg = getErrorMessage(err, t('auth.errForgot'));
         showError(msg);
         showToast(msg, 'error');
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Create account';
+        submitBtn.textContent = t('auth.resetPin');
       }
+      return;
+    }
+
+    // register
+    const nida = String(fd.get('nida') || '').trim();
+    const full_name = String(fd.get('full_name') || '').trim();
+    const tin = String(fd.get('tin') || '').trim();
+    const phone = String(fd.get('phone') || '').trim();
+    const email = String(fd.get('email') || '').trim();
+    const location = String(fd.get('location') || '').trim();
+    const business_type = String(fd.get('business_type') || '');
+    const gender = String(fd.get('gender') || '');
+    const nationality = String(fd.get('nationality') || '').trim();
+    const date_of_birth = String(fd.get('date_of_birth') || '');
+    const pin = String(fd.get('pin') || '');
+    const confirm_pin = String(fd.get('confirm_pin') || '');
+
+    if (!/^[0-9]{20}$/.test(nida)) { showError(t('auth.errNida')); return; }
+    if (!full_name) { showError(t('auth.errFullName')); return; }
+    const tinClean = tin.replace(/[^a-zA-Z0-9]/g, '');
+    if (tinClean.length < 9) { showError(t('auth.errTin')); return; }
+    if (!phone) { showError(t('auth.errPhone')); return; }
+    if (!location) { showError(t('auth.errLocation')); return; }
+    if (!business_type) { showError(t('auth.errBusinessType')); return; }
+    if (!gender) { showError(t('auth.errGender')); return; }
+    if (!date_of_birth) { showError(t('auth.errDob')); return; }
+    if (!/^[0-9]{4}$/.test(pin)) { showError(t('auth.errPinDigits')); return; }
+    if (pin !== confirm_pin) { showError(t('auth.errPinsMatch')); return; }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = t('auth.creating');
+    try {
+      await api.registerSme({
+        nida, phone, full_name, email, location, business_type, gender, nationality, date_of_birth, tin: tinClean, pin,
+      });
+      const loginPayload = await api.login({ login_id: nida, pin });
+      if (!loginPayload?.access_token && !loginPayload?.token) {
+        throw new Error(t('auth.errNoToken'));
+      }
+      const token = loginPayload.access_token || loginPayload.token;
+      let user = loginPayload.user;
+      if (!user) {
+        setSession({ access_token: token, user: { login_id: nida, role: 'sme' } });
+        user = await api.getMe();
+      }
+      setSession({
+        access_token: token,
+        user: { ...user, role: user.role || 'sme' },
+      });
+      showToast(t('auth.accountCreated'), 'success');
+      onSuccess();
+    } catch (err) {
+      const msg = getErrorMessage(err, t('auth.errRegister'));
+      showError(msg);
+      showToast(msg, 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = t('auth.createAccountBtn');
     }
   });
 }

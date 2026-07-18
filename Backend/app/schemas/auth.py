@@ -18,6 +18,7 @@ class SMERegisterRequest(BaseModel):
     gender: str
     nationality: str = Field(default="Tanzanian", max_length=50)
     date_of_birth: str
+    tin: str = Field(min_length=9, max_length=20, description="Tax Identification Number")
     pin: str
 
     @field_validator("nida")
@@ -26,6 +27,14 @@ class SMERegisterRequest(BaseModel):
         if not _NIDA_RE.match(v):
             raise ValueError("NIDA must be exactly 20 digits")
         return v
+
+    @field_validator("tin")
+    @classmethod
+    def validate_tin(cls, v: str) -> str:
+        cleaned = "".join(ch for ch in v.strip().upper() if ch.isalnum())
+        if len(cleaned) < 9:
+            raise ValueError("TIN must be at least 9 characters")
+        return cleaned
 
     @field_validator("gender")
     @classmethod
@@ -141,6 +150,7 @@ class SMEProfileResponse(BaseModel):
     business_type: str
     nationality: str
     date_of_birth: date
+    tin: str | None = None
     display_token: str
     full_name: str
     gender: str
@@ -166,6 +176,32 @@ class ChangePinRequest(BaseModel):
     new_pin: str
 
     @field_validator("current_pin", "new_pin")
+    @classmethod
+    def validate_pin(cls, v: str) -> str:
+        if not _PIN_RE.match(v):
+            raise ValueError("PIN must be exactly 4 digits")
+        return v
+
+
+class ForgotPinRequest(BaseModel):
+    """Reset PIN by verifying the date of birth given at registration."""
+
+    login_id: str = Field(min_length=3, max_length=20)
+    date_of_birth: str
+    new_pin: str
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_dob(cls, v: str) -> str:
+        try:
+            dob = date.fromisoformat(v)
+        except ValueError:
+            raise ValueError("date_of_birth must be YYYY-MM-DD format")
+        if dob >= date.today():
+            raise ValueError("date_of_birth must be in the past")
+        return v
+
+    @field_validator("new_pin")
     @classmethod
     def validate_pin(cls, v: str) -> str:
         if not _PIN_RE.match(v):

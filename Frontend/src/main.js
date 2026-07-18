@@ -11,13 +11,14 @@ import { loadSmeOverview, loadSmeTransactions, loadSmeUpload } from './pages/sme
 import { loadLenderPortfolio } from './pages/lender.js';
 import { loadAdminPage } from './pages/admin.js';
 import { API_BASE } from './api.js';
+import { t, onLangChange } from './i18n.js';
 
 hydrateSession();
 
 const inactivity = createInactivityMonitor({
   isActive: () => getSession().isAuthenticated,
   onLogout: (reason) => {
-    handleLogout(reason === 'inactivity' ? 'Signed out after 30 seconds of inactivity.' : undefined);
+    handleLogout(reason === 'inactivity' ? t('inactivity.loggedOut') : undefined);
   },
 });
 
@@ -25,7 +26,7 @@ function handleLogout(message) {
   clearSession();
   inactivity.stop();
   if (message) showToast(message, 'info');
-  else showToast('You have been signed out.', 'info');
+  else showToast(t('common.signedOut'), 'info');
   window.location.hash = '#/login';
   route();
 }
@@ -43,6 +44,14 @@ function redirectForRole(role) {
   else window.location.hash = '#/sme';
 }
 
+function refreshCurrentRoute() {
+  route();
+}
+
+onLangChange(() => {
+  refreshCurrentRoute();
+});
+
 async function route() {
   const session = getSession();
   const { parts } = parseRoute();
@@ -51,8 +60,8 @@ async function route() {
 
   const section = parts[0] || '';
 
-  if (section === 'login' || section === 'register' || section === '') {
-    if (session.isAuthenticated && (section === 'login' || section === 'register' || section === '')) {
+  if (section === 'login' || section === 'register' || section === 'forgot-pin' || section === '') {
+    if (session.isAuthenticated && (section === 'login' || section === 'register' || section === 'forgot-pin' || section === '')) {
       redirectForRole(session.role);
       return;
     }
@@ -60,7 +69,9 @@ async function route() {
       window.location.hash = '#/login';
       return;
     }
-    const mode = section === 'register' ? 'register' : 'login';
+    let mode = 'login';
+    if (section === 'register') mode = 'register';
+    else if (section === 'forgot-pin') mode = 'forgot-pin';
     inactivity.stop();
     app.innerHTML = renderAuthPage(mode);
     bindAuthPage(mode, {
@@ -69,12 +80,15 @@ async function route() {
         inactivity.start();
         redirectForRole(s.role);
       },
+      onLangChange: () => {
+        /* onLangChange in i18n already triggers refreshCurrentRoute */
+      },
     });
     return;
   }
 
   if (!session.isAuthenticated) {
-    showToast('Please sign in to continue.', 'info');
+    showToast(t('common.pleaseSignIn'), 'info');
     window.location.hash = '#/login';
     return;
   }
@@ -83,7 +97,7 @@ async function route() {
 
   if (section === 'sme') {
     if (!requireRole('sme')) {
-      showToast('You are not authorized to view the SME workspace.', 'error');
+      showToast(t('sme.unauthorizedSme'), 'error');
       redirectForRole(session.role);
       return;
     }
@@ -100,7 +114,7 @@ async function route() {
 
   if (section === 'lender') {
     if (!requireRole('lender')) {
-      showToast('You are not authorized to view the Lender workspace.', 'error');
+      showToast(t('lender.unauthorized'), 'error');
       redirectForRole(session.role);
       return;
     }

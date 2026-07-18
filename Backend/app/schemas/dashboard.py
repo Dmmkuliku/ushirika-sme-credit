@@ -84,3 +84,7 @@ class SMEDashboardSummary(BaseModel):
     score_locked: bool
     transactions_needed: int
     score_components: dict[str, float] | None = None
+    score_components_display: list[dict] | None = None
+    outlier_transaction_count: int | None = None
+    typical_volume_tzs: float | None = None
+    model_version: str | None = None

@@ -1,10 +1,12 @@
 /**
- * Auto-logout after exactly 30s of no mouse/keyboard/touch/scroll activity.
- * Warning overlay with countdown starts at 20s idle (10s remaining).
+ * Auto-logout after 90s of no mouse/keyboard/touch/scroll activity.
+ * Warning overlay with countdown starts at 75s idle (15s remaining).
  */
 
-const IDLE_LIMIT_MS = 30_000;
-const WARNING_AT_MS = 20_000;
+import { t } from './i18n.js';
+
+const IDLE_LIMIT_MS = 90_000;
+const WARNING_AT_MS = 75_000;
 
 const ACTIVITY_EVENTS = [
   'mousemove',
@@ -31,6 +33,8 @@ export function createInactivityMonitor({ onLogout, isActive }) {
   const overlay = document.getElementById('inactivity-overlay');
   const countdownEl = document.getElementById('inactivity-countdown');
   const stayBtn = document.getElementById('inactivity-stay');
+  const titleEl = document.getElementById('inactivity-title');
+  const descEl = document.getElementById('inactivity-desc');
 
   function clearTimers() {
     if (idleTimer) window.clearTimeout(idleTimer);
@@ -48,9 +52,19 @@ export function createInactivityMonitor({ onLogout, isActive }) {
     }
   }
 
+  function localizeOverlay() {
+    if (titleEl) titleEl.textContent = t('inactivity.title');
+    if (stayBtn) stayBtn.textContent = t('inactivity.stay');
+    if (descEl) {
+      const seconds = countdownEl?.textContent || '15';
+      descEl.innerHTML = `${t('inactivity.descBefore')} <strong id="inactivity-countdown">${seconds}</strong> ${t('inactivity.descAfter')}`;
+    }
+  }
+
   function showWarning() {
     if (!isActive() || warningVisible) return;
     warningVisible = true;
+    localizeOverlay();
     if (overlay) overlay.hidden = false;
     updateCountdown();
     countdownInterval = window.setInterval(updateCountdown, 200);
@@ -60,7 +74,8 @@ export function createInactivityMonitor({ onLogout, isActive }) {
   function updateCountdown() {
     const remaining = Math.max(0, IDLE_LIMIT_MS - (Date.now() - lastActivity));
     const seconds = Math.ceil(remaining / 1000);
-    if (countdownEl) countdownEl.textContent = String(seconds);
+    const el = document.getElementById('inactivity-countdown');
+    if (el) el.textContent = String(seconds);
     if (remaining <= 0) {
       forceLogout();
     }

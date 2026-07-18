@@ -5,6 +5,7 @@
 import * as api from '../api.js';
 import { escapeHtml, formatDate, getErrorMessage, capitalize } from '../utils.js';
 import { showToast } from '../ui.js';
+import { t } from '../i18n.js';
 
 const BUSINESS_TYPES = [
   'Entrepreneur', 'Machinga', 'Retailer', 'Wholesaler', 'Manufacturer',
@@ -50,21 +51,24 @@ async function updateProfile(role, data) {
 }
 
 function roleTitle(role) {
-  if (role === 'admin') return 'Admin Profile';
-  if (role === 'subadmin') return 'Sub-Admin Profile';
-  if (role === 'lender') return 'Lender Profile';
-  return 'SME Profile';
+  if (role === 'admin') return t('profile.adminTitle');
+  if (role === 'subadmin') return t('profile.subadminTitle');
+  if (role === 'lender') return t('profile.lenderTitle');
+  return t('profile.smeTitle');
 }
 
 function genderSelect(id, name, value) {
   const opts = GENDER_OPTIONS.map(
-    (g) => `<option value="${escapeHtml(g)}"${g === value ? ' selected' : ''}>${escapeHtml(g)}</option>`
+    (g) => {
+      const label = g === 'Male' ? t('auth.genderMale') : g === 'Female' ? t('auth.genderFemale') : t('auth.genderOther');
+      return `<option value="${escapeHtml(g)}"${g === value ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+    }
   ).join('');
   return `
     <div class="field">
-      <label for="${id}">Gender</label>
+      <label for="${id}">${escapeHtml(t('profile.gender'))}</label>
       <select id="${id}" name="${name}">
-        <option value="">Select…</option>
+        <option value="">${escapeHtml(t('common.select'))}</option>
         ${opts}
       </select>
     </div>`;
@@ -72,13 +76,13 @@ function genderSelect(id, name, value) {
 
 function businessTypeSelect(value) {
   const opts = BUSINESS_TYPES.map(
-    (t) => `<option value="${escapeHtml(t)}"${t === value ? ' selected' : ''}>${escapeHtml(t)}</option>`
+    (bt) => `<option value="${escapeHtml(bt)}"${bt === value ? ' selected' : ''}>${escapeHtml(bt)}</option>`
   ).join('');
   return `
     <div class="field">
-      <label for="prof-business_type">Business type</label>
+      <label for="prof-business_type">${escapeHtml(t('profile.businessType'))}</label>
       <select id="prof-business_type" name="business_type">
-        <option value="">Select…</option>
+        <option value="">${escapeHtml(t('common.select'))}</option>
         ${opts}
       </select>
     </div>`;
@@ -88,28 +92,29 @@ function viewFieldsHtml(role, profile) {
   const rows = [];
 
   if (role === 'sme') {
-    rows.push(['Full name', profile.full_name]);
-    rows.push(['Phone', profile.phone]);
-    rows.push(['Email', profile.email || '—']);
-    rows.push(['Location', profile.location]);
-    rows.push(['Business type', profile.business_type]);
-    rows.push(['Gender', profile.gender]);
-    rows.push(['Nationality', profile.nationality]);
-    rows.push(['NIDA', profile.nida]);
-    rows.push(['Login ID', profile.nida]);
-    rows.push(['Date of birth', formatDate(profile.date_of_birth)]);
+    rows.push([t('profile.fullName'), profile.full_name]);
+    rows.push([t('profile.phone'), profile.phone]);
+    rows.push([t('profile.email'), profile.email || '—']);
+    rows.push([t('profile.location'), profile.location]);
+    rows.push([t('profile.businessType'), profile.business_type]);
+    rows.push([t('profile.gender'), profile.gender]);
+    rows.push([t('profile.nationality'), profile.nationality]);
+    rows.push([t('profile.nida'), profile.nida]);
+    rows.push([t('profile.tin'), profile.tin || '—']);
+    rows.push([t('profile.loginId'), profile.nida]);
+    rows.push([t('profile.dateOfBirth'), formatDate(profile.date_of_birth)]);
   } else if (role === 'lender') {
-    rows.push(['Full name', profile.full_name]);
-    rows.push(['Gender', profile.gender]);
-    rows.push(['Organization', profile.organization]);
-    rows.push(['Work email', profile.work_email]);
-    rows.push(['Phone', profile.phone || '—']);
-    rows.push(['Membership #', profile.membership_number]);
+    rows.push([t('profile.fullName'), profile.full_name]);
+    rows.push([t('profile.gender'), profile.gender]);
+    rows.push([t('profile.organization'), profile.organization]);
+    rows.push([t('profile.workEmail'), profile.work_email]);
+    rows.push([t('profile.phone'), profile.phone || '—']);
+    rows.push([t('profile.membership'), profile.membership_number]);
   } else {
-    rows.push(['Full name', profile.full_name]);
-    rows.push(['Gender', profile.gender]);
-    rows.push(['Login ID', profile.login_id]);
-    rows.push(['Role', capitalize(profile.role || role)]);
+    rows.push([t('profile.fullName'), profile.full_name]);
+    rows.push([t('profile.gender'), profile.gender]);
+    rows.push([t('profile.loginId'), profile.login_id]);
+    rows.push([t('profile.role'), capitalize(profile.role || role)]);
   }
 
   return `
@@ -129,21 +134,21 @@ function editFormHtml(role, profile) {
       <form id="profile-edit-form" class="auth-form" novalidate>
         <div class="form-grid-2">
           <div class="field">
-            <label for="prof-full_name">Full name</label>
+            <label for="prof-full_name">${escapeHtml(t('profile.fullName'))}</label>
             <input id="prof-full_name" name="full_name" type="text" required value="${escapeHtml(profile.full_name || '')}" />
           </div>
           <div class="field">
-            <label for="prof-phone">Phone</label>
+            <label for="prof-phone">${escapeHtml(t('profile.phone'))}</label>
             <input id="prof-phone" name="phone" type="tel" required value="${escapeHtml(profile.phone || '')}" />
           </div>
         </div>
         <div class="form-grid-2">
           <div class="field">
-            <label for="prof-email">Email</label>
+            <label for="prof-email">${escapeHtml(t('profile.email'))}</label>
             <input id="prof-email" name="email" type="email" value="${escapeHtml(profile.email || '')}" />
           </div>
           <div class="field">
-            <label for="prof-location">Location</label>
+            <label for="prof-location">${escapeHtml(t('profile.location'))}</label>
             <input id="prof-location" name="location" type="text" required value="${escapeHtml(profile.location || '')}" />
           </div>
         </div>
@@ -152,16 +157,16 @@ function editFormHtml(role, profile) {
           ${genderSelect('prof-gender', 'gender', profile.gender)}
         </div>
         <div class="field">
-          <label for="prof-nationality">Nationality</label>
+          <label for="prof-nationality">${escapeHtml(t('profile.nationality'))}</label>
           <input id="prof-nationality" name="nationality" type="text" required value="${escapeHtml(profile.nationality || '')}" />
         </div>
         <div class="profile-readonly-note">
-          <p><strong>Read-only:</strong> NIDA ${escapeHtml(profile.nida || '—')}, DOB ${escapeHtml(formatDate(profile.date_of_birth))}, Login ID ${escapeHtml(profile.nida || '—')}</p>
+          <p><strong>${escapeHtml(t('profile.readonly'))}:</strong> ${escapeHtml(t('profile.nida'))} ${escapeHtml(profile.nida || '—')}, ${escapeHtml(t('profile.tin'))} ${escapeHtml(profile.tin || '—')}, ${escapeHtml(t('profile.dateOfBirth'))} ${escapeHtml(formatDate(profile.date_of_birth))}</p>
         </div>
         <div id="profile-edit-error" class="form-error" hidden></div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" id="profile-edit-cancel">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="profile-edit-save">Save profile</button>
+          <button type="button" class="btn btn-ghost" id="profile-edit-cancel">${escapeHtml(t('common.cancel'))}</button>
+          <button type="submit" class="btn btn-primary" id="profile-edit-save">${escapeHtml(t('profile.saveProfile'))}</button>
         </div>
       </form>`;
   }
@@ -171,32 +176,32 @@ function editFormHtml(role, profile) {
       <form id="profile-edit-form" class="auth-form" novalidate>
         <div class="form-grid-2">
           <div class="field">
-            <label for="prof-full_name">Full name</label>
+            <label for="prof-full_name">${escapeHtml(t('profile.fullName'))}</label>
             <input id="prof-full_name" name="full_name" type="text" required value="${escapeHtml(profile.full_name || '')}" />
           </div>
           ${genderSelect('prof-gender', 'gender', profile.gender)}
         </div>
         <div class="form-grid-2">
           <div class="field">
-            <label for="prof-organization">Organization</label>
+            <label for="prof-organization">${escapeHtml(t('profile.organization'))}</label>
             <input id="prof-organization" name="organization" type="text" required value="${escapeHtml(profile.organization || '')}" />
           </div>
           <div class="field">
-            <label for="prof-work_email">Work email</label>
+            <label for="prof-work_email">${escapeHtml(t('profile.workEmail'))}</label>
             <input id="prof-work_email" name="work_email" type="email" required value="${escapeHtml(profile.work_email || '')}" />
           </div>
         </div>
         <div class="field">
-          <label for="prof-phone">Phone <span class="optional">(optional)</span></label>
+          <label for="prof-phone">${escapeHtml(t('profile.phone'))} <span class="optional">${escapeHtml(t('common.optional'))}</span></label>
           <input id="prof-phone" name="phone" type="tel" value="${escapeHtml(profile.phone || '')}" />
         </div>
         <div class="profile-readonly-note">
-          <p><strong>Read-only:</strong> Membership # ${escapeHtml(profile.membership_number || '—')}</p>
+          <p><strong>${escapeHtml(t('profile.readonly'))}:</strong> ${escapeHtml(t('profile.membership'))} ${escapeHtml(profile.membership_number || '—')}</p>
         </div>
         <div id="profile-edit-error" class="form-error" hidden></div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" id="profile-edit-cancel">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="profile-edit-save">Save profile</button>
+          <button type="button" class="btn btn-ghost" id="profile-edit-cancel">${escapeHtml(t('common.cancel'))}</button>
+          <button type="submit" class="btn btn-primary" id="profile-edit-save">${escapeHtml(t('profile.saveProfile'))}</button>
         </div>
       </form>`;
   }
@@ -205,18 +210,18 @@ function editFormHtml(role, profile) {
     <form id="profile-edit-form" class="auth-form" novalidate>
       <div class="form-grid-2">
         <div class="field">
-          <label for="prof-full_name">Full name</label>
+          <label for="prof-full_name">${escapeHtml(t('profile.fullName'))}</label>
           <input id="prof-full_name" name="full_name" type="text" required value="${escapeHtml(profile.full_name || '')}" />
         </div>
         ${genderSelect('prof-gender', 'gender', profile.gender)}
       </div>
       <div class="profile-readonly-note">
-        <p><strong>Read-only:</strong> Login ID ${escapeHtml(profile.login_id || '—')}, Role ${escapeHtml(capitalize(profile.role || role))}</p>
+        <p><strong>${escapeHtml(t('profile.readonly'))}:</strong> ${escapeHtml(t('profile.loginId'))} ${escapeHtml(profile.login_id || '—')}, ${escapeHtml(t('profile.role'))} ${escapeHtml(capitalize(profile.role || role))}</p>
       </div>
       <div id="profile-edit-error" class="form-error" hidden></div>
       <div class="modal-actions">
-        <button type="button" class="btn btn-ghost" id="profile-edit-cancel">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="profile-edit-save">Save profile</button>
+        <button type="button" class="btn btn-ghost" id="profile-edit-cancel">${escapeHtml(t('common.cancel'))}</button>
+        <button type="submit" class="btn btn-primary" id="profile-edit-save">${escapeHtml(t('profile.saveProfile'))}</button>
       </div>
     </form>`;
 }
@@ -224,24 +229,24 @@ function editFormHtml(role, profile) {
 function pinSectionHtml() {
   return `
     <section class="profile-pin-section" aria-labelledby="pin-section-title">
-      <h4 id="pin-section-title">Change PIN</h4>
+      <h4 id="pin-section-title">${escapeHtml(t('profile.changePin'))}</h4>
       <form id="profile-pin-form" class="auth-form" novalidate>
         <div class="form-grid-2">
           <div class="field">
-            <label for="prof-current-pin">Current PIN</label>
+            <label for="prof-current-pin">${escapeHtml(t('profile.currentPin'))}</label>
             <input id="prof-current-pin" name="current_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="4 digits" />
           </div>
           <div class="field">
-            <label for="prof-new-pin">New PIN</label>
+            <label for="prof-new-pin">${escapeHtml(t('profile.newPin'))}</label>
             <input id="prof-new-pin" name="new_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="4 digits" />
           </div>
         </div>
         <div class="field">
-          <label for="prof-confirm-pin">Confirm new PIN</label>
+          <label for="prof-confirm-pin">${escapeHtml(t('profile.confirmNewPin'))}</label>
           <input id="prof-confirm-pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="Re-enter" />
         </div>
         <div id="profile-pin-error" class="form-error" hidden></div>
-        <button type="submit" class="btn btn-secondary" id="profile-pin-save">Update PIN</button>
+        <button type="submit" class="btn btn-secondary" id="profile-pin-save">${escapeHtml(t('profile.updatePin'))}</button>
       </form>
     </section>`;
 }
@@ -259,8 +264,8 @@ function renderModal(role, profile, mode, { onUpdated }) {
         </div>
         ${!isEdit ? `
           <div class="modal-actions profile-view-actions">
-            <button type="button" class="btn btn-ghost" id="profile-close">Close</button>
-            <button type="button" class="btn btn-primary" id="profile-edit-btn">Edit profile</button>
+            <button type="button" class="btn btn-ghost" id="profile-close">${escapeHtml(t('common.close'))}</button>
+            <button type="button" class="btn btn-primary" id="profile-edit-btn">${escapeHtml(t('profile.editProfile'))}</button>
           </div>
         ` : ''}
         ${pinSectionHtml()}
@@ -324,32 +329,32 @@ function bindEditForm(role, profile, { onUpdated }) {
       const full_name = String(fd.get('full_name') || '').trim();
       const gender = String(fd.get('gender') || '').trim();
       if (!full_name) {
-        if (errEl) { errEl.hidden = false; errEl.textContent = 'Full name is required.'; }
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('profile.errFullName'); }
         return;
       }
       if (!gender || !['Male', 'Female', 'Other'].includes(gender)) {
-        if (errEl) { errEl.hidden = false; errEl.textContent = 'Please select a gender.'; }
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('profile.errGender'); }
         return;
       }
       data = { full_name, gender };
     }
 
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
+    saveBtn.textContent = t('profile.saving');
     try {
       await updateProfile(role, data);
-      showToast('Profile updated.', 'success');
+      showToast(t('profile.profileUpdated'), 'success');
       // Reload full profile so view mode has all fields
       const refreshed = await loadProfile(role);
       onUpdated?.(refreshed);
       renderModal(role, refreshed, 'view', { onUpdated });
     } catch (err) {
-      const msg = getErrorMessage(err, 'Could not update profile');
+      const msg = getErrorMessage(err, t('profile.updateFailed'));
       if (errEl) { errEl.hidden = false; errEl.textContent = msg; }
       showToast(msg, 'error');
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Save profile';
+      saveBtn.textContent = t('profile.saveProfile');
     }
   });
 }
@@ -368,31 +373,31 @@ function bindPinForm() {
     const confirm_pin = String(document.getElementById('prof-confirm-pin')?.value || '');
 
     if (!/^[0-9]{4}$/.test(current_pin)) {
-      if (errEl) { errEl.hidden = false; errEl.textContent = 'Current PIN must be exactly 4 digits.'; }
+      if (errEl) { errEl.hidden = false; errEl.textContent = t('profile.errCurrentPin'); }
       return;
     }
     if (!/^[0-9]{4}$/.test(new_pin)) {
-      if (errEl) { errEl.hidden = false; errEl.textContent = 'New PIN must be exactly 4 digits.'; }
+      if (errEl) { errEl.hidden = false; errEl.textContent = t('profile.errNewPin'); }
       return;
     }
     if (new_pin !== confirm_pin) {
-      if (errEl) { errEl.hidden = false; errEl.textContent = 'New PINs do not match.'; }
+      if (errEl) { errEl.hidden = false; errEl.textContent = t('profile.errPinsMatch'); }
       return;
     }
 
     saveBtn.disabled = true;
-    saveBtn.textContent = 'Updating…';
+    saveBtn.textContent = t('profile.updating');
     try {
       await api.changePin({ current_pin, new_pin });
-      showToast('PIN updated.', 'success');
+      showToast(t('profile.pinUpdated'), 'success');
       form.reset();
     } catch (err) {
-      const msg = getErrorMessage(err, 'Could not change PIN');
+      const msg = getErrorMessage(err, t('profile.pinFailed'));
       if (errEl) { errEl.hidden = false; errEl.textContent = msg; }
       showToast(msg, 'error');
     } finally {
       saveBtn.disabled = false;
-      saveBtn.textContent = 'Update PIN';
+      saveBtn.textContent = t('profile.updatePin');
     }
   });
 }
@@ -407,7 +412,7 @@ export async function openProfileModal(role, { onUpdated } = {}) {
   host.innerHTML = `
     <div class="modal-backdrop">
       <div class="modal-dialog profile-card">
-        <p role="status">Loading profile…</p>
+        <p role="status">${escapeHtml(t('profile.loading'))}</p>
       </div>
     </div>
   `;
@@ -417,6 +422,6 @@ export async function openProfileModal(role, { onUpdated } = {}) {
     renderModal(role, profile, 'view', { onUpdated });
   } catch (err) {
     closeModal();
-    showToast(getErrorMessage(err, 'Could not load profile'), 'error');
+    showToast(getErrorMessage(err, t('profile.loadFailed')), 'error');
   }
 }

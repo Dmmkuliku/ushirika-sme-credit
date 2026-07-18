@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,29 +22,12 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from app.config import get_settings
-from app.services.feature_engineering import FEATURE_COLUMNS
+from app.services.feature_engineering import FEATURE_COLUMNS, compute_features
+
+logger = logging.getLogger(__name__)
 
 
-def generate_synthetic_training_data(n_samples: int = 1200, random_seed: int = 42) -> tuple[pd.DataFrame, np.ndarray]:
-    rng = np.random.default_rng(random_seed)
-
-    data = {
-        "payment_consistency": rng.beta(5, 2, n_samples),
-        "payment_delay_avg": rng.gamma(2, 8, n_samples),
-        "payment_delay_max": rng.gamma(2, 15, n_samples),
-        "turnover_tzs": rng.lognormal(14, 1.2, n_samples),
-        "transaction_frequency": rng.gamma(2, 3, n_samples),
-        "completion_rate_avg": rng.beta(6, 2, n_samples),
-        "default_rate": rng.beta(1.5, 8, n_samples),
-        "compliance_rate": rng.beta(8, 2, n_samples),
-        "account_age_months": rng.uniform(6, 120, n_samples),
-        "counterparty_diversity": rng.beta(3, 3, n_samples),
-        "volume_trend": rng.normal(0, 0.3, n_samples),
-        "on_time_rate": rng.beta(5, 2, n_samples),
-        "avg_transaction_interval_days": rng.gamma(2, 10, n_samples),
-    }
-    df = pd.DataFrame(data)
-
+def _label_from_features(df: pd.DataFrame, rng: np.random.Generator | None = None) -> np.ndarray:
     established_good = (
         (df["account_age_months"] >= 42)
         & (df["payment_consistency"] >= 0.72)
@@ -66,10 +50,60 @@ def generate_synthetic_training_data(n_samples: int = 1200, random_seed: int = 4
         & (df["avg_transaction_interval_days"] <= 40)
     )
     labels = (established_good | emerging_good | resilient_good).astype(int).to_numpy(copy=True)
+    if rng is not None:
+        flip = rng.random(len(labels)) < 0.025
+        labels[flip] = 1 - labels[flip]
+    return labels
 
-    flip = rng.random(n_samples) < 0.025
-    labels[flip] = 1 - labels[flip]
+
+def generate_synthetic_training_data(n_samples: int = 1200, random_seed: int = 42) -> tuple[pd.DataFrame, np.ndarray]:
+    rng = np.random.default_rng(random_seed)
+
+    data = {
+        "payment_consistency": rng.beta(5, 2, n_samples),
+        "payment_delay_avg": rng.gamma(2, 8, n_samples),
+        "payment_delay_max": rng.gamma(2, 15, n_samples),
+        "turnover_tzs": rng.lognormal(14, 1.2, n_samples),
+        "transaction_frequency": rng.gamma(2, 3, n_samples),
+        "completion_rate_avg": rng.beta(6, 2, n_samples),
+        "default_rate": rng.beta(1.5, 8, n_samples),
+        "compliance_rate": rng.beta(8, 2, n_samples),
+        "account_age_months": rng.uniform(6, 120, n_samples),
+        "counterparty_diversity": rng.beta(3, 3, n_samples),
+        "volume_trend": rng.normal(0, 0.3, n_samples),
+        "on_time_rate": rng.beta(5, 2, n_samples),
+        "avg_transaction_interval_days": rng.gamma(2, 10, n_samples),
+    }
+    df = pd.DataFrame(data)
+    labels = _label_from_features(df, rng)
     return df, labels
+
+
+def collect_real_sme_training_data(db_session) -> tuple[pd.DataFrame, np.ndarray, int]:
+    """Build training rows from live SME transaction histories."""
+    from app.models import SMEProfile, Transaction
+
+    settings = get_settings()
+    min_tx = settings.min_transactions_for_score
+    rows: list[dict[str, float]] = []
+
+    for profile in db_session.query(SMEProfile).all():
+        txs = (
+            db_session.query(Transaction)
+            .filter(Transaction.sme_profile_id == profile.id)
+            .order_by(Transaction.transaction_date.asc())
+            .all()
+        )
+        if len(txs) < min_tx:
+            continue
+        feats = compute_features(txs, profile.date_of_birth.year)
+        rows.append({col: float(feats.get(col, 0.0)) for col in FEATURE_COLUMNS})
+
+    if not rows:
+        return pd.DataFrame(columns=FEATURE_COLUMNS), np.array([], dtype=int), 0
+
+    df = pd.DataFrame(rows)
+    return df, _label_from_features(df, rng=None), len(rows)
 
 
 def evaluate_model(model, X_test: np.ndarray, y_test: np.ndarray) -> dict[str, float]:
@@ -80,23 +114,45 @@ def evaluate_model(model, X_test: np.ndarray, y_test: np.ndarray) -> dict[str, f
         "precision_score": float(precision_score(y_test, y_pred, zero_division=0)),
         "recall": float(recall_score(y_test, y_pred, zero_division=0)),
         "f1": float(f1_score(y_test, y_pred, zero_division=0)),
-        "roc_auc": float(roc_auc_score(y_test, y_proba)),
+        "roc_auc": float(roc_auc_score(y_test, y_proba)) if len(np.unique(y_test)) > 1 else 0.0,
     }
 
 
-def train_models(db_session=None) -> dict[str, Any]:
+def train_models(db_session=None, include_real_data: bool = True) -> dict[str, Any]:
+    """Train RF + LR. Mixes live SME feature rows into training when available."""
     settings = get_settings()
     os.makedirs(settings.model_dir, exist_ok=True)
 
-    df, labels = generate_synthetic_training_data(random_seed=settings.random_seed)
+    syn_df, syn_y = generate_synthetic_training_data(random_seed=settings.random_seed)
+    real_rows = 0
+    if include_real_data and db_session is not None:
+        try:
+            real_df, real_y, real_rows = collect_real_sme_training_data(db_session)
+        except Exception as exc:
+            logger.warning("Could not collect real SME training rows: %s", exc)
+            real_df, real_y, real_rows = pd.DataFrame(), np.array([]), 0
+        if real_rows > 0:
+            repeats = max(8, 200 // real_rows)
+            real_df_up = pd.concat([real_df] * repeats, ignore_index=True)
+            real_y_up = np.tile(real_y, repeats)
+            df = pd.concat([syn_df, real_df_up], ignore_index=True)
+            labels = np.concatenate([syn_y, real_y_up])
+            logger.info("Training with %s real SME profiles (upsampled x%s)", real_rows, repeats)
+        else:
+            df, labels = syn_df, syn_y
+    else:
+        df, labels = syn_df, syn_y
+
     X = df[FEATURE_COLUMNS].values
     y = labels
 
+    stratify = y if len(np.unique(y)) > 1 else None
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=settings.random_seed, stratify=y
+        X, y, test_size=0.2, random_state=settings.random_seed, stratify=stratify
     )
 
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=settings.random_seed)
+    n_splits = 5 if len(y_train) >= 50 else 2
+    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=settings.random_seed)
 
     lr_pipeline = Pipeline(
         [
@@ -150,6 +206,12 @@ def train_models(db_session=None) -> dict[str, Any]:
         "lr_metrics": lr_metrics,
         "rf_outperforms_baseline": rf_outperforms,
         "trained_at": datetime.now(timezone.utc).isoformat(),
+        "real_sme_profiles_used": real_rows,
+        "training_source": "synthetic+real_sme_transactions" if real_rows else "synthetic_bootstrap",
+        "notes": (
+            "Random Forest is primary. Live SME transaction features are mixed into retraining "
+            "so predictions reflect uploaded data. Financing caps ignore outlier amounts."
+        ),
     }
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)
@@ -159,6 +221,7 @@ def train_models(db_session=None) -> dict[str, Any]:
         "rf_metrics": {**rf_metrics, "model_name": "random_forest", "is_primary": True},
         "lr_metrics": {**lr_metrics, "model_name": "logistic_regression", "is_primary": False},
         "rf_outperforms_baseline": rf_outperforms,
+        "real_sme_profiles_used": real_rows,
     }
 
     if db_session is not None:
@@ -181,3 +244,16 @@ def train_models(db_session=None) -> dict[str, Any]:
         db_session.commit()
 
     return results
+
+
+def retrain_after_sme_data_change(db_session) -> dict[str, Any] | None:
+    """Retrain after SME transaction create/import so the model uses live data."""
+    try:
+        results = train_models(db_session=db_session, include_real_data=True)
+        from app.services.ml_predictor import reload_predictor
+
+        reload_predictor()
+        return results
+    except Exception as exc:
+        logger.exception("Retrain after SME data change failed: %s", exc)
+        return None

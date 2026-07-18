@@ -22,6 +22,9 @@ def init_db() -> None:
     data_dir.mkdir(exist_ok=True)
     os.makedirs(settings.model_dir, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    from app.schema_migrate import migrate_schema
+
+    migrate_schema()
 
 
 def ensure_model() -> None:
