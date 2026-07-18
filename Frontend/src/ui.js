@@ -124,19 +124,32 @@ export function renderShell({ role, user, activeNav, mainHtml }) {
           </a>
           <span class="brand-sub">${escapeHtml(t('brand.subtitle'))}</span>
         </div>
-        <nav class="topbar-nav" aria-label="Primary">
-          ${navHtml}
-        </nav>
-        <div class="topbar-user">
+        <div class="topbar-toolbar">
           ${langSwitchHtml()}
-          <div class="user-meta">
-            <span class="user-name">${escapeHtml(displayName)}</span>
-            <span class="user-role">${escapeHtml(roleLabel(role))}</span>
-          </div>
-          ${profileBtn}
-          <button type="button" id="btn-logout" class="btn btn-ghost btn-sm">${escapeHtml(t('common.logout'))}</button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm nav-toggle"
+            id="btn-nav-toggle"
+            aria-expanded="false"
+            aria-controls="primary-nav"
+            aria-label="Menu"
+          >
+            <span class="nav-toggle-bars" aria-hidden="true"></span>
+          </button>
         </div>
+        <nav class="topbar-nav" id="primary-nav" aria-label="Primary">
+          ${navHtml}
+          <div class="topbar-user">
+            <div class="user-meta">
+              <span class="user-name">${escapeHtml(displayName)}</span>
+              <span class="user-role">${escapeHtml(roleLabel(role))}</span>
+            </div>
+            ${profileBtn}
+            <button type="button" id="btn-logout" class="btn btn-ghost btn-sm">${escapeHtml(t('common.logout'))}</button>
+          </div>
+        </nav>
       </header>
+      <div class="nav-backdrop" id="nav-backdrop" hidden></div>
       <main id="main" class="main-content" tabindex="-1">
         ${mainHtml}
       </main>
@@ -144,11 +157,49 @@ export function renderShell({ role, user, activeNav, mainHtml }) {
   `;
 }
 
+function closeMobileNav() {
+  const shell = document.querySelector('.app-shell');
+  const toggle = document.getElementById('btn-nav-toggle');
+  const backdrop = document.getElementById('nav-backdrop');
+  shell?.classList.remove('nav-open');
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  if (backdrop) backdrop.hidden = true;
+  document.body.classList.remove('nav-lock');
+}
+
+function openMobileNav() {
+  const shell = document.querySelector('.app-shell');
+  const toggle = document.getElementById('btn-nav-toggle');
+  const backdrop = document.getElementById('nav-backdrop');
+  shell?.classList.add('nav-open');
+  if (toggle) toggle.setAttribute('aria-expanded', 'true');
+  if (backdrop) backdrop.hidden = false;
+  document.body.classList.add('nav-lock');
+}
+
 export function bindShellActions({ onLogout, onProfile }) {
-  document.getElementById('btn-logout')?.addEventListener('click', onLogout);
-  document.getElementById('btn-my-profile')?.addEventListener('click', onProfile);
+  document.getElementById('btn-logout')?.addEventListener('click', () => {
+    closeMobileNav();
+    onLogout?.();
+  });
+  document.getElementById('btn-my-profile')?.addEventListener('click', () => {
+    closeMobileNav();
+    onProfile?.();
+  });
   document.querySelectorAll('[data-lang-toggle]').forEach((btn) => {
     btn.addEventListener('click', () => toggleLang());
+  });
+
+  const toggle = document.getElementById('btn-nav-toggle');
+  const backdrop = document.getElementById('nav-backdrop');
+  toggle?.addEventListener('click', () => {
+    const open = document.querySelector('.app-shell')?.classList.contains('nav-open');
+    if (open) closeMobileNav();
+    else openMobileNav();
+  });
+  backdrop?.addEventListener('click', closeMobileNav);
+  document.querySelectorAll('.topbar-nav .nav-link').forEach((link) => {
+    link.addEventListener('click', closeMobileNav);
   });
 }
 
