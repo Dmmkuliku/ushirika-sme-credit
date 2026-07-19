@@ -82,6 +82,15 @@ def sme_detail(sme_profile_id: int, current_user: RequireLender, db: Session = D
     return detail
 
 
+@router.get("/sme/{sme_profile_id}/ml-metrics", response_model=SMEDetailResponse)
+def sme_ml_metrics(sme_profile_id: int, current_user: RequireLender, db: Session = Depends(get_db)):
+    """Per-SME ML metrics derived from that SME's own transaction feed."""
+    detail = lender_sme_detail(db, sme_profile_id)
+    if not detail:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SME not found")
+    return detail
+
+
 @router.get("/sme/{sme_profile_id}/transactions", response_model=list[TransactionResponse])
 def sme_transactions(
     sme_profile_id: int,

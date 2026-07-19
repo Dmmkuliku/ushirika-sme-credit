@@ -34,15 +34,33 @@ class CreditPredictor:
         return self.model is not None
 
     def predict_credit_score(self, features: dict[str, float]) -> tuple[float, str]:
+        details = self.predict_details(features)
+        return details["score"], details["model_version"]
+
+    def predict_details(self, features: dict[str, float]) -> dict[str, Any]:
+        """Score + probability for lender/SME explainability."""
         if self.model is None:
-            return self._heuristic_score(features), "heuristic-v1"
+            score = self._heuristic_score(features)
+            return {
+                "score": score,
+                "model_version": "heuristic-v1",
+                "probability_creditworthy": round(max(0.0, min(1.0, (score - 300) / 500)), 4),
+                "primary_model": "heuristic",
+                "model_loaded": False,
+            }
 
         X = np.array([[features.get(col, 0.0) for col in self.feature_columns]])
         proba = float(self.model.predict_proba(X)[0, 1])
-        # Conservative mapping: dampen extremes toward a moderate 350–680 band.
         raw = 300 + proba * 500
         score = 350 + (raw - 350) * 0.66
-        return round(max(300.0, min(680.0, score)), 2), self.model_version
+        score = round(max(300.0, min(680.0, score)), 2)
+        return {
+            "score": score,
+            "model_version": self.model_version,
+            "probability_creditworthy": round(proba, 4),
+            "primary_model": "random_forest",
+            "model_loaded": True,
+        }
 
     def _heuristic_score(self, features: dict[str, float]) -> float:
         raw = (

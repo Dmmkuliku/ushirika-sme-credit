@@ -26,7 +26,7 @@ General objective: automated ecosystem banking prototype using supply-chain tran
 | Proposal item (§) | Implemented |
 |-------------------|-------------|
 | Backend: Python, Pandas, Scikit-Learn, Statsmodels (§3.2) | Yes |
-| Frontend: Vite dashboard (§3.2) | Yes |
+| Frontend: Vite dashboard (§3.2) | Yes — SME, lender (per-SME ML metrics on detail), admin |
 | SQL storage + PII policy (§3.5 / §3.11) | SQLite/SQLAlchemy; ML matrix excludes PII; HMAC `counterparty_hash` + opaque `display_token` |
 | Missing values & outliers (§3.7) | Median imputation; IQR clip on delays/volume; transaction amount outliers for financing |
 | EDA with Seaborn & Plotly (§3.7) | `scripts/run_eda.py` → `reports/eda/` |

@@ -12,6 +12,7 @@ from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
 
 OUT = Path(__file__).resolve().parent / "Ushirika_Group15_Defence_Presentation.pptx"
+OUT_ALT = Path(__file__).resolve().parent / "Ushirika_Group15_Defence_v13.pptx"
 
 FOREST = RGBColor(0x0B, 0x3D, 0x2E)
 FOREST_DEEP = RGBColor(0x06, 0x28, 0x20)
@@ -188,7 +189,7 @@ def build():
     bg(s)
     section_header(s, "WHAT WAS BUILT", "Ushirika — end-to-end SME value-chain credit platform", "Deliverables match proposal Section 3.10")
     layers = [
-        ("Frontend", "Vite + JS/CSS\nSME · Afisa mikopo · Admin\nEN/SW · live dashboards", LAGOON),
+        ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nPer-SME ML metrics\non lender detail", LAGOON),
         ("API", "FastAPI + JWT\nTransactions + TIN\nRole-based access", FOREST),
         ("ML Core", "Feature engineering\nRF (primary) + LR\n80/20 train–test + CV", LAGOON_BRIGHT),
         ("Data & Ethics", "SQL storage\nHMAC PII hashes\nOutlier-aware financing", FOREST_DEEP),
@@ -203,8 +204,7 @@ def build():
             textbox(s, left + Inches(2.85), Inches(3.2), Inches(0.4), Inches(0.35), "→", size=20, bold=True, color=LAGOON, align=PP_ALIGN.CENTER)
     textbox(s, Inches(0.55), Inches(5.45), Inches(12.2), Inches(1.2),
             "Proposal fulfilment: operational ML backend · Vite interactive portal · technical performance report.\n"
-            "Also delivered beyond proposal baseline: NIDA/PIN auth, forgot-PIN via birthdate, CSV import/export, "
-            "live retrain on SME data, outlier caps, and bilingual UI.",
+            "Lender workflow: select an SME → see ML score, creditworthy probability, and feature signals from that SME’s data.",
             size=13, color=MUTED)
     footer(s, 4)
 
@@ -387,8 +387,12 @@ def build():
     textbox(s, Inches(0.8), Inches(6.5), Inches(11.5), Inches(0.4), "Asanteni  ·  Questions and discussion", size=16, bold=True, color=LAGOON_BRIGHT)
     textbox(s, Inches(11.4), Inches(6.5), Inches(1.5), Inches(0.4), "12  /  12", size=12, color=RGBColor(0xB8, 0xD0, 0xC8), align=PP_ALIGN.RIGHT)
 
-    prs.save(str(OUT))
-    print(f"Saved: {OUT}")
+    try:
+        prs.save(str(OUT))
+        print(f"Saved: {OUT}")
+    except PermissionError:
+        prs.save(str(OUT_ALT))
+        print(f"Original PPT locked; saved: {OUT_ALT}")
 
 
 if __name__ == "__main__":

@@ -49,6 +49,17 @@ class SMEDetailResponse(BaseModel):
     risk_band: str | None
     eligible_financing_tzs: float | None
     monthly_history: list["MonthlyHistoryResponse"]
+    # Per-SME ML metrics (from this SME's transaction feed)
+    score_locked: bool = True
+    transactions_needed: int = 0
+    model_version: str | None = None
+    primary_model: str | None = None
+    probability_creditworthy: float | None = None
+    ml_features: dict[str, float] | None = None
+    ml_features_display: list[dict] | None = None
+    outlier_transaction_count: int | None = None
+    typical_volume_tzs: float | None = None
+    ml_summary: str | None = None
 
 
 class MonthlyHistoryResponse(BaseModel):

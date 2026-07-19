@@ -165,12 +165,24 @@ def lender_portfolio(
 
 
 def lender_sme_detail(db: Session, sme_profile_id: int) -> SMEDetailResponse | None:
+    import json
+
+    from app.services.feature_engineering import FEATURE_COLUMNS, compute_features
+    from app.services.labels import humanize_features
+    from app.services.ml_predictor import get_predictor
+
     profile = db.query(SMEProfile).filter(SMEProfile.id == sme_profile_id).first()
     if not profile:
         return None
 
+    settings = get_settings()
     user = db.query(User).filter(User.id == profile.user_id).first()
-    transactions = db.query(Transaction).filter(Transaction.sme_profile_id == profile.id).all()
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.sme_profile_id == profile.id)
+        .order_by(Transaction.transaction_date.asc())
+        .all()
+    )
     total_volume = sum(t.amount_tzs for t in transactions)
     latest = (
         db.query(CreditScore)
@@ -188,6 +200,56 @@ def lender_sme_detail(db: Session, sme_profile_id: int) -> SMEDetailResponse | N
         .all()
     )
 
+    tx_count = len(transactions)
+    score_eligible = tx_count >= settings.min_transactions_for_score
+    ml_features = None
+    ml_display = None
+    probability = None
+    model_version = latest.model_version if latest else None
+    primary_model = None
+    outlier_count = None
+    typical_vol = None
+    score = latest.score if latest else None
+    risk = latest.risk_band if latest else None
+    eligible = latest.eligible_financing_tzs if latest else None
+
+    if score_eligible and transactions:
+        feats = compute_features(transactions, profile.date_of_birth.year)
+        if latest and latest.features_json:
+            try:
+                stored = json.loads(latest.features_json)
+                feats = {**feats, **{k: float(v) for k, v in stored.items() if isinstance(v, (int, float))}}
+            except (json.JSONDecodeError, TypeError, ValueError):
+                pass
+        ml_features = {k: float(feats.get(k, 0.0)) for k in FEATURE_COLUMNS}
+        # Keep display extras if present
+        for extra in ("outlier_transaction_count", "typical_volume_tzs"):
+            if extra in feats:
+                ml_features[extra] = float(feats[extra])
+        ml_display = humanize_features(feats)
+        outlier_count = int(feats.get("outlier_transaction_count") or 0)
+        typical_vol = feats.get("typical_volume_tzs")
+        details = get_predictor().predict_details(ml_features)
+        probability = details.get("probability_creditworthy")
+        model_version = details.get("model_version") or model_version
+        primary_model = details.get("primary_model")
+        if score is None:
+            score = details.get("score")
+
+    ml_summary = None
+    if not score_eligible:
+        needed = max(0, settings.min_transactions_for_score - tx_count)
+        ml_summary = (
+            f"ML scoring locked until this SME records at least "
+            f"{settings.min_transactions_for_score} transactions "
+            f"({needed} more needed). Metrics use this SME’s own supply-chain feed."
+        )
+    elif latest or ml_features:
+        ml_summary = (
+            "These ML metrics are computed from this SME’s uploaded / recorded "
+            "transactions only (payment behaviour, value-chain roles, delays)."
+        )
+
     return SMEDetailResponse(
         sme_profile_id=profile.id,
         display_token=profile.display_token,
@@ -199,10 +261,20 @@ def lender_sme_detail(db: Session, sme_profile_id: int) -> SMEDetailResponse | N
         location=profile.location,
         nationality=profile.nationality,
         date_of_birth=profile.date_of_birth,
-        transaction_count=len(transactions),
+        transaction_count=tx_count,
         total_volume_tzs=round(total_volume, 2),
-        latest_score=latest.score if latest else None,
-        risk_band=latest.risk_band if latest else None,
-        eligible_financing_tzs=latest.eligible_financing_tzs if latest else None,
+        latest_score=score,
+        risk_band=risk,
+        eligible_financing_tzs=eligible,
         monthly_history=[MonthlyHistoryResponse.model_validate(h) for h in history],
+        score_locked=not score_eligible or score is None,
+        transactions_needed=max(0, settings.min_transactions_for_score - tx_count),
+        model_version=model_version,
+        primary_model=primary_model,
+        probability_creditworthy=probability,
+        ml_features=ml_features,
+        ml_features_display=ml_display,
+        outlier_transaction_count=outlier_count,
+        typical_volume_tzs=typical_vol,
+        ml_summary=ml_summary,
     )

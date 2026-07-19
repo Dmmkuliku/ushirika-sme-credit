@@ -51,7 +51,7 @@ export async function loadLenderPortfolio(session, { onLogout, selectedId = null
       <div class="page-header">
         <div>
           <h1>SME portfolio</h1>
-          <p class="page-lead">Search and review scored businesses</p>
+          <p class="page-lead">Search SMEs, then open one to see ML credit metrics from their transaction feed</p>
         </div>
         <div class="page-actions">
           <button type="button" id="btn-page-profile" class="btn btn-secondary">My Profile</button>
@@ -96,7 +96,7 @@ export async function loadLenderPortfolio(session, { onLogout, selectedId = null
         <section class="panel portfolio-detail-panel" aria-labelledby="portfolio-detail-title">
           <div class="panel-header"><h2 id="portfolio-detail-title">SME detail</h2></div>
           <div id="portfolio-detail">
-            ${emptyBlock('Select an SME', 'Choose a business from the portfolio list to view details.')}
+            ${emptyBlock('Select an SME', 'Choose a business from the list to open profile details and ML metrics computed from that SME’s data.')}
           </div>
         </section>
       </div>
@@ -226,6 +226,13 @@ function renderDetail(host, detail, txPayload, id) {
   const txCount = detail?.transaction_count ?? detail?.transactions_count ?? detail?.tx_count ?? null;
   const totalVolume = detail?.total_volume ?? detail?.total_volume_tzs ?? null;
   const locked = detail?.score_locked === true || detail?.is_locked === true || (txCount != null && Number(txCount) < 5 && score == null);
+  const proba = detail?.probability_creditworthy;
+  const modelVersion = detail?.model_version || '—';
+  const primaryModel = detail?.primary_model || 'random_forest';
+  const mlSummary = detail?.ml_summary || '';
+  const featureRows = Array.isArray(detail?.ml_features_display) ? detail.ml_features_display : [];
+  const outlierCount = detail?.outlier_transaction_count;
+  const typicalVol = detail?.typical_volume_tzs;
 
   const transactions = normalizeListPayload(txPayload, ['transactions', 'items', 'data', 'results', 'history', 'months']);
   const monthlyHistory = normalizeListPayload(detail?.monthly_history || [], ['months', 'history', 'items', 'data']);
@@ -235,6 +242,8 @@ function renderDetail(host, detail, txPayload, id) {
         score: r.total_volume_tzs ?? r.score ?? r.value ?? r.transaction_count,
       }))
     : aggregateMonthlyVolume(transactions);
+
+  const probaPct = Number.isFinite(Number(proba)) ? `${(Number(proba) * 100).toFixed(1)}%` : '—';
 
   host.innerHTML = `
     <div class="detail-header">
@@ -256,13 +265,27 @@ function renderDetail(host, detail, txPayload, id) {
       <div class="profile-info-item"><span class="profile-info-label">Date of Birth</span><span>${escapeHtml(formatDate(detail?.date_of_birth))}</span></div>
     </div>
 
-    <div class="metric-grid metric-grid-compact" aria-label="SME metrics">
-      <article class="metric-card"><h4 class="metric-label">Score</h4><p class="metric-value">${escapeHtml(locked ? 'Locked' : formatScore(score))}</p></article>
-      <article class="metric-card"><h4 class="metric-label">Risk</h4><p class="metric-value"><span class="risk-badge ${riskClass(locked ? '' : risk)}">${escapeHtml(locked ? 'Pending' : capitalize(String(risk)))}</span></p></article>
-      <article class="metric-card"><h4 class="metric-label">Eligible TZS</h4><p class="metric-value metric-tzs">${escapeHtml(locked ? '—' : formatTZS(eligible))}</p></article>
-      <article class="metric-card"><h4 class="metric-label">Total Volume</h4><p class="metric-value metric-tzs">${escapeHtml(totalVolume != null ? formatTZS(totalVolume) : '—')}</p></article>
-      <article class="metric-card"><h4 class="metric-label">Transactions</h4><p class="metric-value">${escapeHtml(txCount != null ? formatNumber(txCount, 0) : '—')}</p></article>
-    </div>
+    <section class="detail-section ml-metrics-panel" aria-labelledby="ml-metrics-title">
+      <div class="ml-metrics-header">
+        <h4 id="ml-metrics-title">ML metrics for this SME</h4>
+        <span class="ml-chip">v${escapeHtml(String(modelVersion))}</span>
+      </div>
+      <p class="page-lead">${escapeHtml(mlSummary || 'Select an SME with enough transactions to see model-driven metrics from their feed.')}</p>
+      <div class="metric-grid metric-grid-compact" aria-label="ML score metrics">
+        <article class="metric-card"><h4 class="metric-label">ML score</h4><p class="metric-value">${escapeHtml(locked ? 'Locked' : formatScore(score))}</p></article>
+        <article class="metric-card"><h4 class="metric-label">Risk band</h4><p class="metric-value"><span class="risk-badge ${riskClass(locked ? '' : risk)}">${escapeHtml(locked ? 'Pending' : capitalize(String(risk)))}</span></p></article>
+        <article class="metric-card"><h4 class="metric-label">Creditworthy prob.</h4><p class="metric-value">${escapeHtml(locked ? '—' : probaPct)}</p></article>
+        <article class="metric-card"><h4 class="metric-label">Eligible TZS</h4><p class="metric-value metric-tzs">${escapeHtml(locked ? '—' : formatTZS(eligible))}</p></article>
+        <article class="metric-card"><h4 class="metric-label">Primary model</h4><p class="metric-value" style="font-size:1rem">${escapeHtml(capitalize(String(primaryModel).replace(/_/g, ' ')))}</p></article>
+        <article class="metric-card"><h4 class="metric-label">Transactions used</h4><p class="metric-value">${escapeHtml(txCount != null ? formatNumber(txCount, 0) : '—')}</p></article>
+        <article class="metric-card"><h4 class="metric-label">Total volume</h4><p class="metric-value metric-tzs">${escapeHtml(totalVolume != null ? formatTZS(totalVolume) : '—')}</p></article>
+        <article class="metric-card"><h4 class="metric-label">Typical volume</h4><p class="metric-value metric-tzs">${escapeHtml(typicalVol != null ? formatTZS(typicalVol) : '—')}</p></article>
+        <article class="metric-card"><h4 class="metric-label">Unusual txs</h4><p class="metric-value">${escapeHtml(outlierCount != null ? formatNumber(outlierCount, 0) : '—')}</p></article>
+      </div>
+      ${locked
+        ? emptyBlock('Score not ready', `This SME needs more transaction data before ML scoring (${detail?.transactions_needed ?? '—'} more).`)
+        : renderFeatureBars(featureRows)}
+    </section>
 
     <div class="detail-section">
       <h4>Monthly transaction history</h4>
@@ -288,6 +311,38 @@ function renderDetail(host, detail, txPayload, id) {
       showToast(getErrorMessage(err, 'Download failed'), 'error');
     }
   });
+}
+
+function renderFeatureBars(rows) {
+  if (!rows.length) return emptyBlock('No feature metrics', 'No engineered features available for this SME yet.');
+  const slice = rows.slice(0, 14);
+  const numeric = slice
+    .map((r) => ({ ...r, num: Number(r.value) }))
+    .filter((r) => Number.isFinite(r.num));
+  const maxAbs = Math.max(...numeric.map((r) => Math.abs(r.num)), 1);
+  return `
+    <div class="ml-feature-block">
+      <h5 class="ml-feature-title">Signals from this SME’s transaction data</h5>
+      <ul class="ml-feature-list">
+        ${slice.map((row) => {
+          const val = Number(row.value);
+          const width = Number.isFinite(val) ? Math.min(100, Math.round((Math.abs(val) / maxAbs) * 100)) : 8;
+          const label = row.name || row.key || 'Feature';
+          const shown = Number.isFinite(val)
+            ? (Math.abs(val) >= 1000 ? formatNumber(val, 0) : formatNumber(val, 4))
+            : String(row.value ?? '—');
+          return `
+            <li class="ml-feature-row">
+              <div class="ml-feature-meta">
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(shown)}</strong>
+              </div>
+              <div class="ml-feature-track" aria-hidden="true"><span class="ml-feature-fill" style="width:${width}%"></span></div>
+            </li>`;
+        }).join('')}
+      </ul>
+    </div>
+  `;
 }
 
 function aggregateMonthlyVolume(transactions) {

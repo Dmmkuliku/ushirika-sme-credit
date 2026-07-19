@@ -456,6 +456,10 @@ export function getLenderSmeDetail(smeId) {
   return request(`/lender/sme/${encodeURIComponent(smeId)}`);
 }
 
+export function getLenderSmeMlMetrics(smeId) {
+  return request(`/lender/sme/${encodeURIComponent(smeId)}/ml-metrics`);
+}
+
 export function getLenderSmeByNida(nida) {
   return request(`/lender/sme/by-nida/${encodeURIComponent(nida)}`);
 }
