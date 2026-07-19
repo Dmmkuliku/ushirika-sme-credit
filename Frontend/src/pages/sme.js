@@ -383,7 +383,7 @@ function recordTxFieldsHtml(prefix, row = null) {
       </div>
       <div class="field">
         <label for="${id('cp-tin')}">${escapeHtml(t('sme.otherPartyTin'))}</label>
-        <input id="${id('cp-tin')}" name="counterparty_tin" type="text" required minlength="9" maxlength="20" value="${val('counterparty_tin')}" />
+        <input id="${id('cp-tin')}" name="counterparty_tin" type="text" inputmode="numeric" required minlength="9" maxlength="9" pattern="[0-9]{9}" placeholder="9 digits" value="${val('counterparty_tin')}" />
         <p class="field-hint">${escapeHtml(t('sme.otherPartyTinHint'))}</p>
       </div>
     </div>
@@ -449,7 +449,7 @@ function recordTxFieldsHtml(prefix, row = null) {
 function parseTxFormData(fd) {
   return {
     transaction_ref: String(fd.get('transaction_ref') || '').trim(),
-    counterparty_tin: String(fd.get('counterparty_tin') || '').trim().replace(/[^a-zA-Z0-9]/g, ''),
+    counterparty_tin: String(fd.get('counterparty_tin') || '').trim().replace(/\D/g, ''),
     counterparty_name: String(fd.get('counterparty_name') || '').trim(),
     counterparty_type: String(fd.get('counterparty_type') || ''),
     order_type: String(fd.get('order_type') || ''),
@@ -461,8 +461,11 @@ function parseTxFormData(fd) {
 }
 
 function validateTxData(data) {
-  if (!data.transaction_ref || data.counterparty_tin.length < 9 || !(data.amount_tzs > 0) || !data.transaction_date) {
+  if (!data.transaction_ref || !(data.amount_tzs > 0) || !data.transaction_date) {
     return t('sme.fillRequired');
+  }
+  if (!/^[0-9]{9}$/.test(data.counterparty_tin || '')) {
+    return t('sme.errTinExact');
   }
   if (!data.counterparty_name || !data.counterparty_type || !data.order_type || !data.payment_status) {
     return t('sme.fillRequired');

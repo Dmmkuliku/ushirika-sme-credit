@@ -65,7 +65,13 @@ def portfolio(
 
 @router.get("/sme/by-nida/{nida}", response_model=SMEDetailResponse)
 def sme_by_nida(nida: str, current_user: RequireLender, db: Session = Depends(get_db)):
-    profile = db.query(SMEProfile).filter(SMEProfile.nida == nida).first()
+    digits = "".join(ch for ch in str(nida).strip() if ch.isdigit())
+    if len(digits) != 20:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="NIDA must be exactly 20 digits",
+        )
+    profile = db.query(SMEProfile).filter(SMEProfile.nida == digits).first()
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SME not found")
     detail = lender_sme_detail(db, profile.id)

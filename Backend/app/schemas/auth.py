@@ -6,10 +6,11 @@ from pydantic import BaseModel, Field, field_validator
 
 _PIN_RE = re.compile(r"^\d{4}$")
 _NIDA_RE = re.compile(r"^\d{20}$")
+_TIN_RE = re.compile(r"^\d{9}$")
 
 
 class SMERegisterRequest(BaseModel):
-    nida: str = Field(min_length=20, max_length=20)
+    nida: str = Field(min_length=20, max_length=20, description="Exactly 20 digits")
     phone: str = Field(min_length=10, max_length=20)
     full_name: str = Field(min_length=2, max_length=200)
     email: str | None = Field(default=None, max_length=254)
@@ -18,23 +19,24 @@ class SMERegisterRequest(BaseModel):
     gender: str
     nationality: str = Field(default="Tanzanian", max_length=50)
     date_of_birth: str
-    tin: str = Field(min_length=9, max_length=20, description="Tax Identification Number")
+    tin: str = Field(min_length=9, max_length=9, description="Tax Identification Number — exactly 9 digits")
     pin: str
 
     @field_validator("nida")
     @classmethod
     def validate_nida(cls, v: str) -> str:
-        if not _NIDA_RE.match(v):
+        digits = "".join(ch for ch in str(v).strip() if ch.isdigit())
+        if not _NIDA_RE.match(digits):
             raise ValueError("NIDA must be exactly 20 digits")
-        return v
+        return digits
 
     @field_validator("tin")
     @classmethod
     def validate_tin(cls, v: str) -> str:
-        cleaned = "".join(ch for ch in v.strip().upper() if ch.isalnum())
-        if len(cleaned) < 9:
-            raise ValueError("TIN must be at least 9 characters")
-        return cleaned
+        digits = "".join(ch for ch in str(v).strip() if ch.isdigit())
+        if not _TIN_RE.match(digits):
+            raise ValueError("TIN must be exactly 9 digits")
+        return digits
 
     @field_validator("gender")
     @classmethod

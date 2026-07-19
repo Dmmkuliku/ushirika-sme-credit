@@ -370,7 +370,7 @@ function loadCreateSme(session, { onLogout }) {
           <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>
           <div class="field"><label for="nationality">Nationality</label><input id="nationality" name="nationality" type="text" value="Tanzanian" required /></div>
           <div class="field"><label for="date_of_birth">Date of Birth</label><input id="date_of_birth" name="date_of_birth" type="date" required /></div>
-          <div class="field"><label for="tin">${escapeHtml(t('admin.createSmeTin'))}</label><input id="tin" name="tin" type="text" required minlength="9" maxlength="20" placeholder="At least 9 characters" /></div>
+          <div class="field"><label for="tin">${escapeHtml(t('admin.createSmeTin'))}</label><input id="tin" name="tin" type="text" inputmode="numeric" required minlength="9" maxlength="9" pattern="[0-9]{9}" placeholder="Exactly 9 digits" /></div>
           <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
           <div class="field"><label for="confirm_pin">Confirm PIN</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
           <div id="create-error" class="form-error" hidden></div>
@@ -384,9 +384,9 @@ function loadCreateSme(session, { onLogout }) {
     const nida = fd.get('nida');
     const pin = fd.get('pin');
     const confirm_pin = fd.get('confirm_pin');
-    const tin = String(fd.get('tin') || '').trim().replace(/[^a-zA-Z0-9]/g, '');
+    const tin = String(fd.get('tin') || '').trim().replace(/\D/g, '');
     if (!/^[0-9]{20}$/.test(nida)) return 'NIDA must be exactly 20 digits.';
-    if (tin.length < 9) return t('admin.tinRequired');
+    if (!/^[0-9]{9}$/.test(tin)) return t('admin.tinRequired');
     if (!/^[0-9]{4}$/.test(pin)) return 'PIN must be exactly 4 digits.';
     if (pin !== confirm_pin) return 'PINs do not match.';
     await api.createSmeByAdmin({

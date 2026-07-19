@@ -18,7 +18,7 @@ class TransactionCreate(BaseModel):
     """Crucial fields only — SME TIN comes from the profile automatically."""
 
     transaction_ref: str = Field(min_length=3, max_length=64)
-    counterparty_tin: str = Field(min_length=9, max_length=20, description="TIN of the other party")
+    counterparty_tin: str = Field(min_length=9, max_length=9, description="Other party TIN — exactly 9 digits")
     counterparty_name: str = Field(min_length=2, max_length=200)
     counterparty_type: str = Field(min_length=2, max_length=50, description="buyer or seller")
     order_type: str = Field(default="sale", min_length=2, max_length=50)
@@ -37,15 +37,15 @@ class TransactionCreate(BaseModel):
     @field_validator("counterparty_tin")
     @classmethod
     def validate_tin(cls, v: str) -> str:
-        cleaned = "".join(ch for ch in v.strip().upper() if ch.isalnum())
-        if len(cleaned) < 9:
-            raise ValueError("TIN must be at least 9 characters")
-        return cleaned
+        digits = "".join(ch for ch in str(v).strip() if ch.isdigit())
+        if len(digits) != 9:
+            raise ValueError("TIN must be exactly 9 digits")
+        return digits
 
 
 class TransactionUpdate(BaseModel):
     transaction_ref: str | None = Field(default=None, min_length=3, max_length=64)
-    counterparty_tin: str | None = Field(default=None, min_length=9, max_length=20)
+    counterparty_tin: str | None = Field(default=None, min_length=9, max_length=9)
     counterparty_name: str | None = Field(default=None, min_length=2, max_length=200)
     counterparty_type: str | None = Field(default=None, min_length=2, max_length=50)
     order_type: str | None = Field(default=None, min_length=2, max_length=50)
@@ -66,10 +66,10 @@ class TransactionUpdate(BaseModel):
     def validate_tin(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        cleaned = "".join(ch for ch in v.strip().upper() if ch.isalnum())
-        if len(cleaned) < 9:
-            raise ValueError("TIN must be at least 9 characters")
-        return cleaned
+        digits = "".join(ch for ch in str(v).strip() if ch.isdigit())
+        if len(digits) != 9:
+            raise ValueError("TIN must be exactly 9 digits")
+        return digits
 
 
 class TransactionResponse(BaseModel):

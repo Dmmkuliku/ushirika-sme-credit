@@ -122,7 +122,7 @@ function renderRegisterFields() {
     </div>
     <div class="field">
       <label for="tin">${escapeHtml(t('auth.tin'))}</label>
-      <input id="tin" name="tin" type="text" required minlength="9" maxlength="20" placeholder="${escapeHtml(t('auth.tinPlaceholder'))}" />
+      <input id="tin" name="tin" type="text" inputmode="numeric" required minlength="9" maxlength="9" pattern="[0-9]{9}" placeholder="${escapeHtml(t('auth.tinPlaceholder'))}" />
       <p class="field-hint">${escapeHtml(t('auth.tinHint'))}</p>
     </div>
     <div class="field">
@@ -286,8 +286,8 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
 
     if (!/^[0-9]{20}$/.test(nida)) { showError(t('auth.errNida')); return; }
     if (!full_name) { showError(t('auth.errFullName')); return; }
-    const tinClean = tin.replace(/[^a-zA-Z0-9]/g, '');
-    if (tinClean.length < 9) { showError(t('auth.errTin')); return; }
+    const tinClean = tin.replace(/\D/g, '');
+    if (!/^[0-9]{9}$/.test(tinClean)) { showError(t('auth.errTin')); return; }
     if (!phone) { showError(t('auth.errPhone')); return; }
     if (!location) { showError(t('auth.errLocation')); return; }
     if (!business_type) { showError(t('auth.errBusinessType')); return; }

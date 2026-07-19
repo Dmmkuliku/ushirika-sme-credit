@@ -111,10 +111,15 @@ export async function loadLenderPortfolio(session, { onLogout, selectedId = null
   let currentSelected = selectedId;
   let currentRows = [];
 
-  // NIDA search
+  // NIDA search — only query when exactly 20 digits
   nidaInput?.addEventListener('input', debounce(async () => {
-    const val = nidaInput.value.trim();
-    if (val.length === 20 && /^[0-9]{20}$/.test(val)) {
+    const val = nidaInput.value.replace(/\D/g, '').slice(0, 20);
+    if (nidaInput.value !== val) nidaInput.value = val;
+    if (val.length > 0 && val.length < 20) {
+      detailHost.innerHTML = emptyBlock('NIDA incomplete', 'Enter all 20 digits to search.');
+      return;
+    }
+    if (val.length === 20) {
       detailHost.innerHTML = loadingBlock('Looking up NIDA…');
       try {
         const detail = await api.getLenderSmeByNida(val);

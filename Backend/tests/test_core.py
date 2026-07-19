@@ -83,7 +83,7 @@ def test_transactions_and_scoring(client):
             "/api/transactions",
             json={
                 "transaction_ref": f"REF-{i}",
-                "counterparty_tin": f"TIN{i:06d}XX",
+                "counterparty_tin": f"{100000000 + i}",
                 "counterparty_name": f"Partner {i}",
                 "counterparty_type": "supplier",
                 "order_type": "purchase",
@@ -116,7 +116,7 @@ def test_score_requires_min_transactions(client):
         "/api/transactions",
         json={
             "transaction_ref": "REF-ONLY",
-            "counterparty_tin": "TINONLY001",
+            "counterparty_tin": "100000001",
             "counterparty_name": "Partner",
             "counterparty_type": "supplier",
             "order_type": "purchase",

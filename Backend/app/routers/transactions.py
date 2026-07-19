@@ -164,11 +164,11 @@ async def import_csv(
 def download_template(current_user: RequireSME):
     header = ",".join(REQUIRED_COLUMNS + OPTIONAL_COLUMNS)
     sample_rows = [
-        "TX-1001,100-123-456,Dar Fresh Foods,buyer,sale,250000,paid,2025-01-10,On-time settlement",
-        "TX-1002,100-234-567,Kilimo Supplies,seller,purchase,180000,paid,2025-01-20,Inventory restock",
-        "TX-1003,100-345-678,Mwanza Distributors,buyer,sale,320000,partial,2025-02-05,Partial payment",
-        "TX-1004,100-456-789,Arusha Traders,buyer,sale,150000,pending,2025-02-10,Awaiting balance",
-        "TX-1005,100-567-890,Coastal Logistics,seller,purchase,210000,paid,2025-03-01,Logistics services",
+        "TX-1001,100123456,Dar Fresh Foods,buyer,sale,250000,paid,2025-01-10,On-time settlement",
+        "TX-1002,100234567,Kilimo Supplies,seller,purchase,180000,paid,2025-01-20,Inventory restock",
+        "TX-1003,100345678,Mwanza Distributors,buyer,sale,320000,partial,2025-02-05,Partial payment",
+        "TX-1004,100456789,Arusha Traders,buyer,sale,150000,pending,2025-02-10,Awaiting balance",
+        "TX-1005,100567890,Coastal Logistics,seller,purchase,210000,paid,2025-03-01,Logistics services",
     ]
     content = header + "\n" + "\n".join(sample_rows) + "\n"
     # BytesIO avoids some browser/proxy issues with text StreamingResponse

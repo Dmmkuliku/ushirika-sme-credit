@@ -38,7 +38,7 @@ def _parse_datetime(val) -> datetime:
 
 
 def _clean_tin(val) -> str:
-    """Normalize TIN; avoid float corruption (e.g. 100123456.0 → trailing 0)."""
+    """Normalize TIN to exactly 9 digits; avoid float corruption."""
     if val is None or (isinstance(val, float) and pd.isna(val)):
         raise ValueError("TIN is required")
     if hasattr(val, "item"):
@@ -53,10 +53,10 @@ def _clean_tin(val) -> str:
             val = format(val, "f").rstrip("0").rstrip(".")
     elif isinstance(val, int):
         val = str(val)
-    cleaned = "".join(ch for ch in str(val).strip().upper() if ch.isalnum())
-    if len(cleaned) < 9:
-        raise ValueError("TIN must be at least 9 characters")
-    return cleaned
+    digits = "".join(ch for ch in str(val).strip() if ch.isdigit())
+    if len(digits) != 9:
+        raise ValueError("TIN must be exactly 9 digits")
+    return digits
 
 
 def _normalize_party(val: str) -> str:
