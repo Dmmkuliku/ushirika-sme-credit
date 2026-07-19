@@ -40,6 +40,7 @@ class SMEDetailResponse(BaseModel):
     full_name: str
     phone: str
     email: str | None
+    tin: str | None = None
     location: str
     nationality: str
     date_of_birth: date

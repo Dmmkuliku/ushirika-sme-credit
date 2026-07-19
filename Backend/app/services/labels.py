@@ -18,7 +18,7 @@ FEATURE_LABELS_EN: dict[str, str] = {
     "supplier_share": "Share of supplier counterparties",
     "distributor_share": "Share of distributor counterparties",
     "order_type_diversity": "Order-type diversity (value chain)",
-    "outlier_transaction_count": "Unusual large transactions",
+    "outlier_transaction_count": "Unusual large transactions (excluded from loan)",
     "typical_volume_tzs": "Typical volume excluding outliers (TZS)",
 }
 
@@ -40,9 +40,23 @@ FEATURE_LABELS_SW: dict[str, str] = {
     "supplier_share": "Sehemu ya wasambazaji",
     "distributor_share": "Sehemu ya wasambazaji wa jumla",
     "order_type_diversity": "Utofauti wa aina za oda (mnyororo wa thamani)",
-    "outlier_transaction_count": "Miamala mikubwa isiyo ya kawaida",
+    "outlier_transaction_count": "Miamala mikubwa isiyo ya kawaida (haitumiki kwenye mkopo)",
     "typical_volume_tzs": "Kiasi cha kawaida bila miamala isiyo ya kawaida (TZS)",
 }
+
+# Only the most decision-relevant signals shown to SMEs and lenders
+CRUCIAL_DISPLAY_KEYS = [
+    "payment_consistency",
+    "on_time_rate",
+    "default_rate",
+    "payment_delay_avg",
+    "typical_volume_tzs",
+    "turnover_tzs",
+    "transaction_frequency",
+    "volume_trend",
+    "compliance_rate",
+    "outlier_transaction_count",
+]
 
 
 def label_for(feature_key: str, lang: str = "en") -> str:
@@ -50,13 +64,17 @@ def label_for(feature_key: str, lang: str = "en") -> str:
     return table.get(feature_key, feature_key.replace("_", " ").title())
 
 
-def humanize_features(features: dict | None, lang: str = "en") -> list[dict]:
+def humanize_features(features: dict | None, lang: str = "en", crucial_only: bool = True) -> list[dict]:
     if not features:
         return []
     skip = {"outlier_flags"}
+    keys = CRUCIAL_DISPLAY_KEYS if crucial_only else list(features.keys())
     items = []
-    for key, value in features.items():
-        if key in skip or isinstance(value, (list, dict)):
+    for key in keys:
+        if key in skip or key not in features:
+            continue
+        value = features[key]
+        if isinstance(value, (list, dict)):
             continue
         items.append({"name": label_for(key, lang), "key": key, "value": value})
     return items

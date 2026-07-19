@@ -39,16 +39,19 @@ def financing_from_score(score: float, amounts: list[float]) -> tuple[float, dic
     if caps["cap_experience_tzs"] > 0:
         candidates.append(float(caps["cap_experience_tzs"]))
 
-    # Absolute floor: never below min when there is real activity; else 0.
+    # Absolute ceiling: never above half of typical trading history
     financing = round(max(0.0, min(candidates)), 2)
+    hard_cap = float(caps["typical_volume_tzs"]) * 0.50 if caps["typical_volume_tzs"] else 0.0
+    if hard_cap > 0:
+        financing = min(financing, hard_cap)
     if amounts and financing < settings.min_financing_tzs:
         # Only raise to min if typical history can support it
         if float(caps["typical_volume_tzs"]) >= settings.min_financing_tzs:
-            financing = float(settings.min_financing_tzs)
+            financing = min(float(settings.min_financing_tzs), hard_cap or float(settings.min_financing_tzs))
         else:
-            financing = round(float(caps["typical_volume_tzs"]) * 0.75, 2)
+            financing = round(float(caps["typical_volume_tzs"]) * 0.50, 2)
 
-    return financing, caps
+    return round(financing, 2), caps
 
 
 def _mark_outliers(db: Session, transactions: list[Transaction]) -> None:

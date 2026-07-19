@@ -7,6 +7,18 @@ from pydantic import BaseModel, Field, field_validator
 _PIN_RE = re.compile(r"^\d{4}$")
 _NIDA_RE = re.compile(r"^\d{20}$")
 _TIN_RE = re.compile(r"^\d{9}$")
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _require_valid_email(v: str | None) -> str | None:
+    if v is None:
+        return None
+    cleaned = str(v).strip()
+    if not cleaned:
+        return None
+    if "@" not in cleaned or not _EMAIL_RE.match(cleaned):
+        raise ValueError("Email must include @ and look like a valid address (e.g. name@example.com)")
+    return cleaned.lower()
 
 
 class SMERegisterRequest(BaseModel):
@@ -37,6 +49,11 @@ class SMERegisterRequest(BaseModel):
         if not _TIN_RE.match(digits):
             raise ValueError("TIN must be exactly 9 digits")
         return digits
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        return _require_valid_email(v)
 
     @field_validator("gender")
     @classmethod
@@ -80,6 +97,14 @@ class LenderCreateRequest(BaseModel):
             raise ValueError("gender must be Male, Female, or Other")
         return v
 
+    @field_validator("work_email")
+    @classmethod
+    def validate_work_email(cls, v: str) -> str:
+        cleaned = _require_valid_email(v)
+        if cleaned is None:
+            raise ValueError("Email must include @ and look like a valid address (e.g. name@example.com)")
+        return cleaned
+
     @field_validator("pin")
     @classmethod
     def validate_pin(cls, v: str) -> str:
@@ -102,6 +127,14 @@ class SubAdminCreateRequest(BaseModel):
         if v not in ("Male", "Female", "Other"):
             raise ValueError("gender must be Male, Female, or Other")
         return v
+
+    @field_validator("work_email")
+    @classmethod
+    def validate_work_email(cls, v: str) -> str:
+        cleaned = _require_valid_email(v)
+        if cleaned is None:
+            raise ValueError("Email must include @ and look like a valid address (e.g. name@example.com)")
+        return cleaned
 
     @field_validator("pin")
     @classmethod
@@ -227,6 +260,11 @@ class SMEProfileUpdateRequest(BaseModel):
             raise ValueError("gender must be Male, Female, or Other")
         return v
 
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        return _require_valid_email(v)
+
 
 class LenderProfileUpdateRequest(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=200)
@@ -241,6 +279,11 @@ class LenderProfileUpdateRequest(BaseModel):
         if v is not None and v not in ("Male", "Female", "Other"):
             raise ValueError("gender must be Male, Female, or Other")
         return v
+
+    @field_validator("work_email")
+    @classmethod
+    def validate_work_email(cls, v: str | None) -> str | None:
+        return _require_valid_email(v)
 
 
 class AdminSelfUpdateRequest(BaseModel):

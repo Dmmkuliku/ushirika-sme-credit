@@ -1440,11 +1440,64 @@ body.nav-lock {
 }
 
 .ml-metrics-panel {
-  margin-top: 1.25rem;
+  margin-top: 0;
   padding: 1rem 1.1rem 1.2rem;
   border: 1px solid var(--line, #c5d2d5);
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(26, 122, 109, 0.07), rgba(255, 255, 255, 0.9));
+}
+
+.detail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 1.1rem 0 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--line, #c5d2d5);
+}
+
+.detail-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-muted, #4a5e66);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+}
+
+.detail-tab:hover {
+  color: var(--forest, #0b3d2e);
+  background: rgba(11, 61, 46, 0.06);
+}
+
+.detail-tab.is-active {
+  color: var(--forest, #0b3d2e);
+  background: rgba(26, 122, 109, 0.12);
+  border-color: var(--line, #c5d2d5);
+  border-bottom-color: transparent;
+}
+
+.detail-tab-panels {
+  min-height: 12rem;
+}
+
+.detail-tab-panel h4 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  color: var(--forest, #0b3d2e);
+}
+
+.sme-list-nida {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted, #4a5e66);
+  letter-spacing: 0.02em;
 }
 
 .ml-metrics-header {

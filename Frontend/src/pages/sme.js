@@ -127,14 +127,29 @@ function isScoreLocked(overview) {
 }
 
 /** Prefer score_components_display; fall back to snake_case map via featureLabel. */
+const CRUCIAL_COMPONENT_KEYS = new Set([
+  'payment_consistency',
+  'on_time_rate',
+  'default_rate',
+  'payment_delay_avg',
+  'typical_volume_tzs',
+  'turnover_tzs',
+  'transaction_frequency',
+  'volume_trend',
+  'compliance_rate',
+  'outlier_transaction_count',
+]);
+
 function componentsList(overview) {
   const display = overview?.score_components_display;
   if (Array.isArray(display) && display.length) {
-    return display.map((c) => ({
-      name: c.name || (c.key ? featureLabel(c.key) : 'Factor'),
-      value: c.value,
-      key: c.key,
-    }));
+    return display
+      .filter((c) => !c.key || CRUCIAL_COMPONENT_KEYS.has(c.key))
+      .map((c) => ({
+        name: c.name || (c.key ? featureLabel(c.key) : 'Factor'),
+        value: c.value,
+        key: c.key,
+      }));
   }
 
   const raw =
@@ -144,21 +159,23 @@ function componentsList(overview) {
     overview?.factors ||
     [];
   if (Array.isArray(raw)) {
-    return raw.map((c) => {
-      if (c && typeof c === 'object') {
-        const key = c.key || c.name;
-        return {
-          name: c.name || (key ? featureLabel(key) : 'Factor'),
-          value: c.contribution ?? c.value ?? c.score ?? c.weight,
-          key,
-        };
-      }
-      return { name: String(c), value: null };
-    });
+    return raw
+      .map((c) => {
+        if (c && typeof c === 'object') {
+          const key = c.key || c.name;
+          return {
+            name: c.name || (key ? featureLabel(key) : 'Factor'),
+            value: c.contribution ?? c.value ?? c.score ?? c.weight,
+            key,
+          };
+        }
+        return { name: String(c), value: null };
+      })
+      .filter((c) => !c.key || CRUCIAL_COMPONENT_KEYS.has(c.key));
   }
   if (raw && typeof raw === 'object') {
     return Object.entries(raw)
-      .filter(([, v]) => !Array.isArray(v) && typeof v !== 'object')
+      .filter(([name, v]) => CRUCIAL_COMPONENT_KEYS.has(name) && !Array.isArray(v) && typeof v !== 'object')
       .map(([name, value]) => ({
         name: featureLabel(name),
         value,

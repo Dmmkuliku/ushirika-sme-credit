@@ -289,6 +289,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     const tinClean = tin.replace(/\D/g, '');
     if (!/^[0-9]{9}$/.test(tinClean)) { showError(t('auth.errTin')); return; }
     if (!phone) { showError(t('auth.errPhone')); return; }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError(t('auth.errEmail')); return; }
     if (!location) { showError(t('auth.errLocation')); return; }
     if (!business_type) { showError(t('auth.errBusinessType')); return; }
     if (!gender) { showError(t('auth.errGender')); return; }

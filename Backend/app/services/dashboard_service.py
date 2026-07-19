@@ -258,6 +258,7 @@ def lender_sme_detail(db: Session, sme_profile_id: int) -> SMEDetailResponse | N
         full_name=user.full_name if user else "",
         phone=profile.phone,
         email=profile.email,
+        tin=profile.tin,
         location=profile.location,
         nationality=profile.nationality,
         date_of_birth=profile.date_of_birth,

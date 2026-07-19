@@ -337,12 +337,14 @@ function loadCreateLender(session, { onLogout }) {
     const confirm_pin = fd.get('confirm_pin');
     if (!/^[0-9]{4}$/.test(pin)) return 'PIN must be exactly 4 digits.';
     if (pin !== confirm_pin) return 'PINs do not match.';
+    const work_email = String(fd.get('work_email') || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(work_email)) return t('auth.errEmail');
     await api.createLender({
       membership_number: fd.get('membership_number'),
       full_name: fd.get('full_name'),
       gender: fd.get('gender'),
       organization: fd.get('organization'),
-      work_email: fd.get('work_email'),
+      work_email,
       phone: fd.get('phone') || undefined,
       pin,
     });
@@ -389,9 +391,11 @@ function loadCreateSme(session, { onLogout }) {
     if (!/^[0-9]{9}$/.test(tin)) return t('admin.tinRequired');
     if (!/^[0-9]{4}$/.test(pin)) return 'PIN must be exactly 4 digits.';
     if (pin !== confirm_pin) return 'PINs do not match.';
+    const email = String(fd.get('email') || '').trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t('auth.errEmail');
     await api.createSmeByAdmin({
       nida, full_name: fd.get('full_name'), phone: fd.get('phone'),
-      email: fd.get('email') || undefined, location: fd.get('location'),
+      email: email || undefined, location: fd.get('location'),
       business_type: fd.get('business_type'), gender: fd.get('gender'),
       nationality: fd.get('nationality'), date_of_birth: fd.get('date_of_birth'),
       tin, pin,
@@ -429,12 +433,14 @@ function loadCreateSubAdmin(session, { onLogout }) {
     const confirm_pin = fd.get('confirm_pin');
     if (!/^[0-9]{4}$/.test(pin)) return 'PIN must be exactly 4 digits.';
     if (pin !== confirm_pin) return 'PINs do not match.';
+    const work_email = String(fd.get('work_email') || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(work_email)) return t('auth.errEmail');
     await api.createSubAdmin({
       login_id: fd.get('login_id'),
       full_name: fd.get('full_name'),
       gender: fd.get('gender'),
       organization: fd.get('organization'),
-      work_email: fd.get('work_email'),
+      work_email,
       pin,
     });
     return null;

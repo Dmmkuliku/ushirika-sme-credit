@@ -65,13 +65,28 @@ def portfolio(
 
 @router.get("/sme/by-nida/{nida}", response_model=SMEDetailResponse)
 def sme_by_nida(nida: str, current_user: RequireLender, db: Session = Depends(get_db)):
+    """Exact match on 20 digits; with a shorter prefix, return the unique match if any."""
     digits = "".join(ch for ch in str(nida).strip() if ch.isdigit())
-    if len(digits) != 20:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="NIDA must be exactly 20 digits",
+    if not digits:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="NIDA digits required")
+    if len(digits) == 20:
+        profile = db.query(SMEProfile).filter(SMEProfile.nida == digits).first()
+    else:
+        matches = (
+            db.query(SMEProfile)
+            .filter(SMEProfile.nida.like(f"{digits}%"))
+            .order_by(SMEProfile.nida.asc())
+            .limit(5)
+            .all()
         )
-    profile = db.query(SMEProfile).filter(SMEProfile.nida == digits).first()
+        if len(matches) == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SME not found")
+        if len(matches) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Multiple SMEs match this NIDA prefix ({len(matches)}). Type more digits.",
+            )
+        profile = matches[0]
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SME not found")
     detail = lender_sme_detail(db, profile.id)

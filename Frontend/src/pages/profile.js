@@ -308,21 +308,31 @@ function bindEditForm(role, profile, { onUpdated }) {
     let data = {};
 
     if (role === 'sme') {
+      const email = String(fd.get('email') || '').trim();
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errEmail'); }
+        return;
+      }
       data = {
         full_name: fd.get('full_name'),
         phone: fd.get('phone'),
-        email: fd.get('email') || undefined,
+        email: email || undefined,
         location: fd.get('location'),
         business_type: fd.get('business_type'),
         gender: fd.get('gender'),
         nationality: fd.get('nationality'),
       };
     } else if (role === 'lender') {
+      const work_email = String(fd.get('work_email') || '').trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(work_email)) {
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errEmail'); }
+        return;
+      }
       data = {
         full_name: fd.get('full_name'),
         gender: fd.get('gender'),
         organization: fd.get('organization'),
-        work_email: fd.get('work_email'),
+        work_email,
         phone: fd.get('phone') || undefined,
       };
     } else {
