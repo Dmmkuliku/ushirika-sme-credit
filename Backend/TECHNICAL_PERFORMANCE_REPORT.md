@@ -1,117 +1,92 @@
-# Technical Performance Report
+# Ushirika technical performance report
 
-## SME Credit Risk ML Pipeline (Ushirika) — Group 15
-
-**Aligned to proposal chapters 1–5 (methodology & results)**  
-**Environment:** FastAPI + SQLite (Postgres-ready), Random Forest primary, Logistic Regression + statsmodels Logit baselines  
-**Frontend:** Vite (HTML/JS/CSS) portal for SME, lender, and admin  
-**Random seed:** 42
+**What this document is:** a plain-language record of how the credit system works, what we measured, and how that matches the Group 15 project goals.  
+**Audience:** supervisors, examiners, and teammates — not only data scientists.  
+**Platform version:** 1.3.1 · Random Forest primary scorer · Logistic Regression baseline
 
 ---
 
-## 1. Objectives coverage (Ch. 1)
+## In one paragraph
 
-| Specific objective | System fulfilment |
-|--------------------|-------------------|
-| SO1 — Preprocessing & feature engineering | `preprocessing.py` (median impute, IQR clip) + `feature_engineering.py` (17 predictive variables from supply-chain transactions) |
-| SO2 — Ensemble vs classical regression | Random Forest vs sklearn Logistic Regression (+ statsmodels Logit benchmark) |
-| SO3 — Industry metrics | Accuracy, Precision, Recall, F1, ROC-AUC, confusion matrix, classification report |
-
-General objective: automated ecosystem banking prototype using supply-chain transaction data for inclusive SME credit assessment in Tanzania — delivered as the Ushirika portal.
+Ushirika turns an SME’s supply-chain transactions into a credit score. The business uploads or records deals (who they traded with, amounts, payment status). The system cleans that data, builds behavioural features, and runs the same Random Forest model that lenders see when they open an SME profile. After enough activity (at least five transactions), the SME and the lender both see a score, a risk band, and an indicative financing amount — without relying only on collateral.
 
 ---
 
-## 2. Methodology implementation (Ch. 3)
+## How this meets the project objectives
 
-| Proposal item (§) | Implemented |
-|-------------------|-------------|
-| Backend: Python, Pandas, Scikit-Learn, Statsmodels (§3.2) | Yes |
-| Frontend: Vite dashboard (§3.2) | Yes — SME, lender (per-SME ML metrics on detail), admin |
-| SQL storage + PII policy (§3.5 / §3.11) | SQLite/SQLAlchemy; ML matrix excludes PII; HMAC `counterparty_hash` + opaque `display_token` |
-| Missing values & outliers (§3.7) | Median imputation; IQR clip on delays/volume; transaction amount outliers for financing |
-| EDA with Seaborn & Plotly (§3.7) | `scripts/run_eda.py` → `reports/eda/` |
-| Feature scaling (§3.7) | StandardScaler inside LR pipeline |
-| LR + Random Forest (§3.8) | Yes |
-| 80/20 train–test + k-fold CV (§3.9) | Stratified split + StratifiedKFold GridSearchCV (ROC-AUC) |
-| Metrics Acc/Prec/Rec/F1/ROC-AUC (§3.9) | Saved in `models/model_meta.json` and DB `model_metrics` |
-| Deliverables: ML backend, Vite UI, this report (§3.10) | Yes |
+| Goal from the proposal | What the live system does |
+|------------------------|---------------------------|
+| Build preprocessing and feature engineering | Raw transactions become payment reliability, delays, volume, partner mix, buyer/supplier shares, and related signals |
+| Compare ensemble vs classical models | Random Forest (main) vs Logistic Regression (baseline), with the same train/test split |
+| Prove reliability with standard metrics | Accuracy, precision, recall, F1, ROC-AUC, plus confusion matrix |
+| Deliver a usable prototype | Vite portal + FastAPI backend + this report |
 
 ---
 
-## 3. Feature set (value-chain signals)
+## What happens when an SME uploads data
 
-| Internal key | User-facing label |
-|--------------|-------------------|
-| payment_consistency | Payment reliability |
-| payment_delay_avg / max | Average / longest payment delay |
-| turnover_tzs | Total business volume (TZS) |
-| transaction_frequency | Transactions per month |
-| completion_rate_avg | Average order completion |
-| default_rate / compliance_rate | Default / compliance rates |
-| account_age_months | Account age |
-| counterparty_diversity | Business partner diversity |
-| volume_trend | Sales volume trend |
-| on_time_rate | On-time payment rate |
-| avg_transaction_interval_days | Days between transactions |
-| buyer_share / supplier_share / distributor_share | Value-chain role shares |
-| order_type_diversity | Order-type diversity |
+1. **Upload or record** — CSV template or manual form (TIN of the other party is required).  
+2. **Clean and save** — Invalid rows are skipped with clear messages; valid rows are stored.  
+3. **Score immediately** — The current Random Forest model scores that SME’s data (this is the same model path lenders use).  
+4. **Show the result** — Score, risk, creditworthy chance, and key signals appear; the overview updates.  
+5. **Refresh in the background** — A fuller retrain may run after scoring so future assessments keep learning from live SME mixes, without freezing the upload button.
 
-Extra (scoring UI, not always in RF vector): unusual large transactions, typical volume excluding outliers.
+This design avoids the old failure mode where a long training job made “Upload” look broken on slow hosting.
 
 ---
 
-## 4. Measured performance
+## Data and privacy (in everyday terms)
 
-After `python scripts/train_model.py`, exact floats are in:
-
-- `Backend/models/model_meta.json`
-- `Backend/reports/latest_evaluation.json`
-- Admin portal → **ML Metrics** (`#/admin/ml`)
-
-Typical seed=42 hold-out results (version `20260719090647`):
-
-| Model | Accuracy | Precision | Recall | F1 | ROC-AUC |
-|-------|----------|-----------|--------|-----|---------|
-| **Random Forest (primary)** | **0.8857** | **0.9296** | **0.8571** | **0.8919** | **0.9583** |
-| Logistic Regression (baseline) | 0.7786 | 0.7584 | 0.8766 | 0.8133 | 0.8749 |
-| statsmodels Logit | 0.7786 | — | — | — | 0.8750 |
-
-RF confusion matrix (rows = actual, cols = predicted): `[[116, 10], [22, 132]]` (TN/FP/FN/TP).
-
-Re-run `python scripts/train_model.py` for the latest floats; also see Admin → **ML Metrics**.
+- Login uses NIDA or membership ID plus a PIN.  
+- The machine-learning table never includes names, phone numbers, emails, or TIN as features.  
+- Counterparties are linked with a one-way hash; lenders mainly see an opaque display token plus the score story.  
+- Unusual large invoices are flagged so one outlier deal does not inflate the financing offer.
 
 ---
 
-## 5. Outliers and realistic financing
+## Features the model uses (plain labels)
 
-- **Outlier detection:** IQR on transaction amounts (`is_outlier`).
-- **Financing caps:** Eligible amount uses typical (non-outlier) volume — avoids one-off giant invoices inflating offers.
+Payment reliability · average and longest delay · total volume · deals per month · order completion · default and compliance rates · account age · partner diversity · sales trend · on-time rate · days between deals · share of buyers / suppliers / distributors · mix of order types.
 
 ---
 
-## 6. Credit score mapping
+## Measured performance (example training run)
+
+Exact latest numbers live in `models/model_meta.json` after training. A representative hold-out result:
+
+| Model | Role | Accuracy | F1 | ROC-AUC |
+|-------|------|----------|-----|---------|
+| Random Forest | Primary (what lenders use) | ~0.89 | ~0.89 | ~0.96 |
+| Logistic Regression | Fair baseline | ~0.78 | ~0.81 | ~0.87 |
+
+**Reading tip:** ROC-AUC closer to 1.0 means the model ranks creditworthy vs higher-risk cases more reliably. On this data, Random Forest stays ahead of the classical baseline — which is what the proposal expected.
+
+Training protocol: 80% train / 20% test, stratified; 5-fold cross-validation while tuning; median fill for missing values; IQR clip on noisy continuous fields.
+
+---
+
+## How a score becomes a financing hint
 
 ```
-probability p → raw = 300 + p × 500
-score = 350 + (raw − 350) × 0.66   → clipped ~300–680
+Model probability → score roughly in the 300–680 band (conservative mapping)
+Low risk ≥ 580 · Medium 480–579 · High below 480
+Eligible amount is capped by typical (non-outlier) trading volume
 ```
 
-Risk bands: Low ≥ 580 · Medium 480–579 · High < 480  
-Minimum **5 transactions** before scoring.
+---
+
+## Where to look in the product
+
+| Who | Where | What they see |
+|-----|-------|----------------|
+| SME | Upload CSV → progress → ML result | Same family of metrics the lender will review |
+| SME | Overview | Score ring, financing hint, explainable factors |
+| Lender | Portfolio → select SME | Full **ML metrics for this SME** from that firm’s feed |
+| Admin | Accounts | Create and manage users (not the lending decision screen) |
 
 ---
 
-## 7. Results vs proposal Ch. 4–5
-
-- Preprocessing and feature engineering pipelines are operational (Ch. 4.2 / SO1).
-- Ensemble RF outperforms classical LR on hold-out ROC-AUC (Ch. 4.3 / SO2).
-- Standard metrics + confusion matrices document reliability (Ch. 4.3 / SO3).
-- Prototype scope (not full market deployment) matches Ch. 5 limitations.
-- Future work (XGBoost, neural nets, SHAP) remains future work — not claimed as delivered.
-
----
-
-## 8. Reproduction
+## How to reproduce the numbers
 
 ```bash
 cd Backend
@@ -121,4 +96,12 @@ python scripts/run_eda.py
 pytest
 ```
 
-Admin UI: sign in as admin → **ML Metrics** → Retrain / Run EDA.
+EDA charts are written under `Backend/reports/eda/`. Evaluation snapshots under `Backend/reports/latest_evaluation.json`.
+
+---
+
+## Honest limits (prototype scope)
+
+- Labels for training still combine engineered rules with live SME features; a production bank would eventually use observed repayment outcomes.  
+- Hosting is a free-tier prototype (cold starts can slow the first click).  
+- Future upgrades could include gradient boosting, clearer SHAP-style explanations, and live ERP feeds — those remain future work, not claims of this release.

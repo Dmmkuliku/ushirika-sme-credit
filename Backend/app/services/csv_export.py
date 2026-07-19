@@ -7,6 +7,7 @@ from app.models import SMEProfile, Transaction, User
 
 
 def export_estatement_for_profile(db: Session, sme_profile_id: int) -> str:
+    """Export in template-compatible columns so SMEs can re-upload if needed."""
     transactions = (
         db.query(Transaction)
         .filter(Transaction.sme_profile_id == sme_profile_id)
@@ -17,19 +18,15 @@ def export_estatement_for_profile(db: Session, sme_profile_id: int) -> str:
     rows = [
         {
             "transaction_ref": t.transaction_ref,
-            "counterparty_hash": t.counterparty_hash,
+            "counterparty_tin": t.counterparty_tin or "",
+            "counterparty_name": t.counterparty_name or "",
             "counterparty_type": t.counterparty_type,
             "order_type": t.order_type,
             "amount_tzs": t.amount_tzs,
-            "currency": t.currency,
             "payment_status": t.payment_status.value,
-            "due_date": t.due_date.isoformat(),
-            "paid_date": t.paid_date.isoformat() if t.paid_date else "",
-            "days_delayed": t.days_delayed,
-            "compliance_flag": t.compliance_flag,
-            "default_flag": t.default_flag,
-            "completion_rate": t.completion_rate,
-            "transaction_date": t.transaction_date.isoformat(),
+            "transaction_date": t.transaction_date.date().isoformat()
+            if hasattr(t.transaction_date, "date")
+            else str(t.transaction_date)[:10],
             "notes": t.notes or "",
         }
         for t in transactions

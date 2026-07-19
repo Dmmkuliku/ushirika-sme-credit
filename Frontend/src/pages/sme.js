@@ -69,7 +69,7 @@ function toApiDateTime(val) {
   const s = String(val).trim();
   if (!s) return undefined;
   if (s.includes('T')) return s;
-  return `${s}T00:00:00`;
+  return `${s}T00:00:00Z`;
 }
 
 function paymentLabel(status) {
@@ -848,8 +848,13 @@ export function loadSmeUpload(session, { onLogout }) {
               <span id="file-name" class="file-name"></span>
             </label>
             <div id="upload-feedback" class="form-error" role="alert" hidden></div>
+            <div id="upload-progress" class="upload-progress" hidden>
+              <div class="upload-progress-bar" id="upload-progress-bar"></div>
+              <p id="upload-progress-text">${escapeHtml(t('sme.processingMl'))}</p>
+            </div>
             <button type="submit" class="btn btn-primary" id="btn-upload">${escapeHtml(t('sme.uploadProcess'))}</button>
           </form>
+          <div id="ml-result-host" class="ml-result-host" hidden></div>
         </section>
         <aside class="panel tip-panel">
           <h2>${escapeHtml(t('sme.beforeUpload'))}</h2>
@@ -857,6 +862,7 @@ export function loadSmeUpload(session, { onLogout }) {
             <li>${escapeHtml(t('sme.tip1'))}</li>
             <li>${escapeHtml(t('sme.tip2'))}</li>
             <li>${escapeHtml(t('sme.tip3'))}</li>
+            <li>${escapeHtml(t('sme.tip4'))}</li>
           </ol>
         </aside>
       </div>
@@ -869,7 +875,64 @@ export function loadSmeUpload(session, { onLogout }) {
   const fileName = document.getElementById('file-name');
   const feedback = document.getElementById('upload-feedback');
   const submitBtn = document.getElementById('btn-upload');
+  const progress = document.getElementById('upload-progress');
+  const progressBar = document.getElementById('upload-progress-bar');
+  const progressText = document.getElementById('upload-progress-text');
+  const resultHost = document.getElementById('ml-result-host');
   const drop = form?.querySelector('.file-drop');
+
+  function setProgress(pct, text) {
+    if (progress) progress.hidden = false;
+    if (progressBar) progressBar.style.width = `${Math.max(5, Math.min(100, pct))}%`;
+    if (progressText && text) progressText.textContent = text;
+  }
+
+  function renderMlResult(result) {
+    if (!resultHost) return;
+    if (!result?.score_ready) {
+      resultHost.hidden = false;
+      resultHost.innerHTML = `
+        <section class="ml-metrics-panel">
+          <h4>${escapeHtml(t('sme.mlPendingTitle'))}</h4>
+          <p class="page-lead">${escapeHtml(result?.message || t('sme.mlNeedMore', { count: result?.transactions_needed ?? 5 }))}</p>
+          <a class="btn btn-secondary" href="#/sme">${escapeHtml(t('sme.backOverview'))}</a>
+        </section>`;
+      return;
+    }
+    const proba = Number(result.probability_creditworthy);
+    const probaPct = Number.isFinite(proba) ? `${(proba * 100).toFixed(1)}%` : '—';
+    const rows = Array.isArray(result.ml_features_display) ? result.ml_features_display.slice(0, 10) : [];
+    resultHost.hidden = false;
+    resultHost.innerHTML = `
+      <section class="ml-metrics-panel" aria-live="polite">
+        <div class="ml-metrics-header">
+          <h4>${escapeHtml(t('sme.mlReadyTitle'))}</h4>
+          <span class="ml-chip">v${escapeHtml(String(result.model_version || '—'))}</span>
+        </div>
+        <p class="page-lead">${escapeHtml(result.message || t('sme.mlReadyLead'))}</p>
+        <div class="metric-grid metric-grid-compact">
+          <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('sme.mlScore'))}</h4><p class="metric-value">${escapeHtml(formatScore(result.score))}</p></article>
+          <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('sme.mlRisk'))}</h4><p class="metric-value"><span class="risk-badge ${riskClass(result.risk_band)}">${escapeHtml(riskLabel(result.risk_band, false))}</span></p></article>
+          <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('sme.mlProb'))}</h4><p class="metric-value">${escapeHtml(probaPct)}</p></article>
+          <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('sme.mlEligible'))}</h4><p class="metric-value metric-tzs">${escapeHtml(formatTZS(result.eligible_financing_tzs))}</p></article>
+        </div>
+        ${rows.length ? `
+          <h5 class="ml-feature-title">${escapeHtml(t('sme.mlSignals'))}</h5>
+          <ul class="ml-feature-list">
+            ${rows.map((row) => {
+              const label = row.name || row.key || 'Signal';
+              const val = row.value;
+              const shown = typeof val === 'number'
+                ? (Math.abs(val) >= 1000 ? formatNumber(val, 0) : formatNumber(val, 4))
+                : String(val ?? '—');
+              return `<li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(label)}</span><strong>${escapeHtml(shown)}</strong></div></li>`;
+            }).join('')}
+          </ul>` : ''}
+        <div class="upload-actions" style="margin-top:1rem">
+          <a class="btn btn-primary" href="#/sme">${escapeHtml(t('sme.viewFullOverview'))}</a>
+        </div>
+      </section>`;
+  }
 
   document.getElementById('btn-help')?.addEventListener('click', () => {
     const panel = document.getElementById('upload-help');
@@ -911,6 +974,7 @@ export function loadSmeUpload(session, { onLogout }) {
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (feedback) { feedback.hidden = true; feedback.textContent = ''; feedback.className = 'form-error'; }
+    if (resultHost) { resultHost.hidden = true; resultHost.innerHTML = ''; }
     const file = fileInput?.files?.[0];
     if (!file) {
       if (feedback) { feedback.hidden = false; feedback.textContent = t('sme.pleaseChooseCsv'); }
@@ -922,23 +986,60 @@ export function loadSmeUpload(session, { onLogout }) {
     }
     submitBtn.disabled = true;
     submitBtn.textContent = t('sme.uploading');
+    setProgress(18, t('sme.processingUpload'));
     try {
-      const result = await api.uploadSmeCsv(file);
-      const imported = result?.imported ?? result?.rows_imported ?? result?.count ?? result?.created ?? null;
-      const msg = imported != null
+      const uploadPromise = api.uploadSmeCsv(file);
+      // Soft progress while waiting for import + ML score
+      let tick = 18;
+      const timer = window.setInterval(() => {
+        tick = Math.min(88, tick + 7);
+        setProgress(tick, tick < 45 ? t('sme.processingUpload') : t('sme.processingMl'));
+      }, 450);
+
+      const result = await uploadPromise;
+      window.clearInterval(timer);
+      setProgress(100, t('sme.processingDone'));
+
+      const imported = result?.imported ?? 0;
+      const skipped = result?.skipped ?? 0;
+      const errors = Array.isArray(result?.errors) ? result.errors : [];
+      let msg = imported > 0
         ? t('sme.uploadOk', { count: formatNumber(imported, 0) })
-        : result?.message || t('sme.uploadOkGeneric');
-      if (feedback) { feedback.hidden = false; feedback.className = 'form-success'; feedback.textContent = msg; }
-      showToast(msg, 'success');
+        : (result?.message || t('sme.uploadOkGeneric'));
+      if (skipped) msg += ` ${t('sme.uploadSkipped', { count: formatNumber(skipped, 0) })}`;
+      if (errors.length) msg += ` ${t('sme.uploadRowErrors', { count: formatNumber(errors.length, 0) })}`;
+
+      if (imported === 0 && errors.length) {
+        if (feedback) {
+          feedback.hidden = false;
+          feedback.className = 'form-error';
+          feedback.textContent = `${msg}\n${errors.slice(0, 5).join('\n')}`;
+        }
+        showToast(t('sme.uploadFailed'), 'error');
+        return;
+      }
+
+      if (feedback) {
+        feedback.hidden = false;
+        feedback.className = errors.length ? 'form-warning' : 'form-success';
+        feedback.textContent = errors.length ? `${msg}\n${errors.slice(0, 3).join('\n')}` : msg;
+      }
+      showToast(msg, errors.length ? 'info' : 'success');
+      renderMlResult(result);
       form.reset();
       if (fileName) fileName.textContent = '';
+      if (result?.score_ready) {
+        window.setTimeout(() => { window.location.hash = '#/sme'; }, 2200);
+      }
     } catch (err) {
       const msg = getErrorMessage(err, t('sme.uploadFailed'));
       if (feedback) { feedback.hidden = false; feedback.className = 'form-error'; feedback.textContent = msg; }
       showToast(msg, 'error');
+      if (progress) progress.hidden = true;
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = t('sme.uploadProcess');
+      window.setTimeout(() => { if (progress) progress.hidden = true; }, 800);
     }
   });
 }

@@ -89,7 +89,6 @@ export function renderShell({ role, user, activeNav, mainHtml }) {
   ];
   const adminNav = [
     { id: 'accounts', label: t('nav.accounts'), href: '#/admin' },
-    { id: 'ml', label: t('nav.mlMetrics'), href: '#/admin/ml' },
     { id: 'profile', label: t('nav.myProfile'), href: '#/admin/profile' },
     { id: 'create-lender', label: t('nav.createLender'), href: '#/admin/create-lender' },
     { id: 'create-sme', label: t('nav.createSme'), href: '#/admin/create-sme' },

@@ -1404,6 +1404,37 @@ body.nav-lock {
 
 /* ── Admin ───────────────────────────────────────────── */
 
+.form-warning {
+  color: #8a5a00;
+  background: rgba(138, 90, 0, 0.08);
+  border: 1px solid rgba(138, 90, 0, 0.25);
+  border-radius: 8px;
+  padding: 0.65rem 0.8rem;
+  white-space: pre-wrap;
+}
+
+.upload-progress {
+  margin: 0.85rem 0 1rem;
+}
+
+.upload-progress-bar {
+  height: 0.45rem;
+  width: 8%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1a7a6d, #0b3d2e);
+  transition: width 0.35s ease;
+}
+
+#upload-progress-text {
+  margin: 0.45rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ink-muted, #4a5e66);
+}
+
+.ml-result-host {
+  margin-top: 1.25rem;
+}
+
 .admin-form-wrap {
   max-width: 560px;
 }

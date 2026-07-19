@@ -5,7 +5,6 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import io
 
-from app.config import get_settings
 from app.database import get_db
 from app.dependencies import RequireSME
 from app.models import PaymentStatus, SMEProfile, Transaction
@@ -15,11 +14,10 @@ from app.schemas.transaction import (
     TransactionResponse,
     TransactionUpdate,
 )
-from app.services.credit_scoring import score_sme
 from app.services.csv_export import export_estatement_csv
 from app.services.csv_import import REQUIRED_COLUMNS, OPTIONAL_COLUMNS, import_transactions_csv
-from app.services.ml_training import retrain_after_sme_data_change
 from app.services.monthly_history import refresh_monthly_history
+from app.services.scoring_pipeline import score_after_data_change, schedule_background_retrain
 from app.utils.pseudonymization import pseudonymize
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
@@ -32,19 +30,13 @@ def _get_sme_profile(db: Session, user_id: int) -> SMEProfile:
     return profile
 
 
-def _maybe_rescore_and_retrain(db: Session, user, profile_id: int) -> dict | None:
-    tx_count = db.query(Transaction).filter(Transaction.sme_profile_id == profile_id).count()
-    train_result = None
-    if tx_count >= get_settings().min_transactions_for_score:
-        try:
-            train_result = retrain_after_sme_data_change(db)
-        except Exception:
-            train_result = None
-        try:
-            score_sme(db, user, force_refresh=True)
-        except Exception:
-            pass
-    return train_result
+def _after_write(db: Session, user, profile_id: int) -> dict:
+    """Score with current lender-facing model; retrain in background (never blocks upload)."""
+    refresh_monthly_history(db, profile_id)
+    score_info = score_after_data_change(db, user)
+    if score_info.get("score_ready"):
+        schedule_background_retrain()
+    return score_info
 
 
 def _coerce_payment_status(value) -> PaymentStatus:
@@ -76,6 +68,17 @@ def create_transaction(
     if payload.payment_status == PaymentStatus.PAID and paid is None:
         paid = payload.transaction_date
 
+    # Ensure timezone-aware UTC when client sends naive dates
+    tx_date = payload.transaction_date
+    if tx_date.tzinfo is None:
+        from datetime import timezone
+
+        tx_date = tx_date.replace(tzinfo=timezone.utc)
+        if due and due.tzinfo is None:
+            due = due.replace(tzinfo=timezone.utc)
+        if paid and paid.tzinfo is None:
+            paid = paid.replace(tzinfo=timezone.utc)
+
     tx = Transaction(
         sme_profile_id=profile.id,
         transaction_ref=payload.transaction_ref,
@@ -94,13 +97,12 @@ def create_transaction(
         default_flag=payload.default_flag,
         completion_rate=payload.completion_rate,
         notes=payload.notes,
-        transaction_date=payload.transaction_date,
+        transaction_date=tx_date,
     )
     db.add(tx)
     db.commit()
     db.refresh(tx)
-    refresh_monthly_history(db, profile.id)
-    _maybe_rescore_and_retrain(db, current_user, profile.id)
+    _after_write(db, current_user, profile.id)
     return tx
 
 
@@ -123,23 +125,39 @@ async def import_csv(
     db: Session = Depends(get_db),
     file: UploadFile = File(...),
 ):
-    if not file.filename or not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File must be a CSV")
+    name = (file.filename or "").lower()
+    if not name.endswith(".csv"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File must be a CSV (.csv)")
+
     result = await import_transactions_csv(db, current_user, file)
     profile = db.query(SMEProfile).filter(SMEProfile.user_id == current_user.id).first()
-    model_version = None
-    retrained = False
+
+    score_payload: dict = {}
     if profile and result["imported"] > 0:
-        refresh_monthly_history(db, profile.id)
-        train_result = _maybe_rescore_and_retrain(db, current_user, profile.id)
-        if train_result:
-            retrained = True
-            model_version = train_result.get("version")
-    return {
-        **result,
-        "model_retrained": retrained,
-        "model_version": model_version,
-    }
+        score_payload = _after_write(db, current_user, profile.id)
+
+    return CSVImportResult(
+        imported=result["imported"],
+        skipped=result["skipped"],
+        errors=result["errors"],
+        model_retrained=False,
+        model_version=score_payload.get("model_version"),
+        score_ready=bool(score_payload.get("score_ready")),
+        score=score_payload.get("score"),
+        risk_band=score_payload.get("risk_band"),
+        eligible_financing_tzs=score_payload.get("eligible_financing_tzs"),
+        probability_creditworthy=score_payload.get("probability_creditworthy"),
+        primary_model=score_payload.get("primary_model"),
+        ml_features_display=score_payload.get("ml_features_display"),
+        transaction_count=score_payload.get("transaction_count"),
+        transactions_needed=score_payload.get("transactions_needed"),
+        message=score_payload.get("message")
+        or (
+            f"Imported {result['imported']} row(s)."
+            if result["imported"]
+            else "No new rows imported."
+        ),
+    )
 
 
 @router.get("/template")
@@ -153,10 +171,14 @@ def download_template(current_user: RequireSME):
         "TX-1005,100-567-890,Coastal Logistics,seller,purchase,210000,paid,2025-03-01,Logistics services",
     ]
     content = header + "\n" + "\n".join(sample_rows) + "\n"
+    # BytesIO avoids some browser/proxy issues with text StreamingResponse
     return StreamingResponse(
-        io.StringIO(content),
-        media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="transaction_template.csv"'},
+        io.BytesIO(content.encode("utf-8")),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="transaction_template.csv"',
+            "Cache-Control": "no-store",
+        },
     )
 
 
@@ -164,9 +186,12 @@ def download_template(current_user: RequireSME):
 def download_estatement(current_user: RequireSME, db: Session = Depends(get_db)):
     csv_content = export_estatement_csv(db, current_user)
     return StreamingResponse(
-        io.StringIO(csv_content),
-        media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="e-statement.csv"'},
+        io.BytesIO(csv_content.encode("utf-8")),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="e-statement.csv"',
+            "Cache-Control": "no-store",
+        },
     )
 
 
@@ -213,8 +238,7 @@ def update_transaction(
 
     db.commit()
     db.refresh(tx)
-    refresh_monthly_history(db, profile.id)
-    _maybe_rescore_and_retrain(db, current_user, profile.id)
+    _after_write(db, current_user, profile.id)
     return tx
 
 
@@ -230,6 +254,5 @@ def delete_transaction(transaction_id: int, current_user: RequireSME, db: Sessio
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     db.delete(tx)
     db.commit()
-    refresh_monthly_history(db, profile.id)
-    _maybe_rescore_and_retrain(db, current_user, profile.id)
+    _after_write(db, current_user, profile.id)
     return Response(status_code=204)

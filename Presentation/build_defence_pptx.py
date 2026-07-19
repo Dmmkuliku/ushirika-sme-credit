@@ -145,7 +145,7 @@ def build():
     # 2 Background
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "BACKGROUND", "The problem this project set out to solve", "Grounded in the Group 15 problem statement (Section 1.2)")
+    section_header(s, "BACKGROUND", "Why Tanzanian SMEs still struggle to get fair credit", "Grounded in the Group 15 problem statement (Section 1.2)")
     cards = [
         ("01", "Collateral-heavy credit", "Banks still rely on collateral and formal statements that most Tanzanian SMEs do not have."),
         ("02", "Static risk metrics", "Backward-looking ratios misclassify viable businesses operating in informal or semi-formal supply chains."),
@@ -165,7 +165,7 @@ def build():
     # 3 Aim
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "AIM OF THE PROJECT", "General objective and three specific objectives")
+    section_header(s, "AIM OF THE PROJECT", "What we set out to build — in clear terms")
     round_rect(s, Inches(0.5), Inches(1.65), Inches(12.3), Inches(1.35), WHITE)
     textbox(s, Inches(0.75), Inches(1.8), Inches(11.8), Inches(0.3), "GENERAL OBJECTIVE", size=11, bold=True, color=LAGOON)
     textbox(s, Inches(0.75), Inches(2.15), Inches(11.8), Inches(0.7),
@@ -187,7 +187,7 @@ def build():
     # 4 What was built
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "WHAT WAS BUILT", "Ushirika — end-to-end SME value-chain credit platform", "Deliverables match proposal Section 3.10")
+    section_header(s, "WHAT WAS BUILT", "Ushirika — a working credit platform for SMEs and lenders", "Deliverables match proposal Section 3.10")
     layers = [
         ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nPer-SME ML metrics\non lender detail", LAGOON),
         ("API", "FastAPI + JWT\nTransactions + TIN\nRole-based access", FOREST),
@@ -236,7 +236,7 @@ def build():
     # 6 Method
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "EVALUATION METHOD", "A controlled train–test design — not a hard-coded score table")
+    section_header(s, "EVALUATION METHOD", "How we trained and tested the models fairly")
     round_rect(s, Inches(0.5), Inches(1.65), Inches(6.1), Inches(4.7), WHITE)
     textbox(s, Inches(0.75), Inches(1.85), Inches(5.6), Inches(0.35), "TRAINING PROTOCOL", size=14, bold=True, color=LAGOON)
     bullets(s, Inches(0.75), Inches(2.35), Inches(5.6), Inches(3.7), [

@@ -103,3 +103,13 @@ class CSVImportResult(BaseModel):
     errors: list[str]
     model_retrained: bool = False
     model_version: str | None = None
+    score_ready: bool = False
+    score: float | None = None
+    risk_band: str | None = None
+    eligible_financing_tzs: float | None = None
+    probability_creditworthy: float | None = None
+    primary_model: str | None = None
+    ml_features_display: list[dict] | None = None
+    transaction_count: int | None = None
+    transactions_needed: int | None = None
+    message: str | None = None

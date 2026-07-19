@@ -101,7 +101,8 @@ async function parseBody(response) {
   if (
     contentType.includes('text/csv') ||
     contentType.includes('application/octet-stream') ||
-    contentType.includes('application/vnd.ms-excel')
+    contentType.includes('application/vnd.ms-excel') ||
+    contentType.includes('application/csv')
   ) {
     return response.blob();
   }
@@ -399,6 +400,9 @@ export async function downloadSmeCsvTemplate() {
     });
   }
   const blob = await response.blob();
+  if (!blob || blob.size === 0) {
+    throw new ApiError('Template file was empty. Please try again.', { status: response.status });
+  }
   const disposition = response.headers.get('content-disposition') || '';
   const match = disposition.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i);
   const filename = match ? decodeURIComponent(match[1].replace(/"/g, '')) : 'transaction_template.csv';
