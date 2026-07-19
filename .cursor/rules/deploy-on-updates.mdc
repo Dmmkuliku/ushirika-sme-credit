@@ -1,0 +1,29 @@
+---
+description: After every user-requested product update, sync GitHub, Vercel, Render, and the defence PPT
+alwaysApply: true
+---
+
+# Deploy and PPT sync on every update
+
+Whenever the user asks for product/feature/UI/backend changes (or says “update”), finish the implementation by **always** updating all four channels before ending the turn:
+
+1. **GitHub** — commit relevant files (never commit secrets or `~$*.pptx` lock files) and `git push` to `origin` (usually `main`).
+2. **Vercel** — from `Frontend/`, run `vercel --prod --yes` so https://ushirika-sme-portal.vercel.app picks up the UI.
+3. **Render** — ensure the API on https://ushirika-api.onrender.com reflects the push (auto-deploy from GitHub). If `/api/health` still shows an old `version`, trigger a redeploy (empty commit or dashboard) and re-check until `version` matches `Backend/app/__init__.py`.
+4. **PPT** — update `Presentation/build_defence_pptx.py` for any user-visible or methodological change, then run it to regenerate:
+   - `Presentation/Ushirika_Group15_Defence_Presentation.pptx`
+   - (or `Ushirika_Group15_Defence_v13.pptx` if the main file is locked open)
+   Include the rebuilt `.pptx` in the same GitHub commit/push when possible.
+
+## Checklist before saying “done”
+
+- [ ] Code committed and pushed
+- [ ] Vercel production deploy succeeded
+- [ ] Render `/api/health` version matches the release bump
+- [ ] Defence PPT rebuilt and pushed (or saved to alt path if locked)
+
+## Notes
+
+- Bump `Backend/app/__init__.__version__` on meaningful backend releases so Render health proves the new build.
+- Keep the defence deck ≤ 12 slides; prefer editing the builder script over hand-editing the `.pptx`.
+- Do not skip these steps unless the user explicitly says not to deploy or not to touch the PPT.
