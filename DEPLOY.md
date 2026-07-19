@@ -1,5 +1,12 @@
 # Deploy Ushirika to Render (API) + Vercel (Frontend)
 
+## Deploy checklist (after every product update)
+
+1. **GitHub** — commit + push to `main`
+2. **Vercel** — `cd Frontend; vercel --prod --yes`
+3. **Render** — confirm `https://ushirika-api.onrender.com/api/health` shows the new `version`
+4. **PPT** — regenerate with `python Presentation/build_defence_pptx.py` and push the `.pptx`
+
 ## Local development (important)
 
 A stuck old API on port **8000** causes **"Not Found"** on every edit. Prefer:

@@ -189,10 +189,10 @@ def build():
     bg(s)
     section_header(s, "WHAT WAS BUILT", "Ushirika — a working credit platform for SMEs and lenders", "Deliverables match proposal Section 3.10")
     layers = [
-        ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nPer-SME ML metrics\non lender detail", LAGOON),
+        ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nTabbed lender detail\nEN / Kiswahili UI", LAGOON),
         ("API", "FastAPI + JWT\nTransactions + TIN\nRole-based access", FOREST),
         ("ML Core", "Feature engineering\nRF (primary) + LR\n80/20 train–test + CV", LAGOON_BRIGHT),
-        ("Data & Ethics", "SQL storage\nHMAC PII hashes\nOutlier-aware financing", FOREST_DEEP),
+        ("Data & Ethics", "SQL storage\nHMAC PII hashes\n25% outlier rule\nConservative loans", FOREST_DEEP),
     ]
     for i, (t, d, c) in enumerate(layers):
         left = Inches(0.45 + i * 3.2)
@@ -204,7 +204,7 @@ def build():
             textbox(s, left + Inches(2.85), Inches(3.2), Inches(0.4), Inches(0.35), "→", size=20, bold=True, color=LAGOON, align=PP_ALIGN.CENTER)
     textbox(s, Inches(0.55), Inches(5.45), Inches(12.2), Inches(1.2),
             "Proposal fulfilment: operational ML backend · Vite interactive portal · technical performance report.\n"
-            "Lender workflow: select an SME → see ML score, creditworthy probability, and feature signals from that SME’s data.",
+            "Lender workflow: progressive NIDA search → SME profile (incl. TIN) → tabs for ML metrics, signals, txs, history.",
             size=13, color=MUTED)
     footer(s, 4)
 
@@ -245,7 +245,7 @@ def build():
         "Models fit on training fold only; GridSearchCV (ROC-AUC).",
         "Hold-out metrics on unseen test set: Acc, Precision, Recall, F1, ROC-AUC.",
         "Live SME histories are mixed into retrain after enough transactions.",
-        "Outliers are flagged; financing caps use typical volume, not one-off spikes.",
+        "Outlier rule: rare large deals (<25% of txs) are excluded from loan sizing; frequent large deals count as pattern.",
     ], size=13)
     round_rect(s, Inches(6.9), Inches(1.65), Inches(5.9), Inches(4.7), WHITE)
     textbox(s, Inches(7.15), Inches(1.85), Inches(5.4), Inches(0.35), "TWO MODELS COMPARED", size=14, bold=True, color=LAGOON)
@@ -269,7 +269,7 @@ def build():
         ("Volume & frequency", "Turnover (TZS), deals per month, volume trend"),
         ("Partner diversity", "Unique counterparties / transaction mix"),
         ("Interval risk", "Average days between consecutive deals"),
-        ("Outlier handling", "IQR flags unusual large deals for lending caps"),
+        ("Outlier handling", "25% frequency guard: rare spikes excluded from loan; pattern large deals kept"),
     ]
     for i, (t, d) in enumerate(feats):
         left = Inches(0.5 + (i % 3) * 4.2)
@@ -309,18 +309,18 @@ def build():
         "k-fold GridSearchCV on the training split reduces overfitting risk.",
         "Minimum 5 transactions before an SME is scored.",
         "Conservative score mapping (~300–680) and explicit risk bands.",
-        "Financing never exceeds typical (non-outlier) capacity — realistic lending.",
+        "Financing capped at ~50% of typical (non-outlier) volume — reduces unpaid-loan risk.",
         "Technical Performance Report documents honesty of evaluation.",
     ], size=13)
     round_rect(s, Inches(6.9), Inches(1.7), Inches(5.9), Inches(4.7), WHITE)
     textbox(s, Inches(7.15), Inches(1.9), Inches(5.4), Inches(0.35), "RUNTIME OUTPUTS", size=14, bold=True, color=LAGOON)
     bullets(s, Inches(7.15), Inches(2.4), Inches(5.4), Inches(3.7), [
         "Credit score + risk band (Low / Medium / High).",
-        "Eligible financing (TZS) with outlier-aware caps.",
-        "Human-readable score components for explainability.",
-        "Lender portfolio view by NIDA / membership ID.",
-        "Admin governance for accounts and PIN reset.",
-        "Bilingual portal (English / Kiswahili).",
+        "Eligible financing (TZS) with 25% outlier-aware caps.",
+        "Crucial score signals only (not every engineered feature).",
+        "Lender: progressive NIDA search + tabbed SME analytics.",
+        "TIN shown on SME profile (SME + Lender views).",
+        "Bilingual portal (English / Kiswahili) end-to-end.",
     ], size=13)
     footer(s, 9)
 
