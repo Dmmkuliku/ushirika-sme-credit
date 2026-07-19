@@ -186,6 +186,30 @@ def get_model_metrics(current_user: RequireAdmin, db: Session = Depends(get_db))
     return metrics
 
 
+@router.get("/admin/model-meta", tags=["Admin"])
+def get_model_meta(current_user: RequireAdmin):
+    """Full training meta: metrics, confusion matrices, preprocessing, feature importance."""
+    from pathlib import Path
+
+    from app.config import get_settings
+
+    meta_path = Path(get_settings().model_dir) / "model_meta.json"
+    if not meta_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No trained model meta found")
+    import json
+
+    with open(meta_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+@router.post("/admin/run-eda", tags=["Admin"])
+def run_eda_endpoint(current_user: RequireAdmin, db: Session = Depends(get_db)):
+    """Generate Seaborn/Plotly EDA figures (proposal §3.7)."""
+    from app.services.eda import run_eda
+
+    return run_eda(db_session=db)
+
+
 @router.get("/admin/accounts", response_model=list[AdminAccountListItem], tags=["Admin"])
 def list_accounts(
     current_user: RequireAdminOrSubAdmin,

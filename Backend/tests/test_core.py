@@ -52,6 +52,7 @@ def test_sme_cannot_self_register_as_lender(client):
             "business_type": "Retailer",
             "gender": "Male",
             "date_of_birth": "1985-05-15",
+            "tin": "987654321",
             "pin": "1234",
         },
     )
@@ -82,6 +83,7 @@ def test_transactions_and_scoring(client):
             "/api/transactions",
             json={
                 "transaction_ref": f"REF-{i}",
+                "counterparty_tin": f"TIN{i:06d}XX",
                 "counterparty_name": f"Partner {i}",
                 "counterparty_type": "supplier",
                 "order_type": "purchase",
@@ -114,6 +116,7 @@ def test_score_requires_min_transactions(client):
         "/api/transactions",
         json={
             "transaction_ref": "REF-ONLY",
+            "counterparty_tin": "TINONLY001",
             "counterparty_name": "Partner",
             "counterparty_type": "supplier",
             "order_type": "purchase",

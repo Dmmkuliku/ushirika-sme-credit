@@ -17,6 +17,10 @@ class FeatureVector(BaseModel):
     volume_trend: float
     on_time_rate: float
     avg_transaction_interval_days: float = 0.0
+    buyer_share: float = 0.0
+    supplier_share: float = 0.0
+    distributor_share: float = 0.0
+    order_type_diversity: float = 0.0
 
 
 class CreditScoreResponse(BaseModel):

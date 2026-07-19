@@ -1,75 +1,95 @@
 # Technical Performance Report
 
-## SME Credit Risk ML Pipeline (Ushirika v1.2)
+## SME Credit Risk ML Pipeline (Ushirika) — Group 15
 
-**Environment:** FastAPI + SQLite/Postgres-ready, Random Forest primary, Logistic Regression baseline  
-**Random seed:** 42 (reproducible synthetic bootstrap)
-
----
-
-## 1. How real machine learning works in this system
-
-1. **Feature engineering** — Each SME’s supply-chain transactions are turned into numeric features.
-2. **Train / test split (mandatory)** — Data is split with `train_test_split` (80% train / 20% hold-out, stratified). Models are fit **only** on the training split. Hold-out metrics are computed on the unseen test set.
-3. **Cross-validated tuning** — GridSearchCV (ROC-AUC) tunes Random Forest and Logistic Regression on the training fold only.
-4. **Live data loop** — When an SME records or uploads enough transactions, features from live SMEs are mixed into training, models are re-saved, and the predictor is reloaded before scoring.
-5. **Evidence** — `models/model_meta.json` stores `train_test_protocol` (train/test sizes, CV folds) plus RF/LR test metrics.
+**Aligned to proposal chapters 1–5 (methodology & results)**  
+**Environment:** FastAPI + SQLite (Postgres-ready), Random Forest primary, Logistic Regression + statsmodels Logit baselines  
+**Frontend:** Vite (HTML/JS/CSS) portal for SME, lender, and admin  
+**Random seed:** 42
 
 ---
 
-## 2. Objectives coverage
+## 1. Objectives coverage (Ch. 1)
 
-| Objective | How the system fulfills it |
-|-----------|----------------------------|
-| Data-driven SME credit for Tanzania | End-to-end portal: SME transactions → ML score → lender portfolio |
-| Preprocessing & features | `compute_features()` + outlier flags |
-| Ensemble vs classical ML | RF vs LR on same split; ROC-AUC decides honesty of “RF wins” |
-| Realistic lending amounts | Financing capped by **typical (non-outlier) volume**, not one-off giant deals |
+| Specific objective | System fulfilment |
+|--------------------|-------------------|
+| SO1 — Preprocessing & feature engineering | `preprocessing.py` (median impute, IQR clip) + `feature_engineering.py` (17 predictive variables from supply-chain transactions) |
+| SO2 — Ensemble vs classical regression | Random Forest vs sklearn Logistic Regression (+ statsmodels Logit benchmark) |
+| SO3 — Industry metrics | Accuracy, Precision, Recall, F1, ROC-AUC, confusion matrix, classification report |
 
----
-
-## 3. Outliers and realistic financing
-
-- **Outlier detection:** IQR rule on transaction amounts (high-side). Marked on each transaction (`is_outlier`).
-- **Financing caps:** Eligible amount = min(score-based amount, 75% of typical volume, ~8× median typical deal).
-- **Concept:** An SME whose usual deals are under TZS 1M should not be offered tens of millions just because of one unusual invoice.
+General objective: automated ecosystem banking prototype using supply-chain transaction data for inclusive SME credit assessment in Tanzania — delivered as the Ushirika portal.
 
 ---
 
-## 4. Feature set (internal keys → user labels)
+## 2. Methodology implementation (Ch. 3)
 
-| Internal key | Shown to users as |
+| Proposal item (§) | Implemented |
+|-------------------|-------------|
+| Backend: Python, Pandas, Scikit-Learn, Statsmodels (§3.2) | Yes |
+| Frontend: Vite dashboard (§3.2) | Yes |
+| SQL storage + PII policy (§3.5 / §3.11) | SQLite/SQLAlchemy; ML matrix excludes PII; HMAC `counterparty_hash` + opaque `display_token` |
+| Missing values & outliers (§3.7) | Median imputation; IQR clip on delays/volume; transaction amount outliers for financing |
+| EDA with Seaborn & Plotly (§3.7) | `scripts/run_eda.py` → `reports/eda/` |
+| Feature scaling (§3.7) | StandardScaler inside LR pipeline |
+| LR + Random Forest (§3.8) | Yes |
+| 80/20 train–test + k-fold CV (§3.9) | Stratified split + StratifiedKFold GridSearchCV (ROC-AUC) |
+| Metrics Acc/Prec/Rec/F1/ROC-AUC (§3.9) | Saved in `models/model_meta.json` and DB `model_metrics` |
+| Deliverables: ML backend, Vite UI, this report (§3.10) | Yes |
+
+---
+
+## 3. Feature set (value-chain signals)
+
+| Internal key | User-facing label |
 |--------------|-------------------|
 | payment_consistency | Payment reliability |
-| payment_delay_avg | Average payment delay (days) |
-| payment_delay_max | Longest payment delay (days) |
+| payment_delay_avg / max | Average / longest payment delay |
 | turnover_tzs | Total business volume (TZS) |
 | transaction_frequency | Transactions per month |
 | completion_rate_avg | Average order completion |
-| default_rate | Default rate |
-| compliance_rate | Compliance rate |
-| account_age_months | Account age (months) |
+| default_rate / compliance_rate | Default / compliance rates |
+| account_age_months | Account age |
 | counterparty_diversity | Business partner diversity |
 | volume_trend | Sales volume trend |
 | on_time_rate | On-time payment rate |
-| avg_transaction_interval_days | Average days between transactions |
+| avg_transaction_interval_days | Days between transactions |
+| buyer_share / supplier_share / distributor_share | Value-chain role shares |
+| order_type_diversity | Order-type diversity |
 
-Extra display metrics: unusual large transactions count, typical volume excluding outliers.
-
----
-
-## 5. Measured performance (example seed=42)
-
-Exact latest floats live in `models/model_meta.json` after training. Meta also records `real_sme_profiles_used` and `training_source` (`synthetic_bootstrap` or `synthetic+real_sme_transactions`).
-
-| Model | Role |
-|-------|------|
-| Random Forest | Primary scorer |
-| Logistic Regression | Baseline comparator |
+Extra (scoring UI, not always in RF vector): unusual large transactions, typical volume excluding outliers.
 
 ---
 
-## 6. Credit score mapping (conservative)
+## 4. Measured performance
+
+After `python scripts/train_model.py`, exact floats are in:
+
+- `Backend/models/model_meta.json`
+- `Backend/reports/latest_evaluation.json`
+- Admin portal → **ML Metrics** (`#/admin/ml`)
+
+Typical seed=42 hold-out results (version `20260719090647`):
+
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC |
+|-------|----------|-----------|--------|-----|---------|
+| **Random Forest (primary)** | **0.8857** | **0.9296** | **0.8571** | **0.8919** | **0.9583** |
+| Logistic Regression (baseline) | 0.7786 | 0.7584 | 0.8766 | 0.8133 | 0.8749 |
+| statsmodels Logit | 0.7786 | — | — | — | 0.8750 |
+
+RF confusion matrix (rows = actual, cols = predicted): `[[116, 10], [22, 132]]` (TN/FP/FN/TP).
+
+Re-run `python scripts/train_model.py` for the latest floats; also see Admin → **ML Metrics**.
+
+---
+
+## 5. Outliers and realistic financing
+
+- **Outlier detection:** IQR on transaction amounts (`is_outlier`).
+- **Financing caps:** Eligible amount uses typical (non-outlier) volume — avoids one-off giant invoices inflating offers.
+
+---
+
+## 6. Credit score mapping
 
 ```
 probability p → raw = 300 + p × 500
@@ -81,15 +101,13 @@ Minimum **5 transactions** before scoring.
 
 ---
 
-## 7. Where to show “the model is trained”
+## 7. Results vs proposal Ch. 4–5
 
-| Location | What you see |
-|----------|----------------|
-| `Backend/models/model_meta.json` | Version, metrics, real SME count, paths to `.joblib` |
-| `Backend/models/random_forest_*.joblib` | Trained primary model artifact |
-| Admin `POST /api/admin/train-model` | Manual full retrain |
-| After SME CSV upload / record (≥5 txs) | Automatic retrain + rescore |
-| SME Credit overview | Score, financing, human-readable components, model version |
+- Preprocessing and feature engineering pipelines are operational (Ch. 4.2 / SO1).
+- Ensemble RF outperforms classical LR on hold-out ROC-AUC (Ch. 4.3 / SO2).
+- Standard metrics + confusion matrices document reliability (Ch. 4.3 / SO3).
+- Prototype scope (not full market deployment) matches Ch. 5 limitations.
+- Future work (XGBoost, neural nets, SHAP) remains future work — not claimed as delivered.
 
 ---
 
@@ -99,6 +117,8 @@ Minimum **5 transactions** before scoring.
 cd Backend
 pip install -r requirements.txt
 python scripts/train_model.py
+python scripts/run_eda.py
+pytest
 ```
 
-Inspect `models/model_meta.json` for the latest run.
+Admin UI: sign in as admin → **ML Metrics** → Retrain / Run EDA.

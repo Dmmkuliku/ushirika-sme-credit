@@ -1,4 +1,4 @@
-from app.utils.pseudonymization import pseudonymize
+from app.utils.pseudonymization import pseudonymize, strip_pii_from_record
 
 
 def test_pseudonymize_stable():
@@ -13,3 +13,11 @@ def test_pseudonymize_field_specific():
     a = pseudonymize("value", "field_a")
     b = pseudonymize("value", "field_b")
     assert a != b
+
+
+def test_strip_pii_from_record():
+    cleaned = strip_pii_from_record(
+        {"nida": "123", "payment_consistency": 0.9, "phone": "+255", "turnover_tzs": 1000}
+    )
+    assert "nida" not in cleaned and "phone" not in cleaned
+    assert cleaned["payment_consistency"] == 0.9

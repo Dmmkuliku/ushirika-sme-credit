@@ -52,6 +52,7 @@ const dict = {
       createLender: 'Create Lender',
       createSme: 'Create SME',
       createSubadmin: 'Create Sub-Admin',
+      mlMetrics: 'ML Metrics',
     },
     auth: {
       welcomeBack: 'Welcome back',
@@ -362,6 +363,7 @@ const dict = {
       createLender: 'Sajili afisa mikopo',
       createSme: 'Sajili mfanyabiashara',
       createSubadmin: 'Sajili naibu msimamizi',
+      mlMetrics: 'Vipimo vya ML',
     },
     auth: {
       welcomeBack: 'Karibu tena',

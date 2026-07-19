@@ -305,6 +305,22 @@ export function updateAdminProfile(data) {
   });
 }
 
+export function trainModel() {
+  return request('/admin/train-model', { method: 'POST' });
+}
+
+export function getModelMetrics() {
+  return request('/admin/model-metrics');
+}
+
+export function getModelMeta() {
+  return request('/admin/model-meta');
+}
+
+export function runEda() {
+  return request('/admin/run-eda', { method: 'POST' });
+}
+
 /* ─── SME ──────────────────────────────────────────────── */
 
 export function getSmeOverview() {

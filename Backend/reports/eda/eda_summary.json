@@ -1,0 +1,56 @@
+{
+  "rows": 805,
+  "features": [
+    "payment_consistency",
+    "payment_delay_avg",
+    "payment_delay_max",
+    "turnover_tzs",
+    "transaction_frequency",
+    "completion_rate_avg",
+    "default_rate",
+    "compliance_rate",
+    "account_age_months",
+    "counterparty_diversity",
+    "volume_trend",
+    "on_time_rate",
+    "avg_transaction_interval_days",
+    "buyer_share",
+    "supplier_share",
+    "distributor_share",
+    "order_type_diversity"
+  ],
+  "class_counts": {
+    "higher_risk": 378,
+    "creditworthy": 427
+  },
+  "feature_means": {
+    "payment_consistency": 0.7186956170559198,
+    "payment_delay_avg": 15.605147571176488,
+    "payment_delay_max": 29.07142168628309,
+    "turnover_tzs": 1882449.1115778463,
+    "transaction_frequency": 5.920785243102608,
+    "completion_rate_avg": 0.7596508330832114,
+    "default_rate": 0.17325891133457355,
+    "compliance_rate": 0.8011526628204886,
+    "account_age_months": 64.84085574630596,
+    "counterparty_diversity": 0.5059152061956149,
+    "volume_trend": 0.0012472648752220247,
+    "on_time_rate": 0.7074065624106728,
+    "avg_transaction_interval_days": 19.83030864779728,
+    "buyer_share": 0.4373528388816044,
+    "supplier_share": 0.43921241777961795,
+    "distributor_share": 0.12333443936503702,
+    "order_type_diversity": 0.2518496705042342
+  },
+  "figures": {
+    "correlation": "C:\\Users\\USER\\OneDrive\\Desktop\\SME vs LENDER system\\Backend\\reports\\eda\\feature_correlation.png",
+    "class_balance": "C:\\Users\\USER\\OneDrive\\Desktop\\SME vs LENDER system\\Backend\\reports\\eda\\class_balance.png",
+    "payment_density": "C:\\Users\\USER\\OneDrive\\Desktop\\SME vs LENDER system\\Backend\\reports\\eda\\payment_density.png",
+    "plotly_scatter": "C:\\Users\\USER\\OneDrive\\Desktop\\SME vs LENDER system\\Backend\\reports\\eda\\turnover_vs_ontime.html"
+  },
+  "meta": {
+    "source": "synthetic+real_sme",
+    "rows": 805,
+    "real_sme_profiles": 5
+  }
+}

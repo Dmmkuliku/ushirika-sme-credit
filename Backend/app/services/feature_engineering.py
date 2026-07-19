@@ -11,6 +11,14 @@ def _months_between(start: datetime, end: datetime) -> float:
     return max(1.0, (end.year - start.year) * 12 + (end.month - start.month) + 1)
 
 
+def _role_share(series: pd.Series, keywords: tuple[str, ...]) -> float:
+    if series.empty:
+        return 0.0
+    lowered = series.astype(str).str.strip().str.lower()
+    mask = lowered.apply(lambda v: any(k in v for k in keywords))
+    return float(mask.mean())
+
+
 def compute_features(transactions: list[Transaction], registration_year: int) -> dict[str, float]:
     if not transactions:
         return _empty_features()
@@ -25,6 +33,8 @@ def compute_features(transactions: list[Transaction], registration_year: int) ->
                 "default_flag": t.default_flag,
                 "completion_rate": t.completion_rate,
                 "counterparty_hash": t.counterparty_hash,
+                "counterparty_type": getattr(t, "counterparty_type", "") or "",
+                "order_type": getattr(t, "order_type", "") or "",
                 "transaction_date": pd.to_datetime(t.transaction_date),
                 "on_time": t.payment_status in (PaymentStatus.PAID,) and t.days_delayed <= 3,
             }
@@ -55,6 +65,12 @@ def compute_features(transactions: list[Transaction], registration_year: int) ->
 
     counterparty_diversity = float(df["counterparty_hash"].nunique() / max(len(df), 1))
 
+    # Value-chain role shares (buyer / supplier / distributor signals)
+    buyer_share = _role_share(df["counterparty_type"], ("buyer", "customer", "retail"))
+    supplier_share = _role_share(df["counterparty_type"], ("supplier", "seller", "vendor", "producer"))
+    distributor_share = _role_share(df["counterparty_type"], ("distributor", "wholesaler", "agent"))
+    order_type_diversity = float(df["order_type"].astype(str).str.lower().nunique() / max(len(df), 1))
+
     monthly = df.groupby(df["transaction_date"].dt.to_period("M"))["amount_tzs"].sum()
     if len(monthly) >= 2:
         x = np.arange(len(monthly))
@@ -84,6 +100,10 @@ def compute_features(transactions: list[Transaction], registration_year: int) ->
         "volume_trend": round(volume_trend, 4),
         "on_time_rate": round(on_time_rate, 4),
         "avg_transaction_interval_days": round(avg_transaction_interval_days, 4),
+        "buyer_share": round(buyer_share, 4),
+        "supplier_share": round(supplier_share, 4),
+        "distributor_share": round(distributor_share, 4),
+        "order_type_diversity": round(order_type_diversity, 4),
     }
 
 
@@ -102,6 +122,10 @@ def _empty_features() -> dict[str, float]:
         "volume_trend": 0.0,
         "on_time_rate": 0.0,
         "avg_transaction_interval_days": 0.0,
+        "buyer_share": 0.0,
+        "supplier_share": 0.0,
+        "distributor_share": 0.0,
+        "order_type_diversity": 0.0,
     }
 
 
@@ -119,4 +143,8 @@ FEATURE_COLUMNS = [
     "volume_trend",
     "on_time_rate",
     "avg_transaction_interval_days",
+    "buyer_share",
+    "supplier_share",
+    "distributor_share",
+    "order_type_diversity",
 ]

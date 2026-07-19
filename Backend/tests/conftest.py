@@ -63,6 +63,7 @@ def register_sme(client: TestClient, nida: str = "19900101123456789012") -> dict
             "gender": "Male",
             "nationality": "Tanzanian",
             "date_of_birth": "1990-01-01",
+            "tin": "123456789",
             "pin": "1234",
         },
     )

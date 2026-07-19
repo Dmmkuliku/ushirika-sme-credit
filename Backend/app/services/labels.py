@@ -14,6 +14,10 @@ FEATURE_LABELS_EN: dict[str, str] = {
     "volume_trend": "Sales volume trend",
     "on_time_rate": "On-time payment rate",
     "avg_transaction_interval_days": "Average days between transactions",
+    "buyer_share": "Share of buyer counterparties",
+    "supplier_share": "Share of supplier counterparties",
+    "distributor_share": "Share of distributor counterparties",
+    "order_type_diversity": "Order-type diversity (value chain)",
     "outlier_transaction_count": "Unusual large transactions",
     "typical_volume_tzs": "Typical volume excluding outliers (TZS)",
 }
@@ -32,6 +36,10 @@ FEATURE_LABELS_SW: dict[str, str] = {
     "volume_trend": "Mwelekeo wa kiasi cha mauzo",
     "on_time_rate": "Kiwango cha malipo kwa wakati",
     "avg_transaction_interval_days": "Wastani wa siku kati ya miamala",
+    "buyer_share": "Sehemu ya wanunuzi",
+    "supplier_share": "Sehemu ya wasambazaji",
+    "distributor_share": "Sehemu ya wasambazaji wa jumla",
+    "order_type_diversity": "Utofauti wa aina za oda (mnyororo wa thamani)",
     "outlier_transaction_count": "Miamala mikubwa isiyo ya kawaida",
     "typical_volume_tzs": "Kiasi cha kawaida bila miamala isiyo ya kawaida (TZS)",
 }

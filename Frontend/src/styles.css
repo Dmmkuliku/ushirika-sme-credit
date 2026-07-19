@@ -1408,6 +1408,44 @@ body.nav-lock {
   max-width: 560px;
 }
 
+.metric-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.1rem;
+  background: var(--surface-2, rgba(26, 122, 109, 0.06));
+  border-radius: 10px;
+}
+
+.metric-tile .metric-label {
+  font-size: 0.8rem;
+  color: var(--muted, #4a5e66);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric-tile strong {
+  font-size: 1.35rem;
+  color: var(--ink, #0f2830);
+}
+
+.metric-tile .metric-sub {
+  font-size: 0.85rem;
+  color: var(--muted, #4a5e66);
+}
+
+.section-title {
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.plain-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.55;
+  color: var(--ink, #0f2830);
+}
+
 .action-cell {
   display: flex;
   flex-wrap: wrap;

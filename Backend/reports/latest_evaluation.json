@@ -1,0 +1,137 @@
+{
+  "version": "20260719090647",
+  "rf_metrics": {
+    "accuracy": 0.8857142857142857,
+    "precision_score": 0.9295774647887324,
+    "recall": 0.8571428571428571,
+    "f1": 0.8918918918918919,
+    "roc_auc": 0.9582560296846011,
+    "confusion_matrix": {
+      "matrix": [
+        [
+          116,
+          10
+        ],
+        [
+          22,
+          132
+        ]
+      ],
+      "labels": [
+        "higher_risk (0)",
+        "creditworthy (1)"
+      ],
+      "tn": 116,
+      "fp": 10,
+      "fn": 22,
+      "tp": 132,
+      "classification_report": {
+        "higher_risk": {
+          "precision": 0.8405797101449275,
+          "recall": 0.9206349206349206,
+          "f1-score": 0.8787878787878788,
+          "support": 126.0
+        },
+        "creditworthy": {
+          "precision": 0.9295774647887324,
+          "recall": 0.8571428571428571,
+          "f1-score": 0.8918918918918919,
+          "support": 154.0
+        },
+        "accuracy": 0.8857142857142857,
+        "macro avg": {
+          "precision": 0.8850785874668299,
+          "recall": 0.8888888888888888,
+          "f1-score": 0.8853398853398853,
+          "support": 280.0
+        },
+        "weighted avg": {
+          "precision": 0.8895284751990201,
+          "recall": 0.8857142857142857,
+          "f1-score": 0.885995085995086,
+          "support": 280.0
+        }
+      }
+    }
+  },
+  "lr_metrics": {
+    "accuracy": 0.7785714285714286,
+    "precision_score": 0.7584269662921348,
+    "recall": 0.8766233766233766,
+    "f1": 0.8132530120481928,
+    "roc_auc": 0.8749226963512678,
+    "confusion_matrix": {
+      "matrix": [
+        [
+          83,
+          43
+        ],
+        [
+          19,
+          135
+        ]
+      ],
+      "labels": [
+        "higher_risk (0)",
+        "creditworthy (1)"
+      ],
+      "tn": 83,
+      "fp": 43,
+      "fn": 19,
+      "tp": 135,
+      "classification_report": {
+        "higher_risk": {
+          "precision": 0.8137254901960784,
+          "recall": 0.6587301587301587,
+          "f1-score": 0.7280701754385965,
+          "support": 126.0
+        },
+        "creditworthy": {
+          "precision": 0.7584269662921348,
+          "recall": 0.8766233766233766,
+          "f1-score": 0.8132530120481928,
+          "support": 154.0
+        },
+        "accuracy": 0.7785714285714286,
+        "macro avg": {
+          "precision": 0.7860762282441066,
+          "recall": 0.7676767676767677,
+          "f1-score": 0.7706615937433947,
+          "support": 280.0
+        },
+        "weighted avg": {
+          "precision": 0.7833113020489094,
+          "recall": 0.7785714285714286,
+          "f1-score": 0.7749207355738745,
+          "support": 280.0
+        }
+      }
+    }
+  },
+  "statsmodels_logit": {
+    "available": true,
+    "accuracy": 0.7785714285714286,
+    "roc_auc": 0.8750257678829108,
+    "pseudo_r2": 0.3319873989710954
+  },
+  "feature_importance": {
+    "payment_consistency": 0.042179501790144396,
+    "payment_delay_avg": 0.03253356358252711,
+    "payment_delay_max": 0.030383359982484107,
+    "turnover_tzs": 0.02795816514637712,
+    "transaction_frequency": 0.044148389448289284,
+    "completion_rate_avg": 0.04196080146907513,
+    "default_rate": 0.187222211475551,
+    "compliance_rate": 0.032745013829343035,
+    "account_age_months": 0.05517557059037902,
+    "counterparty_diversity": 0.032514625407876994,
+    "volume_trend": 0.033731358545156846,
+    "on_time_rate": 0.19831946059890204,
+    "avg_transaction_interval_days": 0.041082479779870965,
+    "buyer_share": 0.04632038318821877,
+    "supplier_share": 0.03109736850320379,
+    "distributor_share": 0.03923111524074799,
+    "order_type_diversity": 0.08339663142185241
+  },
+  "rf_outperforms_baseline": true
+}
