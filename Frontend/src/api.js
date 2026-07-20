@@ -213,7 +213,14 @@ async function parseBody(response) {
  */
 export async function request(path, options = {}) {
   const defaultRetries = isCloudDeployment() ? 4 : 2;
-  const { auth = true, raw = false, headers: customHeaders, retries = defaultRetries, ...init } = options;
+  const {
+    auth = true,
+    raw = false,
+    headers: customHeaders,
+    retries = defaultRetries,
+    timeoutMs = 0,
+    ...init
+  } = options;
   const headers = new Headers(customHeaders || {});
 
   if (auth) {
@@ -234,7 +241,11 @@ export async function request(path, options = {}) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      response = await fetch(`${API_BASE}${path}`, { ...init, headers });
+      const fetchInit = { ...init, headers };
+      if (timeoutMs > 0) {
+        fetchInit.signal = AbortSignal.timeout(timeoutMs);
+      }
+      response = await fetch(`${API_BASE}${path}`, fetchInit);
       lastErr = null;
       break;
     } catch (err) {
@@ -247,10 +258,16 @@ export async function request(path, options = {}) {
     }
   }
   if (lastErr || !response) {
-    throw new ApiError('Unable to reach the server. Check your connection and API URL.', {
-      status: 0,
-      detail: lastErr?.message || String(lastErr || 'No response'),
-    });
+    const timedOut = lastErr?.name === 'TimeoutError' || lastErr?.name === 'AbortError';
+    throw new ApiError(
+      timedOut
+        ? 'The server took too long to respond. If the cloud API was sleeping, try again in a moment.'
+        : 'Unable to reach the server. Check your connection and API URL.',
+      {
+        status: 0,
+        detail: timedOut ? 'request_timeout' : (lastErr?.message || String(lastErr || 'No response')),
+      },
+    );
   }
 
   if (raw) return response;
@@ -482,6 +499,8 @@ export function uploadSmeCsv(file) {
   return request('/transactions/import', {
     method: 'POST',
     body: form,
+    retries: isCloudDeployment() ? 3 : 2,
+    timeoutMs: isCloudDeployment() ? 120000 : 60000,
   });
 }
 

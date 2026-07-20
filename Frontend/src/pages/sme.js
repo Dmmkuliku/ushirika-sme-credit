@@ -926,7 +926,13 @@ export function loadSmeUpload(session, { onLogout }) {
       ? result.model_training_summary
       : null;
     const trainingHtml = training
-      ? `
+      ? (result.model_training_scheduled || training.note)
+        ? `
+        <div class="detail-section" style="margin-top:0.9rem">
+          <h5 class="ml-feature-title">${escapeHtml(t('sme.trainingOutputTitle'))}</h5>
+          <p class="help-text">${escapeHtml(training.note || t('sme.trainingScheduled'))}</p>
+        </div>`
+        : `
         <div class="detail-section" style="margin-top:0.9rem">
           <h5 class="ml-feature-title">${escapeHtml(t('sme.trainingOutputTitle'))}</h5>
           <ul class="ml-feature-list">
@@ -1026,6 +1032,12 @@ export function loadSmeUpload(session, { onLogout }) {
     submitBtn.textContent = t('sme.uploading');
     setProgress(18, t('sme.processingUpload'));
     try {
+      await api.ensureApiReady({
+        onProgress: ({ attempt, maxAttempts }) => {
+          setProgress(12, t('auth.wakingServerProgress', { attempt, max: maxAttempts }));
+        },
+      });
+      setProgress(18, t('sme.processingUpload'));
       const uploadPromise = api.uploadSmeCsv(file);
       // Soft progress while waiting for import + ML score
       let tick = 18;
@@ -1070,7 +1082,9 @@ export function loadSmeUpload(session, { onLogout }) {
         window.setTimeout(() => { window.location.hash = '#/sme'; }, 2200);
       }
     } catch (err) {
-      const msg = getErrorMessage(err, t('sme.uploadFailed'));
+      const msg = err?.detail === 'request_timeout'
+        ? t('sme.uploadTimeout')
+        : getErrorMessage(err, t('sme.uploadFailed'));
       if (feedback) { feedback.hidden = false; feedback.className = 'form-error'; feedback.textContent = msg; }
       showToast(msg, 'error');
       if (progress) progress.hidden = true;

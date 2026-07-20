@@ -114,5 +114,6 @@ class CSVImportResult(BaseModel):
     transactions_needed: int | None = None
     message: str | None = None
     model_training_ran: bool = False
+    model_training_scheduled: bool = False
     model_training_version: str | None = None
     model_training_summary: dict | None = None

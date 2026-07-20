@@ -177,3 +177,48 @@ def test_lender_portfolio_with_nida(client, db):
     assert len(items) >= 1
     assert "nida" in items[0]
     assert "full_name" in items[0]
+
+
+def test_csv_import_scores_without_blocking_training(client, monkeypatch):
+    """Import must return quickly; heavy GridSearchCV runs in background only."""
+    from app.services import ml_training
+
+    sync_called = {"value": False}
+
+    def _spy_retrain(db_session):
+        sync_called["value"] = True
+        return None
+
+    scheduled = {"value": False}
+
+    def _spy_schedule():
+        scheduled["value"] = True
+
+    monkeypatch.setattr(ml_training, "retrain_after_sme_data_change", _spy_retrain)
+    monkeypatch.setattr("app.routers.transactions.schedule_background_retrain", _spy_schedule)
+
+    register_sme(client, "19951231456789012345")
+    token = login(client, "19951231456789012345")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    csv_content = (
+        "transaction_ref,counterparty_tin,counterparty_name,counterparty_type,order_type,"
+        "amount_tzs,payment_status,transaction_date\n"
+        "TX-A,100123456,Partner A,buyer,sale,250000,paid,2025-01-10\n"
+        "TX-B,100234567,Partner B,seller,purchase,180000,paid,2025-01-20\n"
+        "TX-C,100345678,Partner C,buyer,sale,320000,paid,2025-02-05\n"
+        "TX-D,100456789,Partner D,buyer,sale,150000,paid,2025-02-10\n"
+        "TX-E,100567890,Partner E,seller,purchase,210000,paid,2025-03-01\n"
+    )
+    resp = client.post(
+        "/api/transactions/import",
+        files={"file": ("sample.csv", csv_content.encode(), "text/csv")},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["imported"] == 5
+    assert data.get("model_training_scheduled") is True
+    assert sync_called["value"] is False
+    assert scheduled["value"] is True
+    assert data.get("score_ready") is True

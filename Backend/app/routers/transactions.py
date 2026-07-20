@@ -17,7 +17,6 @@ from app.schemas.transaction import (
 from app.services.csv_export import export_estatement_csv
 from app.services.csv_import import REQUIRED_COLUMNS, OPTIONAL_COLUMNS, import_transactions_csv
 from app.services.monthly_history import refresh_monthly_history
-from app.services.ml_training import retrain_after_sme_data_change
 from app.services.scoring_pipeline import score_after_data_change, schedule_background_retrain
 from app.utils.pseudonymization import pseudonymize
 
@@ -137,33 +136,17 @@ async def import_csv(
     training_payload: dict = {}
     if profile and result["imported"] > 0:
         score_payload = _after_write(db, current_user, profile.id)
-        # Explicit in-app training/testing output for panel defence:
-        # this retrains the model using live SME mixes (including this SME's transactions).
-        try:
-            trained = retrain_after_sme_data_change(db)
-            if trained:
-                training_payload = {
-                    "model_training_ran": True,
-                    "model_training_version": trained.get("version"),
-                    "model_training_summary": {
-                        "rf_accuracy": trained.get("rf_metrics", {}).get("accuracy"),
-                        "rf_precision": trained.get("rf_metrics", {}).get("precision_score"),
-                        "rf_recall": trained.get("rf_metrics", {}).get("recall"),
-                        "rf_f1": trained.get("rf_metrics", {}).get("f1"),
-                        "rf_roc_auc": trained.get("rf_metrics", {}).get("roc_auc"),
-                        "lr_accuracy": trained.get("lr_metrics", {}).get("accuracy"),
-                        "lr_roc_auc": trained.get("lr_metrics", {}).get("roc_auc"),
-                        "rf_outperforms_baseline": trained.get("rf_outperforms_baseline"),
-                        "real_sme_profiles_used": trained.get("real_sme_profiles_used"),
-                    },
-                }
-        except Exception:
-            training_payload = {
-                "model_training_ran": False,
-                "model_training_summary": {
-                    "note": "Model training could not complete for this upload; scoring still completed."
-                },
-            }
+        # GridSearchCV takes minutes — never block the upload HTTP response (Render/Vercel timeout).
+        schedule_background_retrain()
+        training_payload = {
+            "model_training_scheduled": True,
+            "model_training_summary": {
+                "note": (
+                    "Model retraining runs in the background after this upload. "
+                    "Your score above uses the current Random Forest model."
+                ),
+            },
+        }
 
     return CSVImportResult(
         imported=result["imported"],
@@ -187,6 +170,7 @@ async def import_csv(
             else "No new rows imported."
         ),
         model_training_ran=bool(training_payload.get("model_training_ran", False)),
+        model_training_scheduled=bool(training_payload.get("model_training_scheduled", False)),
         model_training_version=training_payload.get("model_training_version"),
         model_training_summary=training_payload.get("model_training_summary"),
     )
