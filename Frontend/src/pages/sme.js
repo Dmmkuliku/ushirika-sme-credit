@@ -922,6 +922,23 @@ export function loadSmeUpload(session, { onLogout }) {
     const proba = Number(result.probability_creditworthy);
     const probaPct = Number.isFinite(proba) ? `${(proba * 100).toFixed(1)}%` : '—';
     const rows = Array.isArray(result.ml_features_display) ? result.ml_features_display.slice(0, 10) : [];
+    const training = result?.model_training_summary && typeof result.model_training_summary === 'object'
+      ? result.model_training_summary
+      : null;
+    const trainingHtml = training
+      ? `
+        <div class="detail-section" style="margin-top:0.9rem">
+          <h5 class="ml-feature-title">${escapeHtml(t('sme.trainingOutputTitle'))}</h5>
+          <ul class="ml-feature-list">
+            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.trainingVersion'))}</span><strong>${escapeHtml(String(result.model_training_version || '—'))}</strong></div></li>
+            <li class="ml-feature-row"><div class="ml-feature-meta"><span>RF Accuracy</span><strong>${escapeHtml(training.rf_accuracy != null ? formatNumber(training.rf_accuracy * 100, 2) + '%' : '—')}</strong></div></li>
+            <li class="ml-feature-row"><div class="ml-feature-meta"><span>RF ROC-AUC</span><strong>${escapeHtml(training.rf_roc_auc != null ? formatNumber(training.rf_roc_auc * 100, 2) + '%' : '—')}</strong></div></li>
+            <li class="ml-feature-row"><div class="ml-feature-meta"><span>LR ROC-AUC</span><strong>${escapeHtml(training.lr_roc_auc != null ? formatNumber(training.lr_roc_auc * 100, 2) + '%' : '—')}</strong></div></li>
+            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.trainingProfilesUsed'))}</span><strong>${escapeHtml(training.real_sme_profiles_used != null ? formatNumber(training.real_sme_profiles_used, 0) : '—')}</strong></div></li>
+            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.trainingComparison'))}</span><strong>${escapeHtml(training.rf_outperforms_baseline ? 'RF > LR' : 'RF ≤ LR')}</strong></div></li>
+          </ul>
+        </div>`
+      : '';
     resultHost.hidden = false;
     resultHost.innerHTML = `
       <section class="ml-metrics-panel" aria-live="polite">
@@ -948,6 +965,7 @@ export function loadSmeUpload(session, { onLogout }) {
               return `<li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(label)}</span><strong>${escapeHtml(shown)}</strong></div></li>`;
             }).join('')}
           </ul>` : ''}
+        ${trainingHtml}
         <div class="upload-actions" style="margin-top:1rem">
           <a class="btn btn-primary" href="#/sme">${escapeHtml(t('sme.viewFullOverview'))}</a>
         </div>

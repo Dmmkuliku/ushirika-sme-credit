@@ -55,6 +55,13 @@ SME_SPECS = [
     ),
 ]
 
+SUBADMIN_IDS = [
+    "20020703214030000121",
+    "20021105231230000121",
+    "20041126334010000118",
+    "20040110141080000214",
+]
+
 
 def seed():
     Base.metadata.create_all(bind=engine)
@@ -118,6 +125,17 @@ def seed():
                 phone="+255712000002",
             )
         )
+
+        for idx, sub_id in enumerate(SUBADMIN_IDS, start=1):
+            db.add(
+                User(
+                    login_id=sub_id,
+                    hashed_pin=hash_pin("1234"),
+                    role=UserRole.SUBADMIN,
+                    full_name=f"Sub Admin {idx}",
+                    gender="Other",
+                )
+            )
 
         rng = random.Random(42)
         now = datetime.now(timezone.utc)

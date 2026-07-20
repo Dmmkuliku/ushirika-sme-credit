@@ -189,9 +189,9 @@ def build():
     bg(s)
     section_header(s, "WHAT WAS BUILT", "Ushirika — a working credit platform for SMEs and lenders", "Deliverables match proposal Section 3.10")
     layers = [
-        ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nTabbed lender detail\nEN / Kiswahili UI", LAGOON),
+        ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nAuto-start backend from UI script\nEN / Kiswahili UI", LAGOON),
         ("API", "FastAPI + JWT\nTransactions + TIN\nRole-based access", FOREST),
-        ("ML Core", "Feature engineering\nRF (primary) + LR\n80/20 train–test + CV", LAGOON_BRIGHT),
+        ("ML Core", "Feature engineering\nRF (primary) + LR\nUpload triggers train+test output", LAGOON_BRIGHT),
         ("Data & Ethics", "SQL storage\nHMAC PII hashes\n25% outlier rule\nConservative loans", FOREST_DEEP),
     ]
     for i, (t, d, c) in enumerate(layers):
@@ -204,7 +204,8 @@ def build():
             textbox(s, left + Inches(2.85), Inches(3.2), Inches(0.4), Inches(0.35), "→", size=20, bold=True, color=LAGOON, align=PP_ALIGN.CENTER)
     textbox(s, Inches(0.55), Inches(5.45), Inches(12.2), Inches(1.2),
             "Proposal fulfilment: operational ML backend · Vite interactive portal · technical performance report.\n"
-            "Lender workflow: progressive NIDA search → SME profile (incl. TIN) → tabs for ML metrics, signals, txs, history.",
+            "Lender workflow: progressive NIDA search → SME profile (incl. TIN) → tabs for ML metrics, signals, txs, history.\n"
+            "Initial governance now includes fixed admin + four fixed sub-admin IDs (self-PIN change enabled).",
             size=13, color=MUTED)
     footer(s, 4)
 

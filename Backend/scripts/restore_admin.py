@@ -13,6 +13,12 @@ from app.utils.security import hash_pin
 ADMIN_LOGIN_ID = "20031001121160000228"
 ADMIN_PIN = "1234"
 ADMIN_NAME = "System Administrator"
+SUBADMIN_INITIAL_IDS = [
+    "20020703214030000121",
+    "20021105231230000121",
+    "20041126334010000118",
+    "20040110141080000214",
+]
 
 DEMO_TINS = {
     "19900101123456789012": "100123456",
@@ -58,6 +64,39 @@ def restore_admin() -> None:
         if updated:
             db.commit()
             print(f"Backfilled TIN for {updated} SME profile(s)")
+
+        # Ensure fixed initial sub-admin accounts exist and can sign in with PIN 1234.
+        created_subadmins = 0
+        reset_subadmins = 0
+        for idx, login_id in enumerate(SUBADMIN_INITIAL_IDS, start=1):
+            sub = db.query(User).filter(User.login_id == login_id).first()
+            if sub:
+                sub.role = UserRole.SUBADMIN
+                sub.is_active = True
+                sub.hashed_pin = hash_pin(ADMIN_PIN)
+                if not sub.full_name:
+                    sub.full_name = f"Sub Admin {idx}"
+                if not sub.gender:
+                    sub.gender = "Other"
+                reset_subadmins += 1
+            else:
+                db.add(
+                    User(
+                        login_id=login_id,
+                        hashed_pin=hash_pin(ADMIN_PIN),
+                        role=UserRole.SUBADMIN,
+                        full_name=f"Sub Admin {idx}",
+                        gender="Other",
+                        is_active=True,
+                    )
+                )
+                created_subadmins += 1
+        if created_subadmins or reset_subadmins:
+            db.commit()
+            print(
+                f"Sub-admin accounts ready: created {created_subadmins}, reset/updated {reset_subadmins} "
+                f"(PIN {ADMIN_PIN})"
+            )
     finally:
         db.close()
 
