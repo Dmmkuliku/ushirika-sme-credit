@@ -289,6 +289,13 @@ a:hover {
   color: var(--ink-muted);
 }
 
+.auth-server-status {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
 .auth-form {
   display: grid;
   gap: 1rem;

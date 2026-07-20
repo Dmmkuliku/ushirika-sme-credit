@@ -36,16 +36,112 @@ export function getApiBase() {
   return API_BASE;
 }
 
-async function wakeApiIfNeeded() {
-  // Free Render instances sleep; ping health before the first real call.
-  const healthUrl = API_BASE.startsWith('http')
-    ? `${API_BASE}/health`
-    : `${RENDER_API}/health`;
+function isLocalDev() {
+  return import.meta.env.DEV && !API_BASE.startsWith('http');
+}
+
+/** True when the live Vercel frontend talks to the Render API (not local dev). */
+export function isCloudDeployment() {
+  if (isLocalDev()) return false;
   try {
-    await fetch(healthUrl, { method: 'GET', cache: 'no-store' });
+    const host = window.location.hostname || '';
+    return host.endsWith('.vercel.app') || host.includes('ushirika-sme-portal');
   } catch {
-    /* ignore — retry loop below handles failure */
+    return !import.meta.env.DEV;
   }
+}
+
+function getHealthUrl() {
+  if (API_BASE.startsWith('http')) {
+    return `${API_BASE.replace(/\/$/, '')}/health`;
+  }
+  // Same-origin /api → Vercel rewrite or Vite proxy (avoids CORS to Render).
+  return '/api/health';
+}
+
+const CLOUD_WAKE = {
+  maxAttempts: 25,
+  delayMs: 3000,
+  requestTimeoutMs: 55000,
+};
+
+let cloudBackendReady = false;
+let wakePromise = null;
+
+async function pingHealth(timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(getHealthUrl(), {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    if (!res.ok) return false;
+    const data = await res.json().catch(() => ({}));
+    return data.status === 'healthy' || data.status === 'degraded' || !!data.version;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Poll Render via /api/health until the free-tier instance is awake (~30–90s). */
+async function wakeCloudBackend({ onProgress } = {}) {
+  if (cloudBackendReady) return;
+
+  const { maxAttempts, delayMs, requestTimeoutMs } = CLOUD_WAKE;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    onProgress?.({ attempt, maxAttempts });
+
+    if (await pingHealth(requestTimeoutMs)) {
+      cloudBackendReady = true;
+      return;
+    }
+
+    if (attempt < maxAttempts) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+
+  throw new ApiError(
+    'Cloud server is still waking up. Please wait a moment and try again.',
+    { status: 0, detail: 'render_cold_start' },
+  );
+}
+
+async function wakeApiIfNeeded() {
+  if (isLocalDev()) {
+    await pingHealth(5000);
+    return;
+  }
+  if (!cloudBackendReady) {
+    await wakeCloudBackend();
+  }
+}
+
+/**
+ * Ensure the API is reachable before login.
+ * On Vercel: polls until Render responds (cold-start wake).
+ * Locally: quick ping to the dev proxy only.
+ */
+export async function ensureApiReady({ onProgress, force = false } = {}) {
+  if (isLocalDev()) {
+    await pingHealth(5000);
+    return;
+  }
+
+  if (cloudBackendReady && !force) return;
+
+  if (!wakePromise || force) {
+    wakePromise = wakeCloudBackend({ onProgress }).finally(() => {
+      if (!cloudBackendReady) wakePromise = null;
+    });
+  }
+
+  return wakePromise;
 }
 
 let didWake = false;
@@ -116,7 +212,8 @@ async function parseBody(response) {
  * @param {RequestInit & { auth?: boolean, raw?: boolean }} options
  */
 export async function request(path, options = {}) {
-  const { auth = true, raw = false, headers: customHeaders, retries = 2, ...init } = options;
+  const defaultRetries = isCloudDeployment() ? 4 : 2;
+  const { auth = true, raw = false, headers: customHeaders, retries = defaultRetries, ...init } = options;
   const headers = new Headers(customHeaders || {});
 
   if (auth) {
@@ -128,7 +225,7 @@ export async function request(path, options = {}) {
     headers.set('Content-Type', 'application/json');
   }
 
-  if (!didWake) {
+  if (!didWake && !cloudBackendReady) {
     didWake = true;
     await wakeApiIfNeeded();
   }

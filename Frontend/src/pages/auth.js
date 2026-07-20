@@ -63,6 +63,7 @@ export function renderAuthPage(mode = 'login') {
           <form id="auth-form" class="auth-form" novalidate>
             ${fields}
             <div id="auth-error" class="form-error" role="alert" hidden></div>
+            <p id="auth-server-status" class="auth-server-status" role="status" hidden></p>
             <button type="submit" class="btn btn-primary btn-block" id="auth-submit">
               ${escapeHtml(submitLabel)}
             </button>
@@ -181,12 +182,29 @@ function bindLangToggle(onLangChange) {
   });
 }
 
+function setServerStatus(text, visible = true) {
+  const statusEl = document.getElementById('auth-server-status');
+  if (!statusEl) return;
+  statusEl.hidden = !visible;
+  statusEl.textContent = visible ? text : '';
+}
+
 export function bindAuthPage(mode, { onSuccess, onLangChange }) {
   const form = document.getElementById('auth-form');
   const errorEl = document.getElementById('auth-error');
   const submitBtn = document.getElementById('auth-submit');
 
   bindLangToggle(onLangChange);
+
+  if (mode === 'login' && api.isCloudDeployment()) {
+    api.ensureApiReady({
+      onProgress: ({ attempt, maxAttempts }) => {
+        setServerStatus(t('auth.wakingServerProgress', { attempt, max: maxAttempts }));
+      },
+    })
+      .then(() => setServerStatus('', false))
+      .catch(() => setServerStatus('', false));
+  }
 
   function showError(msg) {
     if (!errorEl) return;
@@ -215,6 +233,15 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
       submitBtn.disabled = true;
       submitBtn.textContent = t('auth.signingIn');
       try {
+        await api.ensureApiReady({
+          onProgress: ({ attempt, maxAttempts }) => {
+            const msg = t('auth.wakingServerProgress', { attempt, max: maxAttempts });
+            submitBtn.textContent = msg;
+            setServerStatus(msg);
+          },
+        });
+        setServerStatus('', false);
+        submitBtn.textContent = t('auth.signingIn');
         const payload = await api.login({ login_id, pin });
         if (!payload?.access_token && !payload?.token) {
           throw new Error(t('auth.errNoToken'));
@@ -232,7 +259,9 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
         showToast(t('auth.signedIn'), 'success');
         onSuccess();
       } catch (err) {
-        const msg = getErrorMessage(err, t('auth.errAuth'));
+        const msg = err?.detail === 'render_cold_start'
+          ? t('auth.errServerWake')
+          : getErrorMessage(err, t('auth.errAuth'));
         showError(msg);
         showToast(msg, 'error');
       } finally {
