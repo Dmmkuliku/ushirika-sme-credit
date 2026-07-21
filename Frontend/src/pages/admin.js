@@ -21,6 +21,7 @@ import {
 import { openProfileModal } from './profile.js';
 import { t } from '../i18n.js';
 import {
+  bindAdultDobValidation,
   bindExactDigitsValidation,
   bindImmediateEmailValidation,
   eighteenthBirthdayIso,
@@ -473,6 +474,10 @@ function bindCreateForm(formId, handler, successMsg) {
     digitsOnlyMessage: t('auth.errNidaDigitsOnly'),
     exactLengthMessage: t('auth.errNida'),
   });
+  bindAdultDobValidation(
+    form?.querySelector('input[name="date_of_birth"]'),
+    (dob) => t('auth.errUnder18', { date: eighteenthBirthdayIso(dob) }),
+  );
   bindImmediateEmailValidation(
     form?.querySelector('input[type="email"]'),
     t('auth.errEmail'),

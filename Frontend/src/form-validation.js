@@ -68,6 +68,37 @@ export function bindImmediateEmailValidation(input, message) {
   input.addEventListener('blur', validate);
 }
 
+export function bindAdultDobValidation(input, buildMessage) {
+  if (!input) return;
+
+  const message = document.createElement('p');
+  message.className = 'field-validation-error';
+  message.setAttribute('role', 'alert');
+  message.hidden = true;
+  input.insertAdjacentElement('afterend', message);
+
+  const validate = () => {
+    const dob = input.value;
+    const underage = dob && dob > latestAdultDobIso();
+    if (underage) {
+      const text = buildMessage(dob);
+      input.setCustomValidity(text);
+      input.setAttribute('aria-invalid', 'true');
+      message.textContent = text;
+      message.hidden = false;
+    } else {
+      input.setCustomValidity('');
+      input.setAttribute('aria-invalid', 'false');
+      message.textContent = '';
+      message.hidden = true;
+    }
+  };
+
+  input.addEventListener('input', validate);
+  input.addEventListener('change', validate);
+  input.addEventListener('blur', validate);
+}
+
 export function bindExactDigitsValidation(input, {
   length,
   digitsOnlyMessage,

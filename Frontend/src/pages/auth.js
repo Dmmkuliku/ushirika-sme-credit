@@ -10,6 +10,7 @@ import { escapeHtml, getErrorMessage } from '../utils.js';
 import { showToast } from '../ui.js';
 import { t, langSwitchHtml, toggleLang, getLang } from '../i18n.js';
 import {
+  bindAdultDobValidation,
   bindExactDigitsValidation,
   bindImmediateEmailValidation,
   eighteenthBirthdayIso,
@@ -207,6 +208,12 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     exactLengthMessage: t('auth.errNida'),
   });
   bindImmediateEmailValidation(document.getElementById('email'), t('auth.errEmail'));
+  if (mode === 'register') {
+    bindAdultDobValidation(
+      document.getElementById('date_of_birth'),
+      (dob) => t('auth.errUnder18', { date: eighteenthBirthdayIso(dob) }),
+    );
+  }
 
   if (mode === 'login' && api.isCloudDeployment()) {
     api.ensureApiReady({
