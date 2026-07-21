@@ -18,6 +18,8 @@ import {
   bindPinField,
   bindRequiredField,
   dmyToIso,
+  enforceSequentialFields,
+  focusInvalidField,
   normalizeTzPhone,
   phoneInputHtml,
 } from '../form-validation.js';
@@ -91,7 +93,7 @@ function renderLoginFields() {
   return `
     <div class="field">
       <label for="login_id">${escapeHtml(t('auth.loginId'))}</label>
-      <input id="login_id" name="login_id" type="text" autocomplete="username" required />
+      <input id="login_id" name="login_id" type="text" maxlength="20" autocomplete="username" required />
     </div>
     <div class="field">
       <label for="pin">${escapeHtml(t('auth.pin'))}</label>
@@ -105,7 +107,7 @@ function renderForgotFields() {
   return `
     <div class="field">
       <label for="login_id">${escapeHtml(t('auth.loginId'))}</label>
-      <input id="login_id" name="login_id" type="text" autocomplete="username" required />
+      <input id="login_id" name="login_id" type="text" maxlength="20" autocomplete="username" required />
     </div>
     <div class="field">
       <label for="date_of_birth">${escapeHtml(t('auth.dateOfBirth'))}</label>
@@ -245,18 +247,25 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     );
   }
   if (mode === 'forgot-pin') {
-    bindRequiredField(document.getElementById('login_id'), t('auth.errIdRequired'));
+    const fLoginId = document.getElementById('login_id');
+    const fDob = document.getElementById('date_of_birth');
+    const fPhone = document.getElementById('phone');
+    const fNewPin = document.getElementById('new_pin');
+    const fConfirmPin = document.getElementById('confirm_pin');
+    // Required binders first so format binders get the final say on validity.
+    bindRequiredField(fLoginId, t('auth.errIdRequired'));
+    bindRequiredField(fDob, t('auth.errDob'));
+    bindRequiredField(fPhone, t('auth.errPhoneFormat'));
+    bindRequiredField(fNewPin, t('auth.errPinDigits'));
     bindNidaMatchedDobValidation({
-      input: document.getElementById('date_of_birth'),
+      input: fDob,
       invalidDateMessage: t('auth.errDobFormat'),
     });
-    bindPhoneField(document.getElementById('phone'), t('auth.errPhoneFormat'));
-    bindPinField(document.getElementById('new_pin'), t('auth.errPinDigits'));
-    bindConfirmPinField(
-      document.getElementById('confirm_pin'),
-      document.getElementById('new_pin'),
-      t('auth.errPinsMatch'),
-    );
+    bindPhoneField(fPhone, t('auth.errPhoneFormat'));
+    bindPinField(fNewPin, t('auth.errPinDigits'));
+    bindConfirmPinField(fConfirmPin, fNewPin, t('auth.errPinsMatch'));
+    // Each step must be completed before the next one can be filled.
+    enforceSequentialFields([fLoginId, fDob, fPhone, fNewPin, fConfirmPin]);
   }
 
   if (mode === 'login' && api.isCloudDeployment()) {
@@ -286,12 +295,17 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     clearError();
 
     const fd = new FormData(form);
+    // Show the message in the banner AND on the offending field itself.
+    const fail = (msg, fieldId) => {
+      showError(msg);
+      focusInvalidField(document.getElementById(fieldId));
+    };
 
     if (mode === 'login') {
       const login_id = String(fd.get('login_id') || '').trim();
       const pin = String(fd.get('pin') || '');
-      if (!login_id) { showError(t('auth.errIdRequired')); return; }
-      if (!/^[0-9]{4}$/.test(pin)) { showError(t('auth.errPinDigits')); return; }
+      if (!login_id) { fail(t('auth.errIdRequired'), 'login_id'); return; }
+      if (!/^[0-9]{4}$/.test(pin)) { fail(t('auth.errPinDigits'), 'pin'); return; }
 
       submitBtn.disabled = true;
       submitBtn.textContent = t('auth.signingIn');
@@ -343,12 +357,12 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
       const new_pin = String(fd.get('new_pin') || '');
       const confirm_pin = String(fd.get('confirm_pin') || '');
 
-      if (!login_id) { showError(t('auth.errIdRequired')); return; }
-      if (!dobInput) { showError(t('auth.errDob')); return; }
-      if (!date_of_birth) { showError(t('auth.errDobFormat')); return; }
-      if (!phone) { showError(t('auth.errPhoneFormat')); return; }
-      if (!/^[0-9]{4}$/.test(new_pin)) { showError(t('auth.errPinDigits')); return; }
-      if (new_pin !== confirm_pin) { showError(t('auth.errPinsMatch')); return; }
+      if (!login_id) { fail(t('auth.errIdRequired'), 'login_id'); return; }
+      if (!dobInput) { fail(t('auth.errDob'), 'date_of_birth'); return; }
+      if (!date_of_birth) { fail(t('auth.errDobFormat'), 'date_of_birth'); return; }
+      if (!phone) { fail(t('auth.errPhoneFormat'), 'phone'); return; }
+      if (!/^[0-9]{4}$/.test(new_pin)) { fail(t('auth.errPinDigits'), 'new_pin'); return; }
+      if (new_pin !== confirm_pin) { fail(t('auth.errPinsMatch'), 'confirm_pin'); return; }
 
       submitBtn.disabled = true;
       submitBtn.textContent = t('auth.resetting');
@@ -381,24 +395,24 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     const pin = String(fd.get('pin') || '');
     const confirm_pin = String(fd.get('confirm_pin') || '');
 
-    if (!/^[0-9]{20}$/.test(nida)) { showError(t('auth.errNida')); return; }
-    if (!full_name) { showError(t('auth.errFullName')); return; }
+    if (!/^[0-9]{20}$/.test(nida)) { fail(t('auth.errNida'), 'nida'); return; }
+    if (!full_name) { fail(t('auth.errFullName'), 'full_name'); return; }
     const tinClean = tin.replace(/\D/g, '');
-    if (!/^[0-9]{9}$/.test(tinClean)) { showError(t('auth.errTin')); return; }
+    if (!/^[0-9]{9}$/.test(tinClean)) { fail(t('auth.errTin'), 'tin'); return; }
     const normalizedPhone = normalizeTzPhone(phone);
-    if (!normalizedPhone) { showError(t('auth.errPhoneFormat')); return; }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError(t('auth.errEmail')); return; }
-    if (!location) { showError(t('auth.errLocation')); return; }
-    if (!business_type) { showError(t('auth.errBusinessType')); return; }
-    if (!gender) { showError(t('auth.errGender')); return; }
-    if (!dateOfBirthInput) { showError(t('auth.errDob')); return; }
-    if (!date_of_birth) { showError(t('auth.errDobFormat')); return; }
+    if (!normalizedPhone) { fail(t('auth.errPhoneFormat'), 'phone'); return; }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { fail(t('auth.errEmail'), 'email'); return; }
+    if (!location) { fail(t('auth.errLocation'), 'location'); return; }
+    if (!business_type) { fail(t('auth.errBusinessType'), 'business_type'); return; }
+    if (!gender) { fail(t('auth.errGender'), 'gender'); return; }
+    if (!dateOfBirthInput) { fail(t('auth.errDob'), 'date_of_birth'); return; }
+    if (!date_of_birth) { fail(t('auth.errDobFormat'), 'date_of_birth'); return; }
     if (nida.slice(0, 8) !== date_of_birth.replaceAll('-', '')) {
-      showError(t('auth.errDobNidaMismatch'));
+      fail(t('auth.errDobNidaMismatch'), 'date_of_birth');
       return;
     }
-    if (!/^[0-9]{4}$/.test(pin)) { showError(t('auth.errPinDigits')); return; }
-    if (pin !== confirm_pin) { showError(t('auth.errPinsMatch')); return; }
+    if (!/^[0-9]{4}$/.test(pin)) { fail(t('auth.errPinDigits'), 'pin'); return; }
+    if (pin !== confirm_pin) { fail(t('auth.errPinsMatch'), 'confirm_pin'); return; }
 
     submitBtn.disabled = true;
     submitBtn.textContent = t('auth.creating');

@@ -404,8 +404,8 @@ function recordTxFieldsHtml(prefix, row = null) {
         <input id="${id('ref')}" name="transaction_ref" type="text" required value="${val('transaction_ref')}" />
       </div>
       <div class="field">
-        <label for="${id('cp-tin')}">${escapeHtml(t('sme.otherPartyTin'))}</label>
-        <input id="${id('cp-tin')}" name="counterparty_tin" type="text" inputmode="numeric" required minlength="9" maxlength="9" pattern="[0-9]{9}" placeholder="9 digits" value="${val('counterparty_tin')}" />
+        <label for="${id('cp-tin')}">${escapeHtml(t('sme.otherPartyTin'))} <span class="optional">${escapeHtml(t('common.optional'))}</span></label>
+        <input id="${id('cp-tin')}" name="counterparty_tin" type="text" inputmode="numeric" maxlength="9" pattern="[0-9]{9}" placeholder="9 digits" value="${val('counterparty_tin')}" />
         <p class="field-hint">${escapeHtml(t('sme.otherPartyTinHint'))}</p>
       </div>
     </div>
@@ -488,7 +488,7 @@ function bindTxFieldValidation(prefix) {
 function parseTxFormData(fd) {
   return {
     transaction_ref: String(fd.get('transaction_ref') || '').trim(),
-    counterparty_tin: String(fd.get('counterparty_tin') || '').trim().replace(/\D/g, ''),
+    counterparty_tin: String(fd.get('counterparty_tin') || '').trim().replace(/\D/g, '') || undefined,
     counterparty_name: String(fd.get('counterparty_name') || '').trim(),
     counterparty_type: String(fd.get('counterparty_type') || ''),
     order_type: String(fd.get('order_type') || ''),
@@ -506,7 +506,7 @@ function validateTxData(data) {
   if (String(data.transaction_date).slice(0, 10) > todayIso()) {
     return t('sme.errFutureDate');
   }
-  if (!/^[0-9]{9}$/.test(data.counterparty_tin || '')) {
+  if (data.counterparty_tin && !/^[0-9]{9}$/.test(data.counterparty_tin)) {
     return t('sme.errTinExact');
   }
   if (!data.counterparty_name || !data.counterparty_type || !data.order_type || !data.payment_status) {
@@ -545,8 +545,8 @@ export async function loadSmeTransactions(session, { onLogout }) {
       </section>
 
       <form id="tx-filters" class="filter-bar" aria-label="${escapeHtml(t('sme.filterTxAria'))}">
-        <div class="field"><label for="tx-from">${escapeHtml(t('sme.from'))}</label><input type="date" id="tx-from" name="from" /></div>
-        <div class="field"><label for="tx-to">${escapeHtml(t('sme.to'))}</label><input type="date" id="tx-to" name="to" /></div>
+        <div class="field"><label for="tx-from">${escapeHtml(t('sme.from'))}</label><input type="date" id="tx-from" name="from" max="${todayIso()}" /></div>
+        <div class="field"><label for="tx-to">${escapeHtml(t('sme.to'))}</label><input type="date" id="tx-to" name="to" max="${todayIso()}" /></div>
         <div class="field"><label for="tx-type">${escapeHtml(t('sme.orderType'))}</label>
           <select id="tx-type" name="type">
             <option value="">${escapeHtml(t('common.all'))}</option>
@@ -575,6 +575,14 @@ export async function loadSmeTransactions(session, { onLogout }) {
 
   document.getElementById('btn-toggle-record')?.addEventListener('click', () => {
     if (recordSection) recordSection.hidden = !recordSection.hidden;
+  });
+
+  // Filter dates can never go past today, even if typed manually.
+  ['tx-from', 'tx-to'].forEach((idAttr) => {
+    const input = document.getElementById(idAttr);
+    input?.addEventListener('change', () => {
+      if (input.value && input.value > todayIso()) input.value = todayIso();
+    });
   });
 
   recordForm?.addEventListener('submit', (e) => {

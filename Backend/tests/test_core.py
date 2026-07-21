@@ -106,6 +106,29 @@ def test_transactions_and_scoring(client):
     assert data["risk_band"] in ("low", "medium", "high")
 
 
+def test_transaction_without_counterparty_tin_is_accepted(client):
+    register_sme(client, "19930704222222222222")
+    token = login(client, "19930704222222222222")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    now = datetime.now(timezone.utc).isoformat()
+    resp = client.post(
+        "/api/transactions",
+        json={
+            "transaction_ref": "REF-NO-TIN",
+            "counterparty_name": "Mama Ntilie",
+            "counterparty_type": "buyer",
+            "order_type": "sale",
+            "amount_tzs": 250_000,
+            "payment_status": "paid",
+            "transaction_date": now,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    assert resp.json().get("counterparty_tin") in (None, "")
+
+
 def test_score_requires_min_transactions(client):
     register_sme(client, "19800101111111111111")
     token = login(client, "19800101111111111111")

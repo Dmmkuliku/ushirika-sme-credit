@@ -87,6 +87,43 @@ function attachInlineError(input) {
   };
 }
 
+/**
+ * Bring the user to the field that failed submit-level validation and
+ * re-run its own blur validation so the error appears on that field,
+ * not only in the banner at the bottom of the form.
+ */
+export function focusInvalidField(input) {
+  if (!input) return;
+  input.dispatchEvent(new Event('blur'));
+  try {
+    input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  } catch {
+    /* older browsers */
+  }
+  input.focus({ preventScroll: true });
+}
+
+/**
+ * Force fields to be completed in order: focusing a later field while an
+ * earlier one is empty or invalid shows that field's error and returns
+ * focus to it.
+ */
+export function enforceSequentialFields(inputs) {
+  const list = (inputs || []).filter(Boolean);
+  list.forEach((input, idx) => {
+    input.addEventListener('focus', () => {
+      for (let i = 0; i < idx; i += 1) {
+        const prev = list[i];
+        if (!String(prev.value || '').trim() || !prev.checkValidity()) {
+          prev.dispatchEvent(new Event('blur'));
+          setTimeout(() => prev.focus(), 0);
+          return;
+        }
+      }
+    });
+  });
+}
+
 export function bindImmediateEmailValidation(input, message) {
   if (!input) return;
   const error = attachInlineError(input);

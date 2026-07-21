@@ -28,6 +28,7 @@ import {
   bindPinField,
   bindRequiredField,
   dmyToIso,
+  focusInvalidField,
   normalizeTzPhone,
   phoneInputHtml,
 } from '../form-validation.js';
@@ -345,7 +346,7 @@ function loadCreateLender(session, { onLogout }) {
       <div class="page-header"><div><h1>${escapeHtml(t('admin.createLenderTitle'))}</h1></div></div>
       <div class="admin-form-wrap">
         <form id="create-form" class="auth-form panel" novalidate>
-          <div class="field"><label for="membership_number">${escapeHtml(t('profile.membership'))}</label><input id="membership_number" name="membership_number" type="text" required /></div>
+          <div class="field"><label for="membership_number">${escapeHtml(t('profile.membership'))}</label><input id="membership_number" name="membership_number" type="text" maxlength="20" required /></div>
           <div class="field"><label for="full_name">${escapeHtml(t('profile.fullName'))}</label><input id="full_name" name="full_name" type="text" required /></div>
           <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label><select id="gender" name="gender" required><option value="">${escapeHtml(t('common.select'))}</option>${genderOptions()}</select></div>
           <div class="field"><label for="organization">${escapeHtml(t('profile.organization'))}</label><input id="organization" name="organization" type="text" required placeholder="${escapeHtml(t('admin.orgPlaceholder'))}" /></div>
@@ -451,7 +452,7 @@ function loadCreateSubAdmin(session, { onLogout }) {
       <div class="page-header"><div><h1>${escapeHtml(t('admin.createSubadminTitle'))}</h1></div></div>
       <div class="admin-form-wrap">
         <form id="create-form" class="auth-form panel" novalidate>
-          <div class="field"><label for="login_id">${escapeHtml(t('profile.loginId'))}</label><input id="login_id" name="login_id" type="text" required /></div>
+          <div class="field"><label for="login_id">${escapeHtml(t('profile.loginId'))}</label><input id="login_id" name="login_id" type="text" maxlength="20" required /></div>
           <div class="field"><label for="full_name">${escapeHtml(t('profile.fullName'))}</label><input id="full_name" name="full_name" type="text" required /></div>
           <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label><select id="gender" name="gender" required><option value="">${escapeHtml(t('common.select'))}</option>${genderOptions()}</select></div>
           <div class="field"><label for="organization">${escapeHtml(t('profile.organization'))}</label><input id="organization" name="organization" type="text" required /></div>
@@ -534,6 +535,10 @@ function bindCreateForm(formId, handler, successMsg) {
       const validationError = await handler(fd);
       if (validationError) {
         if (errEl) { errEl.hidden = false; errEl.textContent = validationError; }
+        const firstInvalid = Array.from(form.elements).find(
+          (el) => el.willValidate && !el.checkValidity(),
+        );
+        focusInvalidField(firstInvalid);
         return;
       }
       showToast(successMsg, 'success');

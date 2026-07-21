@@ -56,6 +56,15 @@ function localizedModel(value) {
   return translated === `models.${key}` ? String(value || '—').replace(/_/g, ' ') : translated;
 }
 
+/** The backend sends the ML summary in English; swap in the localized text. */
+function localizedMlSummary(summary) {
+  if (!summary) return '';
+  if (summary.startsWith('These ML metrics are computed')) return t('lender.mlDataNote');
+  const locked = summary.match(/at least (\d+) transactions \((\d+) more needed\)/);
+  if (locked) return t('lender.mlLockedNote', { min: locked[1], needed: locked[2] });
+  return summary;
+}
+
 function bindLenderShell(onLogout) {
   const openProfile = () => openProfileModal('lender');
   bindShellActions({ onLogout, onProfile: openProfile });
@@ -296,7 +305,7 @@ function renderDetail(host, detail, txPayload, id) {
   const proba = detail?.probability_creditworthy;
   const modelVersion = detail?.model_version || '—';
   const primaryModel = detail?.primary_model || 'random_forest';
-  const mlSummary = detail?.ml_summary || '';
+  const mlSummary = localizedMlSummary(detail?.ml_summary || '');
   const featureRows = Array.isArray(detail?.ml_features_display) ? detail.ml_features_display : [];
   const outlierCount = detail?.outlier_transaction_count;
   const typicalVol = detail?.typical_volume_tzs;
