@@ -8,6 +8,42 @@ _PIN_RE = re.compile(r"^\d{4}$")
 _NIDA_RE = re.compile(r"^\d{20}$")
 _TIN_RE = re.compile(r"^\d{9}$")
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_TZ_PHONE_RE = re.compile(r"^\+255[67]\d{8}$")
+
+
+def _eighteenth_birthday(dob: date) -> date:
+    try:
+        return dob.replace(year=dob.year + 18)
+    except ValueError:
+        return dob.replace(year=dob.year + 18, month=2, day=28)
+
+
+def _require_adult_dob(v: str) -> str:
+    try:
+        dob = date.fromisoformat(v)
+    except ValueError:
+        raise ValueError("date_of_birth must be YYYY-MM-DD format")
+    eligible_on = _eighteenth_birthday(dob)
+    if eligible_on > date.today():
+        raise ValueError(
+            f"You are not eligible yet. Try again when you turn 18 on {eligible_on.isoformat()}"
+        )
+    return v
+
+
+def _normalize_tz_phone(v: str | None) -> str | None:
+    if v is None or not str(v).strip():
+        return None
+    raw = re.sub(r"[\s()-]", "", str(v).strip())
+    if raw.startswith("0"):
+        raw = "+255" + raw[1:]
+    elif raw.startswith("255"):
+        raw = "+" + raw
+    elif re.fullmatch(r"[67]\d{8}", raw):
+        raw = "+255" + raw
+    if not _TZ_PHONE_RE.fullmatch(raw):
+        raise ValueError("Phone must contain 9 digits after +255 and start with 6 or 7")
+    return raw
 
 
 def _require_valid_email(v: str | None) -> str | None:
@@ -23,7 +59,7 @@ def _require_valid_email(v: str | None) -> str | None:
 
 class SMERegisterRequest(BaseModel):
     nida: str = Field(min_length=20, max_length=20, description="Exactly 20 digits")
-    phone: str = Field(min_length=10, max_length=20)
+    phone: str = Field(min_length=9, max_length=20)
     full_name: str = Field(min_length=2, max_length=200)
     email: str | None = Field(default=None, max_length=254)
     location: str = Field(min_length=2, max_length=200)
@@ -55,23 +91,29 @@ class SMERegisterRequest(BaseModel):
     def validate_email(cls, v: str | None) -> str | None:
         return _require_valid_email(v)
 
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        return _normalize_tz_phone(v) or ""
+
     @field_validator("gender")
     @classmethod
     def validate_gender(cls, v: str) -> str:
-        if v not in ("Male", "Female", "Other"):
-            raise ValueError("gender must be Male, Female, or Other")
+        if v not in ("Male", "Female"):
+            raise ValueError("gender must be Male or Female")
         return v
+
+    @field_validator("nationality")
+    @classmethod
+    def validate_nationality(cls, v: str) -> str:
+        if str(v).strip().lower() != "tanzanian":
+            raise ValueError("Only Tanzanian SMEs can register")
+        return "Tanzanian"
 
     @field_validator("date_of_birth")
     @classmethod
     def validate_dob(cls, v: str) -> str:
-        try:
-            dob = date.fromisoformat(v)
-        except ValueError:
-            raise ValueError("date_of_birth must be YYYY-MM-DD format")
-        if dob >= date.today():
-            raise ValueError("date_of_birth must be in the past")
-        return v
+        return _require_adult_dob(v)
 
     @field_validator("pin")
     @classmethod
@@ -93,9 +135,14 @@ class LenderCreateRequest(BaseModel):
     @field_validator("gender")
     @classmethod
     def validate_gender(cls, v: str) -> str:
-        if v not in ("Male", "Female", "Other"):
-            raise ValueError("gender must be Male, Female, or Other")
+        if v not in ("Male", "Female"):
+            raise ValueError("gender must be Male or Female")
         return v
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        return _normalize_tz_phone(v)
 
     @field_validator("work_email")
     @classmethod
@@ -124,8 +171,8 @@ class SubAdminCreateRequest(BaseModel):
     @field_validator("gender")
     @classmethod
     def validate_gender(cls, v: str) -> str:
-        if v not in ("Male", "Female", "Other"):
-            raise ValueError("gender must be Male, Female, or Other")
+        if v not in ("Male", "Female"):
+            raise ValueError("gender must be Male or Female")
         return v
 
     @field_validator("work_email")
@@ -246,19 +293,23 @@ class ForgotPinRequest(BaseModel):
 
 class SMEProfileUpdateRequest(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=200)
-    phone: str | None = Field(default=None, min_length=10, max_length=20)
+    phone: str | None = Field(default=None, min_length=9, max_length=20)
     email: str | None = Field(default=None, max_length=254)
     location: str | None = Field(default=None, min_length=2, max_length=200)
     business_type: str | None = Field(default=None, min_length=2, max_length=100)
     gender: str | None = None
-    nationality: str | None = Field(default=None, max_length=50)
 
     @field_validator("gender")
     @classmethod
     def validate_gender(cls, v: str | None) -> str | None:
-        if v is not None and v not in ("Male", "Female", "Other"):
-            raise ValueError("gender must be Male, Female, or Other")
+        if v is not None and v not in ("Male", "Female"):
+            raise ValueError("gender must be Male or Female")
         return v
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        return _normalize_tz_phone(v)
 
     @field_validator("email")
     @classmethod
@@ -276,9 +327,14 @@ class LenderProfileUpdateRequest(BaseModel):
     @field_validator("gender")
     @classmethod
     def validate_gender(cls, v: str | None) -> str | None:
-        if v is not None and v not in ("Male", "Female", "Other"):
-            raise ValueError("gender must be Male, Female, or Other")
+        if v is not None and v not in ("Male", "Female"):
+            raise ValueError("gender must be Male or Female")
         return v
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        return _normalize_tz_phone(v)
 
     @field_validator("work_email")
     @classmethod
@@ -293,6 +349,6 @@ class AdminSelfUpdateRequest(BaseModel):
     @field_validator("gender")
     @classmethod
     def validate_gender(cls, v: str | None) -> str | None:
-        if v is not None and v not in ("Male", "Female", "Other"):
-            raise ValueError("gender must be Male, Female, or Other")
+        if v is not None and v not in ("Male", "Female"):
+            raise ValueError("gender must be Male or Female")
         return v

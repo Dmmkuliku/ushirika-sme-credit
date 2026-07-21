@@ -1,6 +1,6 @@
 """Transaction request/response schemas (simplified recording fields)."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
@@ -42,6 +42,15 @@ class TransactionCreate(BaseModel):
             raise ValueError("TIN must be exactly 9 digits")
         return digits
 
+    @field_validator("transaction_date")
+    @classmethod
+    def validate_transaction_date(cls, v: datetime) -> datetime:
+        now = datetime.now(timezone.utc)
+        comparable = v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+        if comparable > now:
+            raise ValueError("Transaction date cannot be in the future")
+        return v
+
 
 class TransactionUpdate(BaseModel):
     transaction_ref: str | None = Field(default=None, min_length=3, max_length=64)
@@ -70,6 +79,17 @@ class TransactionUpdate(BaseModel):
         if len(digits) != 9:
             raise ValueError("TIN must be exactly 9 digits")
         return digits
+
+    @field_validator("transaction_date")
+    @classmethod
+    def validate_transaction_date(cls, v: datetime | None) -> datetime | None:
+        if v is None:
+            return v
+        now = datetime.now(timezone.utc)
+        comparable = v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+        if comparable > now:
+            raise ValueError("Transaction date cannot be in the future")
+        return v
 
 
 class TransactionResponse(BaseModel):

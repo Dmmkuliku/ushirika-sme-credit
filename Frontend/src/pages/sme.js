@@ -28,6 +28,7 @@ import {
 } from '../ui.js';
 import { openProfileModal } from './profile.js';
 import { t, featureLabel } from '../i18n.js';
+import { todayIso } from '../form-validation.js';
 
 function bindSmeShell(onLogout) {
   bindShellActions({
@@ -453,7 +454,7 @@ function recordTxFieldsHtml(prefix, row = null) {
       </div>
       <div class="field">
         <label for="${id('date')}">${escapeHtml(t('sme.transactionDate'))}</label>
-        <input id="${id('date')}" name="transaction_date" type="date" required value="${row ? escapeHtml(toInputDate(row.transaction_date || row.date)) : ''}" />
+        <input id="${id('date')}" name="transaction_date" type="date" max="${todayIso()}" required value="${row ? escapeHtml(toInputDate(row.transaction_date || row.date)) : ''}" />
       </div>
     </div>
     <div class="field">
@@ -480,6 +481,9 @@ function parseTxFormData(fd) {
 function validateTxData(data) {
   if (!data.transaction_ref || !(data.amount_tzs > 0) || !data.transaction_date) {
     return t('sme.fillRequired');
+  }
+  if (String(data.transaction_date).slice(0, 10) > todayIso()) {
+    return t('sme.errFutureDate');
   }
   if (!/^[0-9]{9}$/.test(data.counterparty_tin || '')) {
     return t('sme.errTinExact');

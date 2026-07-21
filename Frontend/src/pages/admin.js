@@ -20,6 +20,13 @@ import {
 } from '../ui.js';
 import { openProfileModal } from './profile.js';
 import { t } from '../i18n.js';
+import {
+  bindImmediateEmailValidation,
+  eighteenthBirthdayIso,
+  latestAdultDobIso,
+  normalizeTzPhone,
+  phoneInputHtml,
+} from '../form-validation.js';
 
 const BUSINESS_TYPES = [
   'Entrepreneur', 'Machinga', 'Retailer', 'Wholesaler', 'Manufacturer',
@@ -319,10 +326,10 @@ function loadCreateLender(session, { onLogout }) {
         <form id="create-form" class="auth-form panel" novalidate>
           <div class="field"><label for="membership_number">Membership Number</label><input id="membership_number" name="membership_number" type="text" required /></div>
           <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required /></div>
-          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>
+          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
           <div class="field"><label for="organization">Organization</label><input id="organization" name="organization" type="text" required placeholder="e.g. CRDB, NMB" /></div>
           <div class="field"><label for="work_email">Work Email</label><input id="work_email" name="work_email" type="email" required /></div>
-          <div class="field"><label for="phone">Phone <span class="optional">(optional)</span></label><input id="phone" name="phone" type="tel" /></div>
+          <div class="field"><label for="phone">Phone <span class="optional">(optional)</span></label>${phoneInputHtml({ id: 'phone' })}</div>
           <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
           <div class="field"><label for="confirm_pin">Confirm PIN</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
           <div id="create-error" class="form-error" hidden></div>
@@ -339,13 +346,16 @@ function loadCreateLender(session, { onLogout }) {
     if (pin !== confirm_pin) return 'PINs do not match.';
     const work_email = String(fd.get('work_email') || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(work_email)) return t('auth.errEmail');
+    const phoneRaw = String(fd.get('phone') || '').trim();
+    const phone = phoneRaw ? normalizeTzPhone(phoneRaw) : undefined;
+    if (phoneRaw && !phone) return t('auth.errPhoneFormat');
     await api.createLender({
       membership_number: fd.get('membership_number'),
       full_name: fd.get('full_name'),
       gender: fd.get('gender'),
       organization: fd.get('organization'),
       work_email,
-      phone: fd.get('phone') || undefined,
+      phone,
       pin,
     });
     return null;
@@ -365,13 +375,12 @@ function loadCreateSme(session, { onLogout }) {
         <form id="create-form" class="auth-form panel" novalidate>
           <div class="field"><label for="nida">NIDA</label><input id="nida" name="nida" type="text" inputmode="numeric" maxlength="20" pattern="[0-9]{20}" required placeholder="20 digits" /></div>
           <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required /></div>
-          <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" type="tel" required placeholder="+255..." /></div>
+          <div class="field"><label for="phone">Phone</label>${phoneInputHtml({ id: 'phone', required: true })}</div>
           <div class="field"><label for="email">Email <span class="optional">(optional)</span></label><input id="email" name="email" type="email" /></div>
           <div class="field"><label for="location">Location</label><input id="location" name="location" type="text" required /></div>
           <div class="field"><label for="business_type">Business Type</label><select id="business_type" name="business_type" required><option value="">Select…</option>${bizOptions}</select></div>
-          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>
-          <div class="field"><label for="nationality">Nationality</label><input id="nationality" name="nationality" type="text" value="Tanzanian" required /></div>
-          <div class="field"><label for="date_of_birth">Date of Birth</label><input id="date_of_birth" name="date_of_birth" type="date" required /></div>
+          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+          <div class="field"><label for="date_of_birth">Date of Birth</label><input id="date_of_birth" name="date_of_birth" type="date" max="${latestAdultDobIso()}" required /><p class="field-hint">${escapeHtml(t('auth.ageHint'))}</p></div>
           <div class="field"><label for="tin">${escapeHtml(t('admin.createSmeTin'))}</label><input id="tin" name="tin" type="text" inputmode="numeric" required minlength="9" maxlength="9" pattern="[0-9]{9}" placeholder="Exactly 9 digits" /></div>
           <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
           <div class="field"><label for="confirm_pin">Confirm PIN</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
@@ -393,11 +402,17 @@ function loadCreateSme(session, { onLogout }) {
     if (pin !== confirm_pin) return 'PINs do not match.';
     const email = String(fd.get('email') || '').trim();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t('auth.errEmail');
+    const phone = normalizeTzPhone(fd.get('phone'));
+    if (!phone) return t('auth.errPhoneFormat');
+    const dateOfBirth = String(fd.get('date_of_birth') || '');
+    if (dateOfBirth > latestAdultDobIso()) {
+      return t('auth.errUnder18', { date: eighteenthBirthdayIso(dateOfBirth) });
+    }
     await api.createSmeByAdmin({
-      nida, full_name: fd.get('full_name'), phone: fd.get('phone'),
+      nida, full_name: fd.get('full_name'), phone,
       email: email || undefined, location: fd.get('location'),
       business_type: fd.get('business_type'), gender: fd.get('gender'),
-      nationality: fd.get('nationality'), date_of_birth: fd.get('date_of_birth'),
+      nationality: 'Tanzanian', date_of_birth: dateOfBirth,
       tin, pin,
     });
     return null;
@@ -416,7 +431,7 @@ function loadCreateSubAdmin(session, { onLogout }) {
         <form id="create-form" class="auth-form panel" novalidate>
           <div class="field"><label for="login_id">Login ID</label><input id="login_id" name="login_id" type="text" required /></div>
           <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required /></div>
-          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>
+          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
           <div class="field"><label for="organization">Organization</label><input id="organization" name="organization" type="text" required /></div>
           <div class="field"><label for="work_email">Work Email</label><input id="work_email" name="work_email" type="email" required /></div>
           <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
@@ -452,6 +467,10 @@ function bindCreateForm(formId, handler, successMsg) {
   const errEl = document.getElementById('create-error');
   const submitBtn = document.getElementById('create-submit');
   const origText = submitBtn?.textContent || 'Submit';
+  bindImmediateEmailValidation(
+    form?.querySelector('input[type="email"]'),
+    t('auth.errEmail'),
+  );
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -508,14 +527,14 @@ function renderEditForm(session, acct, { onLogout }) {
     extraFields = `
       <div class="field"><label for="organization">Organization</label><input id="organization" name="organization" type="text" value="${escapeHtml(acct.organization || '')}" /></div>
       <div class="field"><label for="work_email">Work Email</label><input id="work_email" name="work_email" type="email" value="${escapeHtml(acct.work_email || '')}" /></div>
-      <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" type="tel" value="${escapeHtml(acct.phone || '')}" /></div>
+      <div class="field"><label for="phone">Phone</label>${phoneInputHtml({ id: 'phone', value: acct.phone })}</div>
     `;
   } else if (isSme) {
     const bizOptions = BUSINESS_TYPES.map(t =>
       `<option value="${escapeHtml(t)}" ${t === acct.business_type ? 'selected' : ''}>${escapeHtml(t)}</option>`
     ).join('');
     extraFields = `
-      <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" type="tel" value="${escapeHtml(acct.phone || '')}" /></div>
+      <div class="field"><label for="phone">Phone</label>${phoneInputHtml({ id: 'phone', value: acct.phone, required: true })}</div>
       <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="${escapeHtml(acct.email || '')}" /></div>
       <div class="field"><label for="location">Location</label><input id="location" name="location" type="text" value="${escapeHtml(acct.location || '')}" /></div>
       <div class="field"><label for="business_type">Business Type</label><select id="business_type" name="business_type"><option value="">Select…</option>${bizOptions}</select></div>
@@ -537,7 +556,6 @@ function renderEditForm(session, acct, { onLogout }) {
               <option value="">Select…</option>
               <option value="Male" ${acct.gender === 'Male' ? 'selected' : ''}>Male</option>
               <option value="Female" ${acct.gender === 'Female' ? 'selected' : ''}>Female</option>
-              <option value="Other" ${acct.gender === 'Other' ? 'selected' : ''}>Other</option>
             </select>
           </div>
           <div class="field">
@@ -559,6 +577,10 @@ function renderEditForm(session, acct, { onLogout }) {
   const form = document.getElementById('edit-form');
   const errEl = document.getElementById('edit-error');
   const submitBtn = document.getElementById('edit-submit');
+  bindImmediateEmailValidation(
+    form?.querySelector('input[type="email"]'),
+    t('auth.errEmail'),
+  );
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -570,9 +592,22 @@ function renderEditForm(session, acct, { onLogout }) {
     if (isLender) {
       data.organization = fd.get('organization');
       data.work_email = fd.get('work_email');
-      data.phone = fd.get('phone') || undefined;
+      const phoneRaw = String(fd.get('phone') || '').trim();
+      data.phone = phoneRaw ? normalizeTzPhone(phoneRaw) : undefined;
+      if (phoneRaw && !data.phone) {
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errPhoneFormat'); }
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Changes';
+        return;
+      }
     } else if (isSme) {
-      data.phone = fd.get('phone');
+      data.phone = normalizeTzPhone(fd.get('phone'));
+      if (!data.phone) {
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errPhoneFormat'); }
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Changes';
+        return;
+      }
       data.email = fd.get('email') || undefined;
       data.location = fd.get('location');
       data.business_type = fd.get('business_type');

@@ -9,6 +9,13 @@ import { setSession } from '../session.js';
 import { escapeHtml, getErrorMessage } from '../utils.js';
 import { showToast } from '../ui.js';
 import { t, langSwitchHtml, toggleLang, getLang } from '../i18n.js';
+import {
+  bindImmediateEmailValidation,
+  eighteenthBirthdayIso,
+  latestAdultDobIso,
+  normalizeTzPhone,
+  phoneInputHtml,
+} from '../form-validation.js';
 
 const BUSINESS_TYPES = [
   'Entrepreneur', 'Machinga', 'Retailer', 'Wholesaler', 'Manufacturer',
@@ -128,7 +135,8 @@ function renderRegisterFields() {
     </div>
     <div class="field">
       <label for="phone">${escapeHtml(t('auth.phone'))}</label>
-      <input id="phone" name="phone" type="tel" required placeholder="${escapeHtml(t('auth.phonePlaceholder'))}" />
+      ${phoneInputHtml({ id: 'phone', required: true })}
+      <p class="field-hint">${escapeHtml(t('auth.phoneHint'))}</p>
     </div>
     <div class="field">
       <label for="email">${escapeHtml(t('auth.email'))} <span class="optional">${escapeHtml(t('common.optional'))}</span></label>
@@ -151,16 +159,12 @@ function renderRegisterFields() {
         <option value="">${escapeHtml(t('common.select'))}</option>
         <option value="Male">${escapeHtml(t('auth.genderMale'))}</option>
         <option value="Female">${escapeHtml(t('auth.genderFemale'))}</option>
-        <option value="Other">${escapeHtml(t('auth.genderOther'))}</option>
       </select>
     </div>
     <div class="field">
-      <label for="nationality">${escapeHtml(t('auth.nationality'))}</label>
-      <input id="nationality" name="nationality" type="text" value="Tanzanian" required />
-    </div>
-    <div class="field">
       <label for="date_of_birth">${escapeHtml(t('auth.dateOfBirth'))}</label>
-      <input id="date_of_birth" name="date_of_birth" type="date" required />
+      <input id="date_of_birth" name="date_of_birth" type="date" max="${latestAdultDobIso()}" required />
+      <p class="field-hint">${escapeHtml(t('auth.ageHint'))}</p>
     </div>
     <div class="field">
       <label for="pin">${escapeHtml(t('auth.pin'))}</label>
@@ -195,6 +199,8 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
   const submitBtn = document.getElementById('auth-submit');
 
   bindLangToggle(onLangChange);
+
+  bindImmediateEmailValidation(document.getElementById('email'), t('auth.errEmail'));
 
   if (mode === 'login' && api.isCloudDeployment()) {
     api.ensureApiReady({
@@ -308,7 +314,6 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     const location = String(fd.get('location') || '').trim();
     const business_type = String(fd.get('business_type') || '');
     const gender = String(fd.get('gender') || '');
-    const nationality = String(fd.get('nationality') || '').trim();
     const date_of_birth = String(fd.get('date_of_birth') || '');
     const pin = String(fd.get('pin') || '');
     const confirm_pin = String(fd.get('confirm_pin') || '');
@@ -317,12 +322,17 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     if (!full_name) { showError(t('auth.errFullName')); return; }
     const tinClean = tin.replace(/\D/g, '');
     if (!/^[0-9]{9}$/.test(tinClean)) { showError(t('auth.errTin')); return; }
-    if (!phone) { showError(t('auth.errPhone')); return; }
+    const normalizedPhone = normalizeTzPhone(phone);
+    if (!normalizedPhone) { showError(t('auth.errPhoneFormat')); return; }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError(t('auth.errEmail')); return; }
     if (!location) { showError(t('auth.errLocation')); return; }
     if (!business_type) { showError(t('auth.errBusinessType')); return; }
     if (!gender) { showError(t('auth.errGender')); return; }
     if (!date_of_birth) { showError(t('auth.errDob')); return; }
+    if (date_of_birth > latestAdultDobIso()) {
+      showError(t('auth.errUnder18', { date: eighteenthBirthdayIso(date_of_birth) }));
+      return;
+    }
     if (!/^[0-9]{4}$/.test(pin)) { showError(t('auth.errPinDigits')); return; }
     if (pin !== confirm_pin) { showError(t('auth.errPinsMatch')); return; }
 
@@ -330,7 +340,8 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     submitBtn.textContent = t('auth.creating');
     try {
       await api.registerSme({
-        nida, phone, full_name, email, location, business_type, gender, nationality, date_of_birth, tin: tinClean, pin,
+        nida, phone: normalizedPhone, full_name, email, location, business_type, gender,
+        nationality: 'Tanzanian', date_of_birth, tin: tinClean, pin,
       });
       const loginPayload = await api.login({ login_id: nida, pin });
       if (!loginPayload?.access_token && !loginPayload?.token) {

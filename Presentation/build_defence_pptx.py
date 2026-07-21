@@ -189,9 +189,9 @@ def build():
     bg(s)
     section_header(s, "WHAT WAS BUILT", "Ushirika — a working credit platform for SMEs and lenders", "Deliverables match proposal Section 3.10")
     layers = [
-        ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nAuto-start backend from UI script\nEN / Kiswahili UI", LAGOON),
-        ("API", "FastAPI + JWT\nTransactions + TIN\nRole-based access", FOREST),
-        ("ML Core", "Feature engineering\nRF (primary) + LR\nUpload triggers train+test output", LAGOON_BRIGHT),
+        ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nCloud API wake-up\nSimple EN / Kiswahili UI", LAGOON),
+        ("API", "FastAPI + JWT\nStrict age, phone, email\nNo future transactions", FOREST),
+        ("ML Core", "Feature engineering\nRF (primary) + LR\nUpload scores immediately", LAGOON_BRIGHT),
         ("Data & Ethics", "SQL storage\nHMAC PII hashes\n25% outlier rule\nConservative loans", FOREST_DEEP),
     ]
     for i, (t, d, c) in enumerate(layers):
@@ -205,7 +205,7 @@ def build():
     textbox(s, Inches(0.55), Inches(5.45), Inches(12.2), Inches(1.2),
             "Proposal fulfilment: operational ML backend · Vite interactive portal · technical performance report.\n"
             "Lender workflow: progressive NIDA search → SME profile (incl. TIN) → tabs for ML metrics, signals, txs, history.\n"
-            "Initial governance now includes fixed admin + four fixed sub-admin IDs (self-PIN change enabled).",
+            "Inclusive controls: +255 phone entry, age 18+ eligibility, Male/Female choices, live email checks, and clear bilingual labels.",
             size=13, color=MUTED)
     footer(s, 4)
 

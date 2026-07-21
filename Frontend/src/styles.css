@@ -296,6 +296,28 @@ a:hover {
   text-align: center;
 }
 
+.phone-input-group {
+  display: flex;
+  align-items: stretch;
+}
+
+.phone-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 0.8rem;
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 0.5rem 0 0 0.5rem;
+  background: var(--mist);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.phone-input-group input {
+  min-width: 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
 .auth-form {
   display: grid;
   gap: 1rem;

@@ -27,6 +27,7 @@ import {
 } from '../ui.js';
 import { openProfileModal } from './profile.js';
 import { t, featureLabel } from '../i18n.js';
+import { formatTzPhone } from '../form-validation.js';
 
 function smeId(row) {
   return row?.sme_profile_id ?? row?.id ?? row?.sme_id ?? row?.user_id ?? row?.uuid ?? null;
@@ -368,7 +369,7 @@ function renderDetail(host, detail, txPayload, id) {
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.nida'))}</span><span>${escapeHtml(detail?.nida || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.fullName'))}</span><span>${escapeHtml(detail?.full_name || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.tin'))}</span><span>${escapeHtml(detail?.tin || '—')}</span></div>
-      <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.phone'))}</span><span>${escapeHtml(detail?.phone || '—')}</span></div>
+      <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.phone'))}</span><span>${escapeHtml(detail?.phone ? formatTzPhone(detail.phone) : '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.email'))}</span><span>${escapeHtml(detail?.email || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.location'))}</span><span>${escapeHtml(detail?.location || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.businessType'))}</span><span>${escapeHtml(detail?.business_type || '—')}</span></div>

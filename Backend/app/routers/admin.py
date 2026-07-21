@@ -16,6 +16,8 @@ from app.schemas.auth import (
     SMERegisterRequest,
     SubAdminCreateRequest,
     UserResponse,
+    _normalize_tz_phone,
+    _require_valid_email,
 )
 from app.schemas.credit import ModelMetricsResponse, TrainingResultResponse
 from app.schemas.health import HealthResponse
@@ -73,9 +75,19 @@ class AccountUpdateRequest(BaseModel):
     @field_validator("gender")
     @classmethod
     def validate_gender(cls, v: str | None) -> str | None:
-        if v is not None and v not in ("Male", "Female", "Other"):
-            raise ValueError("gender must be Male, Female, or Other")
+        if v is not None and v not in ("Male", "Female"):
+            raise ValueError("gender must be Male or Female")
         return v
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        return _normalize_tz_phone(v)
+
+    @field_validator("email", "work_email")
+    @classmethod
+    def validate_email(cls, v: str | None) -> str | None:
+        return _require_valid_email(v)
 
 
 class ResetPinRequest(BaseModel):

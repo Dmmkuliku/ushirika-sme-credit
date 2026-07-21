@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 from fastapi import HTTPException, UploadFile, status
@@ -154,6 +154,8 @@ async def import_transactions_csv(
                 tin = "".join(ch for ch in pseudonymize(name, "tin") if ch.isdigit())[:9].ljust(9, "0")
 
             tx_date = _parse_datetime(row["transaction_date"])
+            if tx_date > datetime.now(timezone.utc):
+                raise ValueError("transaction_date cannot be in the future")
             due = (
                 _parse_datetime(row["due_date"])
                 if "due_date" in df.columns and str(row.get("due_date", "")).strip() not in ("", "nan")

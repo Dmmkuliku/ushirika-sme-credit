@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from tests.conftest import create_admin, create_lender_via_admin, login, register_sme
 
@@ -152,6 +152,56 @@ def test_pin_validation(client):
         },
     )
     assert resp.status_code == 422
+
+
+def test_registration_normalizes_tanzanian_phone_and_rejects_under_18(client):
+    payload = {
+        "nida": "20000101123456789012",
+        "phone": "655786630",
+        "full_name": "Adult SME",
+        "location": "Dar es Salaam",
+        "business_type": "Retailer",
+        "gender": "Female",
+        "nationality": "Tanzanian",
+        "date_of_birth": "1990-01-01",
+        "tin": "987654321",
+        "pin": "1234",
+    }
+    resp = client.post("/api/auth/register", json=payload)
+    assert resp.status_code == 201
+    token = login(client, payload["nida"])
+    profile = client.get("/api/sme/profile", headers={"Authorization": f"Bearer {token}"}).json()
+    assert profile["phone"] == "+255655786630"
+
+    underage = dict(payload)
+    underage["nida"] = "20150101123456789012"
+    underage["tin"] = "987654322"
+    underage["date_of_birth"] = (date.today() - timedelta(days=17 * 365)).isoformat()
+    resp = client.post("/api/auth/register", json=underage)
+    assert resp.status_code == 422
+    assert "turn 18" in resp.text
+
+
+def test_future_transaction_date_is_rejected(client):
+    register_sme(client, "19951231456789012345")
+    token = login(client, "19951231456789012345")
+    future = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    resp = client.post(
+        "/api/transactions",
+        json={
+            "transaction_ref": "FUTURE-1",
+            "counterparty_tin": "100000001",
+            "counterparty_name": "Future Partner",
+            "counterparty_type": "buyer",
+            "order_type": "sale",
+            "amount_tzs": 100000,
+            "payment_status": "paid",
+            "transaction_date": future,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+    assert "cannot be in the future" in resp.text
 
 
 def test_admin_account_management(client, db):

@@ -6,13 +6,19 @@ import * as api from '../api.js';
 import { escapeHtml, formatDate, getErrorMessage, capitalize } from '../utils.js';
 import { showToast } from '../ui.js';
 import { t } from '../i18n.js';
+import {
+  bindImmediateEmailValidation,
+  formatTzPhone,
+  normalizeTzPhone,
+  phoneInputHtml,
+} from '../form-validation.js';
 
 const BUSINESS_TYPES = [
   'Entrepreneur', 'Machinga', 'Retailer', 'Wholesaler', 'Manufacturer',
   'Farmer', 'Service Provider', 'Transport', 'Food Vendor', 'Other',
 ];
 
-const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
+const GENDER_OPTIONS = ['Male', 'Female'];
 
 function modalHost() {
   let host = document.getElementById('profile-modal-host');
@@ -60,7 +66,7 @@ function roleTitle(role) {
 function genderSelect(id, name, value) {
   const opts = GENDER_OPTIONS.map(
     (g) => {
-      const label = g === 'Male' ? t('auth.genderMale') : g === 'Female' ? t('auth.genderFemale') : t('auth.genderOther');
+      const label = g === 'Male' ? t('auth.genderMale') : t('auth.genderFemale');
       return `<option value="${escapeHtml(g)}"${g === value ? ' selected' : ''}>${escapeHtml(label)}</option>`;
     }
   ).join('');
@@ -93,12 +99,11 @@ function viewFieldsHtml(role, profile) {
 
   if (role === 'sme') {
     rows.push([t('profile.fullName'), profile.full_name]);
-    rows.push([t('profile.phone'), profile.phone]);
+    rows.push([t('profile.phone'), formatTzPhone(profile.phone)]);
     rows.push([t('profile.email'), profile.email || '—']);
     rows.push([t('profile.location'), profile.location]);
     rows.push([t('profile.businessType'), profile.business_type]);
     rows.push([t('profile.gender'), profile.gender]);
-    rows.push([t('profile.nationality'), profile.nationality]);
     rows.push([t('profile.nida'), profile.nida]);
     rows.push([t('profile.tin'), profile.tin || '—']);
     rows.push([t('profile.loginId'), profile.nida]);
@@ -108,7 +113,7 @@ function viewFieldsHtml(role, profile) {
     rows.push([t('profile.gender'), profile.gender]);
     rows.push([t('profile.organization'), profile.organization]);
     rows.push([t('profile.workEmail'), profile.work_email]);
-    rows.push([t('profile.phone'), profile.phone || '—']);
+    rows.push([t('profile.phone'), profile.phone ? formatTzPhone(profile.phone) : '—']);
     rows.push([t('profile.membership'), profile.membership_number]);
   } else {
     rows.push([t('profile.fullName'), profile.full_name]);
@@ -139,7 +144,7 @@ function editFormHtml(role, profile) {
           </div>
           <div class="field">
             <label for="prof-phone">${escapeHtml(t('profile.phone'))}</label>
-            <input id="prof-phone" name="phone" type="tel" required value="${escapeHtml(profile.phone || '')}" />
+            ${phoneInputHtml({ id: 'prof-phone', value: profile.phone, required: true })}
           </div>
         </div>
         <div class="form-grid-2">
@@ -155,10 +160,6 @@ function editFormHtml(role, profile) {
         <div class="form-grid-2">
           ${businessTypeSelect(profile.business_type)}
           ${genderSelect('prof-gender', 'gender', profile.gender)}
-        </div>
-        <div class="field">
-          <label for="prof-nationality">${escapeHtml(t('profile.nationality'))}</label>
-          <input id="prof-nationality" name="nationality" type="text" required value="${escapeHtml(profile.nationality || '')}" />
         </div>
         <div class="profile-readonly-note">
           <p><strong>${escapeHtml(t('profile.readonly'))}:</strong> ${escapeHtml(t('profile.nida'))} ${escapeHtml(profile.nida || '—')}, ${escapeHtml(t('profile.tin'))} ${escapeHtml(profile.tin || '—')}, ${escapeHtml(t('profile.dateOfBirth'))} ${escapeHtml(formatDate(profile.date_of_birth))}</p>
@@ -193,7 +194,7 @@ function editFormHtml(role, profile) {
         </div>
         <div class="field">
           <label for="prof-phone">${escapeHtml(t('profile.phone'))} <span class="optional">${escapeHtml(t('common.optional'))}</span></label>
-          <input id="prof-phone" name="phone" type="tel" value="${escapeHtml(profile.phone || '')}" />
+          ${phoneInputHtml({ id: 'prof-phone', value: profile.phone })}
         </div>
         <div class="profile-readonly-note">
           <p><strong>${escapeHtml(t('profile.readonly'))}:</strong> ${escapeHtml(t('profile.membership'))} ${escapeHtml(profile.membership_number || '—')}</p>
@@ -295,6 +296,10 @@ function bindEditForm(role, profile, { onUpdated }) {
   const form = document.getElementById('profile-edit-form');
   const errEl = document.getElementById('profile-edit-error');
   const saveBtn = document.getElementById('profile-edit-save');
+  bindImmediateEmailValidation(
+    document.getElementById(role === 'lender' ? 'prof-work_email' : 'prof-email'),
+    t('auth.errEmail'),
+  );
 
   document.getElementById('profile-edit-cancel')?.addEventListener('click', () => {
     renderModal(role, profile, 'view', { onUpdated });
@@ -313,14 +318,18 @@ function bindEditForm(role, profile, { onUpdated }) {
         if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errEmail'); }
         return;
       }
+      const phone = normalizeTzPhone(fd.get('phone'));
+      if (!phone) {
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errPhoneFormat'); }
+        return;
+      }
       data = {
         full_name: fd.get('full_name'),
-        phone: fd.get('phone'),
+        phone,
         email: email || undefined,
         location: fd.get('location'),
         business_type: fd.get('business_type'),
         gender: fd.get('gender'),
-        nationality: fd.get('nationality'),
       };
     } else if (role === 'lender') {
       const work_email = String(fd.get('work_email') || '').trim();
@@ -328,12 +337,18 @@ function bindEditForm(role, profile, { onUpdated }) {
         if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errEmail'); }
         return;
       }
+      const phoneRaw = String(fd.get('phone') || '').trim();
+      const phone = phoneRaw ? normalizeTzPhone(phoneRaw) : undefined;
+      if (phoneRaw && !phone) {
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errPhoneFormat'); }
+        return;
+      }
       data = {
         full_name: fd.get('full_name'),
         gender: fd.get('gender'),
         organization: fd.get('organization'),
         work_email,
-        phone: fd.get('phone') || undefined,
+        phone,
       };
     } else {
       const full_name = String(fd.get('full_name') || '').trim();
@@ -342,7 +357,7 @@ function bindEditForm(role, profile, { onUpdated }) {
         if (errEl) { errEl.hidden = false; errEl.textContent = t('profile.errFullName'); }
         return;
       }
-      if (!gender || !['Male', 'Female', 'Other'].includes(gender)) {
+      if (!gender || !['Male', 'Female'].includes(gender)) {
         if (errEl) { errEl.hidden = false; errEl.textContent = t('profile.errGender'); }
         return;
       }
