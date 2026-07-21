@@ -167,6 +167,12 @@ def test_registration_normalizes_tanzanian_phone_and_rejects_under_18(client):
         "tin": "987654321",
         "pin": "1234",
     }
+    invalid_nida = dict(payload)
+    invalid_nida["nida"] = "2000010112345678901A"
+    resp = client.post("/api/auth/register", json=invalid_nida)
+    assert resp.status_code == 422
+    assert "NIDA must be exactly 20 digits" in resp.text
+
     resp = client.post("/api/auth/register", json=payload)
     assert resp.status_code == 201
     token = login(client, payload["nida"])

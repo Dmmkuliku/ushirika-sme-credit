@@ -10,6 +10,7 @@ import { escapeHtml, getErrorMessage } from '../utils.js';
 import { showToast } from '../ui.js';
 import { t, langSwitchHtml, toggleLang, getLang } from '../i18n.js';
 import {
+  bindExactDigitsValidation,
   bindImmediateEmailValidation,
   eighteenthBirthdayIso,
   latestAdultDobIso,
@@ -200,6 +201,11 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
 
   bindLangToggle(onLangChange);
 
+  bindExactDigitsValidation(document.getElementById('nida'), {
+    length: 20,
+    digitsOnlyMessage: t('auth.errNidaDigitsOnly'),
+    exactLengthMessage: t('auth.errNida'),
+  });
   bindImmediateEmailValidation(document.getElementById('email'), t('auth.errEmail'));
 
   if (mode === 'login' && api.isCloudDeployment()) {

@@ -67,3 +67,50 @@ export function bindImmediateEmailValidation(input, message) {
   input.addEventListener('input', validate);
   input.addEventListener('blur', validate);
 }
+
+export function bindExactDigitsValidation(input, {
+  length,
+  digitsOnlyMessage,
+  exactLengthMessage,
+} = {}) {
+  if (!input) return;
+
+  const message = document.createElement('p');
+  message.className = 'field-validation-error';
+  message.setAttribute('role', 'alert');
+  message.hidden = true;
+  input.insertAdjacentElement('afterend', message);
+
+  const showMessage = (text) => {
+    input.setCustomValidity(text);
+    input.setAttribute('aria-invalid', 'true');
+    message.textContent = text;
+    message.hidden = false;
+  };
+
+  const clearMessage = () => {
+    input.setCustomValidity('');
+    input.setAttribute('aria-invalid', 'false');
+    message.textContent = '';
+    message.hidden = true;
+  };
+
+  input.addEventListener('input', () => {
+    const original = input.value;
+    const digits = original.replace(/\D/g, '').slice(0, length);
+    input.value = digits;
+    if (original !== digits) {
+      showMessage(digitsOnlyMessage);
+    } else {
+      clearMessage();
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    if (input.value && input.value.length !== length) {
+      showMessage(exactLengthMessage);
+    } else if (/^\d+$/.test(input.value) || !input.value) {
+      clearMessage();
+    }
+  });
+}

@@ -21,6 +21,7 @@ import {
 import { openProfileModal } from './profile.js';
 import { t } from '../i18n.js';
 import {
+  bindExactDigitsValidation,
   bindImmediateEmailValidation,
   eighteenthBirthdayIso,
   latestAdultDobIso,
@@ -467,6 +468,11 @@ function bindCreateForm(formId, handler, successMsg) {
   const errEl = document.getElementById('create-error');
   const submitBtn = document.getElementById('create-submit');
   const origText = submitBtn?.textContent || 'Submit';
+  bindExactDigitsValidation(form?.querySelector('input[name="nida"]'), {
+    length: 20,
+    digitsOnlyMessage: t('auth.errNidaDigitsOnly'),
+    exactLengthMessage: t('auth.errNida'),
+  });
   bindImmediateEmailValidation(
     form?.querySelector('input[type="email"]'),
     t('auth.errEmail'),

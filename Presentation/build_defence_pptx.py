@@ -311,7 +311,7 @@ def build():
         "Minimum 5 transactions before an SME is scored.",
         "Conservative score mapping (~300–680) and explicit risk bands.",
         "Financing capped at ~50% of typical (non-outlier) volume — reduces unpaid-loan risk.",
-        "Input validation: +255 phone (9 digits), live email checks, age 18+, Male/Female only, no future payment dates.",
+        "Input validation: NIDA (20 digits only), +255 phone (9 digits), live email checks, age 18+, and no future payment dates.",
         "Stable sessions: 4-hour tokens, auto sign-out after 15 min idle, clean redirect on expiry.",
         "Technical Performance Report documents honesty of evaluation.",
     ], size=13)

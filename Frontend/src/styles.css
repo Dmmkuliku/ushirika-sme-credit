@@ -353,6 +353,13 @@ a:hover {
   line-height: 1.35;
 }
 
+.field-validation-error {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--danger);
+  line-height: 1.35;
+}
+
 .lang-switch {
   appearance: none;
   border: 1px solid rgba(11, 61, 46, 0.22);

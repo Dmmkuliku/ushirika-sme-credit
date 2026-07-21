@@ -73,10 +73,10 @@ class SMERegisterRequest(BaseModel):
     @field_validator("nida")
     @classmethod
     def validate_nida(cls, v: str) -> str:
-        digits = "".join(ch for ch in str(v).strip() if ch.isdigit())
-        if not _NIDA_RE.match(digits):
+        value = str(v).strip()
+        if not _NIDA_RE.fullmatch(value):
             raise ValueError("NIDA must be exactly 20 digits")
-        return digits
+        return value
 
     @field_validator("tin")
     @classmethod
