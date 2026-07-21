@@ -48,7 +48,7 @@ export function phoneInputHtml({ id, name = 'phone', value = '', required = fals
       <span class="phone-prefix" aria-hidden="true">+255</span>
       <input id="${id}" name="${name}" type="tel" inputmode="numeric"
         minlength="9" maxlength="9" pattern="[67][0-9]{8}"
-        placeholder="655786630" value="${phoneLocalDigits(value)}"${required ? ' required' : ''} />
+        placeholder="712345678" value="${phoneLocalDigits(value)}"${required ? ' required' : ''} />
     </div>`;
 }
 
