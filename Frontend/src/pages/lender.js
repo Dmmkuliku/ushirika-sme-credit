@@ -38,6 +38,24 @@ function smeName(row) {
   return row?.full_name || row?.display_token || row?.business_name || row?.name || row?.email || `SME ${smeId(row) || ''}`;
 }
 
+function localizedRisk(value) {
+  const key = String(value || '').toLowerCase();
+  return ['low', 'medium', 'high', 'pending'].includes(key) ? t(`risk.${key}`) : String(value || '—');
+}
+
+function localizedPayment(value) {
+  const key = String(value || '').toLowerCase();
+  return ['pending', 'paid', 'partial', 'overdue', 'defaulted'].includes(key)
+    ? t(`payment.${key}`)
+    : String(value || '—');
+}
+
+function localizedModel(value) {
+  const key = String(value || '').toLowerCase();
+  const translated = t(`models.${key}`);
+  return translated === `models.${key}` ? String(value || '—').replace(/_/g, ' ') : translated;
+}
+
 function bindLenderShell(onLogout) {
   const openProfile = () => openProfileModal('lender');
   bindShellActions({ onLogout, onProfile: openProfile });
@@ -249,7 +267,7 @@ function renderPortfolioList(rows, selectedId) {
         const tx = row.transaction_count ?? row.transactions_count ?? row.tx_count ?? null;
         const locked = row.score_locked === true || row.is_locked === true || (tx != null && Number(tx) < 5 && score == null);
         const isActive = String(id) === String(selectedId);
-        const riskLabel = locked ? t('risk.pending') : capitalize(String(risk));
+        const riskLabel = locked ? t('risk.pending') : localizedRisk(risk);
         return `
           <li>
             <button type="button" class="sme-list-item${isActive ? ' is-active' : ''}" data-sme-id="${escapeHtml(id)}" aria-pressed="${isActive ? 'true' : 'false'}">
@@ -293,7 +311,7 @@ function renderDetail(host, detail, txPayload, id) {
     : aggregateMonthlyVolume(transactions);
 
   const probaPct = Number.isFinite(Number(proba)) ? `${(Number(proba) * 100).toFixed(1)}%` : '—';
-  const riskLabel = locked ? t('risk.pending') : capitalize(String(risk));
+  const riskLabel = locked ? t('risk.pending') : localizedRisk(risk);
 
   const mlHtml = `
     <section class="detail-tab-panel ml-metrics-panel" data-tab-panel="ml" aria-labelledby="ml-metrics-title">
@@ -307,7 +325,7 @@ function renderDetail(host, detail, txPayload, id) {
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.riskBand'))}</h4><p class="metric-value"><span class="risk-badge ${riskClass(locked ? '' : risk)}">${escapeHtml(riskLabel)}</span></p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.creditworthyProb'))}</h4><p class="metric-value">${escapeHtml(locked ? '—' : probaPct)}</p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.eligibleTzs'))}</h4><p class="metric-value metric-tzs">${escapeHtml(locked ? '—' : formatTZS(eligible))}</p></article>
-        <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.primaryModel'))}</h4><p class="metric-value" style="font-size:1rem">${escapeHtml(capitalize(String(primaryModel).replace(/_/g, ' ')))}</p></article>
+        <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.primaryModel'))}</h4><p class="metric-value" style="font-size:1rem">${escapeHtml(localizedModel(primaryModel))}</p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.txUsed'))}</h4><p class="metric-value">${escapeHtml(txCount != null ? formatNumber(txCount, 0) : '—')}</p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.totalVolume'))}</h4><p class="metric-value metric-tzs">${escapeHtml(totalVolume != null ? formatTZS(totalVolume) : '—')}</p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.typicalVolume'))}</h4><p class="metric-value metric-tzs">${escapeHtml(typicalVol != null ? formatTZS(typicalVol) : '—')}</p></article>
@@ -374,7 +392,7 @@ function renderDetail(host, detail, txPayload, id) {
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.email'))}</span><span>${escapeHtml(detail?.email || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.location'))}</span><span>${escapeHtml(detail?.location || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.businessType'))}</span><span>${escapeHtml(detail?.business_type ? businessTypeLabel(detail.business_type) : '—')}</span></div>
-      <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.nationality'))}</span><span>${escapeHtml(detail?.nationality || '—')}</span></div>
+      <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.nationality'))}</span><span>${escapeHtml(String(detail?.nationality || '').toLowerCase() === 'tanzanian' ? t('nationality.tanzanian') : (detail?.nationality || '—'))}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.dateOfBirth'))}</span><span>${escapeHtml(formatBirthDate(detail?.date_of_birth))}</span></div>
     </div>
 
@@ -437,7 +455,7 @@ function renderFeatureBars(rows) {
         ${slice.map((row) => {
           const val = Number(row.value);
           const width = Number.isFinite(val) ? Math.min(100, Math.round((Math.abs(val) / maxAbs) * 100)) : 8;
-          const label = row.name || (row.key ? featureLabel(row.key) : t('lender.feature'));
+          const label = row.key ? featureLabel(row.key) : (row.name || t('lender.feature'));
           const shown = Number.isFinite(val)
             ? (Math.abs(val) >= 1000 ? formatNumber(val, 0) : formatNumber(val, 4))
             : String(row.value ?? '—');
@@ -489,7 +507,7 @@ function renderMiniTxTable(rows) {
               <td>${escapeHtml(formatDate(row.date || row.transaction_date || row.posted_at))}</td>
               <td>${escapeHtml(row.transaction_ref || row.description || row.narration || '—')}</td>
               <td class="num">${escapeHtml(formatTZS(row.amount_tzs ?? row.amount ?? row.value))}</td>
-              <td>${escapeHtml(capitalize(row.payment_status || row.status || '—'))}</td>
+              <td>${escapeHtml(localizedPayment(row.payment_status || row.status || '—'))}</td>
             </tr>`).join('')}
         </tbody>
       </table>

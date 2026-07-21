@@ -128,7 +128,7 @@ async function route() {
 
   if (section === 'admin') {
     if (!requireRole(['admin', 'subadmin'])) {
-      showToast('Admin access required.', 'error');
+      showToast(t('admin.unauthorized'), 'error');
       redirectForRole(session.role);
       return;
     }

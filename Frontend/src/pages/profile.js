@@ -3,7 +3,7 @@
  */
 
 import * as api from '../api.js';
-import { escapeHtml, formatBirthDate, getErrorMessage, capitalize } from '../utils.js';
+import { escapeHtml, formatBirthDate, getErrorMessage } from '../utils.js';
 import { showToast } from '../ui.js';
 import { businessTypeLabel, genderLabel, t } from '../i18n.js';
 import {
@@ -19,6 +19,10 @@ const BUSINESS_TYPES = [
 ];
 
 const GENDER_OPTIONS = ['Male', 'Female'];
+
+function roleText(role) {
+  return t(`roles.${String(role || 'sme').toLowerCase()}`);
+}
 
 function modalHost() {
   let host = document.getElementById('profile-modal-host');
@@ -119,7 +123,7 @@ function viewFieldsHtml(role, profile) {
     rows.push([t('profile.fullName'), profile.full_name]);
     rows.push([t('profile.gender'), genderLabel(profile.gender)]);
     rows.push([t('profile.loginId'), profile.login_id]);
-    rows.push([t('profile.role'), capitalize(profile.role || role)]);
+    rows.push([t('profile.role'), roleText(profile.role || role)]);
   }
 
   return `
@@ -217,7 +221,7 @@ function editFormHtml(role, profile) {
         ${genderSelect('prof-gender', 'gender', profile.gender)}
       </div>
       <div class="profile-readonly-note">
-        <p><strong>${escapeHtml(t('profile.readonly'))}:</strong> ${escapeHtml(t('profile.loginId'))} ${escapeHtml(profile.login_id || '—')}, ${escapeHtml(t('profile.role'))} ${escapeHtml(capitalize(profile.role || role))}</p>
+        <p><strong>${escapeHtml(t('profile.readonly'))}:</strong> ${escapeHtml(t('profile.loginId'))} ${escapeHtml(profile.login_id || '—')}, ${escapeHtml(t('profile.role'))} ${escapeHtml(roleText(profile.role || role))}</p>
       </div>
       <div id="profile-edit-error" class="form-error" hidden></div>
       <div class="modal-actions">
@@ -235,16 +239,16 @@ function pinSectionHtml() {
         <div class="form-grid-2">
           <div class="field">
             <label for="prof-current-pin">${escapeHtml(t('profile.currentPin'))}</label>
-            <input id="prof-current-pin" name="current_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="4 digits" />
+            <input id="prof-current-pin" name="current_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="${escapeHtml(t('auth.pinPlaceholder'))}" />
           </div>
           <div class="field">
             <label for="prof-new-pin">${escapeHtml(t('profile.newPin'))}</label>
-            <input id="prof-new-pin" name="new_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="4 digits" />
+            <input id="prof-new-pin" name="new_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="${escapeHtml(t('auth.pinPlaceholder'))}" />
           </div>
         </div>
         <div class="field">
           <label for="prof-confirm-pin">${escapeHtml(t('profile.confirmNewPin'))}</label>
-          <input id="prof-confirm-pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="Re-enter" />
+          <input id="prof-confirm-pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="${escapeHtml(t('auth.confirmPinPlaceholder'))}" />
         </div>
         <div id="profile-pin-error" class="form-error" hidden></div>
         <button type="submit" class="btn btn-secondary" id="profile-pin-save">${escapeHtml(t('profile.updatePin'))}</button>

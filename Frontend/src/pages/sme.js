@@ -147,7 +147,7 @@ function componentsList(overview) {
     return display
       .filter((c) => !c.key || CRUCIAL_COMPONENT_KEYS.has(c.key))
       .map((c) => ({
-        name: c.name || (c.key ? featureLabel(c.key) : 'Factor'),
+        name: c.key ? featureLabel(c.key) : (c.name || t('sme.factorFallback')),
         value: c.value,
         key: c.key,
       }));
@@ -165,7 +165,7 @@ function componentsList(overview) {
         if (c && typeof c === 'object') {
           const key = c.key || c.name;
           return {
-            name: c.name || (key ? featureLabel(key) : 'Factor'),
+            name: key ? featureLabel(key) : (c.name || t('sme.factorFallback')),
             value: c.contribution ?? c.value ?? c.score ?? c.weight,
             key,
           };
@@ -267,7 +267,7 @@ function renderSmeOverview(session, overview, historyPayload, { onLogout }) {
       : `<ul class="component-list">
           ${components
             .map((c) => {
-              const name = c.name || 'Factor';
+              const name = c.key ? featureLabel(c.key) : (c.name || t('sme.factorFallback'));
               const value = c.value;
               const pct =
                 value != null && Math.abs(Number(value)) <= 1 && Number(value) !== 0
@@ -306,7 +306,7 @@ function renderSmeOverview(session, overview, historyPayload, { onLogout }) {
         <a class="btn btn-primary" href="#/sme/upload">${escapeHtml(t('sme.uploadCsv'))}</a>
       </div>
     </div>
-    <section class="metric-grid" aria-label="Key credit metrics">
+    <section class="metric-grid" aria-label="${escapeHtml(t('sme.keyMetricsAria'))}">
       <article class="metric-card metric-score ${locked ? 'is-locked' : ''}">
         <h2 class="metric-label">${escapeHtml(t('sme.creditScore'))}</h2>
         <div class="score-display">
@@ -523,7 +523,7 @@ export async function loadSmeTransactions(session, { onLogout }) {
         </form>
       </section>
 
-      <form id="tx-filters" class="filter-bar" aria-label="Filter transactions">
+      <form id="tx-filters" class="filter-bar" aria-label="${escapeHtml(t('sme.filterTxAria'))}">
         <div class="field"><label for="tx-from">${escapeHtml(t('sme.from'))}</label><input type="date" id="tx-from" name="from" /></div>
         <div class="field"><label for="tx-to">${escapeHtml(t('sme.to'))}</label><input type="date" id="tx-to" name="to" /></div>
         <div class="field"><label for="tx-type">${escapeHtml(t('sme.orderType'))}</label>
@@ -785,7 +785,7 @@ function openEditTxModal(row, refresh) {
 function renderTxTable(rows) {
   if (!rows.length) return emptyBlock(t('sme.noTx'), t('sme.adjustFilters'));
   return `
-    <div class="table-wrap" role="region" aria-label="Transaction table" tabindex="0">
+    <div class="table-wrap" role="region" aria-label="${escapeHtml(t('sme.txTableAria'))}" tabindex="0">
       <table class="data-table">
         <thead>
           <tr>
@@ -949,9 +949,9 @@ export function loadSmeUpload(session, { onLogout }) {
           <h5 class="ml-feature-title">${escapeHtml(t('sme.trainingOutputTitle'))}</h5>
           <ul class="ml-feature-list">
             <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.trainingVersion'))}</span><strong>${escapeHtml(String(result.model_training_version || '—'))}</strong></div></li>
-            <li class="ml-feature-row"><div class="ml-feature-meta"><span>RF Accuracy</span><strong>${escapeHtml(training.rf_accuracy != null ? formatNumber(training.rf_accuracy * 100, 2) + '%' : '—')}</strong></div></li>
-            <li class="ml-feature-row"><div class="ml-feature-meta"><span>RF ROC-AUC</span><strong>${escapeHtml(training.rf_roc_auc != null ? formatNumber(training.rf_roc_auc * 100, 2) + '%' : '—')}</strong></div></li>
-            <li class="ml-feature-row"><div class="ml-feature-meta"><span>LR ROC-AUC</span><strong>${escapeHtml(training.lr_roc_auc != null ? formatNumber(training.lr_roc_auc * 100, 2) + '%' : '—')}</strong></div></li>
+            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.rfAccuracy'))}</span><strong>${escapeHtml(training.rf_accuracy != null ? formatNumber(training.rf_accuracy * 100, 2) + '%' : '—')}</strong></div></li>
+            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.rfRocAuc'))}</span><strong>${escapeHtml(training.rf_roc_auc != null ? formatNumber(training.rf_roc_auc * 100, 2) + '%' : '—')}</strong></div></li>
+            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.lrRocAuc'))}</span><strong>${escapeHtml(training.lr_roc_auc != null ? formatNumber(training.lr_roc_auc * 100, 2) + '%' : '—')}</strong></div></li>
             <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.trainingProfilesUsed'))}</span><strong>${escapeHtml(training.real_sme_profiles_used != null ? formatNumber(training.real_sme_profiles_used, 0) : '—')}</strong></div></li>
             <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.trainingComparison'))}</span><strong>${escapeHtml(training.rf_outperforms_baseline ? 'RF > LR' : 'RF ≤ LR')}</strong></div></li>
           </ul>
@@ -975,7 +975,7 @@ export function loadSmeUpload(session, { onLogout }) {
           <h5 class="ml-feature-title">${escapeHtml(t('sme.mlSignals'))}</h5>
           <ul class="ml-feature-list">
             ${rows.map((row) => {
-              const label = row.name || row.key || 'Signal';
+              const label = row.key ? featureLabel(row.key) : (row.name || t('sme.signalFallback'));
               const val = row.value;
               const shown = typeof val === 'number'
                 ? (Math.abs(val) >= 1000 ? formatNumber(val, 0) : formatNumber(val, 4))

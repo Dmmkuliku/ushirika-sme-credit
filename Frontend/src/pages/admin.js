@@ -6,7 +6,6 @@ import * as api from '../api.js';
 import {
   escapeHtml,
   formatDate,
-  capitalize,
   normalizeListPayload,
   getErrorMessage,
 } from '../utils.js';
@@ -46,6 +45,11 @@ function businessTypeOptions(selected = '') {
   ).join('');
 }
 
+function roleText(role) {
+  const normalized = String(role || '').toLowerCase();
+  return t(`roles.${normalized}`);
+}
+
 function bindAdminShell(session, onLogout) {
   const openProfile = () => openProfileModal(session.role);
   bindShellActions({ onLogout, onProfile: openProfile });
@@ -74,15 +78,15 @@ async function loadAdminProfilePage(session, { onLogout }) {
     mainHtml: `
       <div class="page-header">
         <div>
-          <h1>My Profile</h1>
-          <p class="page-lead">View and edit your administrator account details, or change your PIN.</p>
+          <h1>${escapeHtml(t('nav.myProfile'))}</h1>
+          <p class="page-lead">${escapeHtml(t('admin.profileLead'))}</p>
         </div>
         <div class="page-actions">
-          <button type="button" id="btn-open-profile" class="btn btn-primary">Open profile</button>
+          <button type="button" id="btn-open-profile" class="btn btn-primary">${escapeHtml(t('admin.openProfile'))}</button>
         </div>
       </div>
       <section class="panel" id="admin-profile-panel">
-        ${loadingBlock('Loading your profile…')}
+        ${loadingBlock(t('profile.loading'))}
       </section>
     `,
   });
@@ -104,19 +108,19 @@ async function loadAdminProfilePage(session, { onLogout }) {
     const profile = await api.getAdminProfile().catch(() => api.getMe());
     panel.innerHTML = `
       <dl class="profile-dl profile-dl-inline">
-        <dt>Full name</dt><dd>${escapeHtml(profile.full_name || '—')}</dd>
+        <dt>${escapeHtml(t('profile.fullName'))}</dt><dd>${escapeHtml(profile.full_name || '—')}</dd>
         <dt>${escapeHtml(t('profile.loginId'))}</dt><dd>${escapeHtml(profile.login_id || '—')}</dd>
-        <dt>Role</dt><dd>${escapeHtml(capitalize(profile.role || session.role))}</dd>
+        <dt>${escapeHtml(t('profile.role'))}</dt><dd>${escapeHtml(roleText(profile.role || session.role))}</dd>
         <dt>${escapeHtml(t('profile.gender'))}</dt><dd>${escapeHtml(genderLabel(profile.gender) || '—')}</dd>
-        <dt>Status</dt><dd>${profile.is_active === false ? 'Inactive' : 'Active'}</dd>
+        <dt>${escapeHtml(t('common.status'))}</dt><dd>${escapeHtml(profile.is_active === false ? t('common.inactive') : t('common.active'))}</dd>
       </dl>
       <div class="modal-actions" style="justify-content:flex-start;margin-top:1rem">
-        <button type="button" class="btn btn-primary" id="btn-edit-profile-inline">Edit profile / Change PIN</button>
+        <button type="button" class="btn btn-primary" id="btn-edit-profile-inline">${escapeHtml(t('admin.editProfilePin'))}</button>
       </div>
     `;
     document.getElementById('btn-edit-profile-inline')?.addEventListener('click', open);
   } catch (err) {
-    panel.innerHTML = errorBlock('Could not load profile', getErrorMessage(err), 'retry-admin-profile');
+    panel.innerHTML = errorBlock(t('profile.loadFailed'), getErrorMessage(err), 'retry-admin-profile');
     document.getElementById('retry-admin-profile')?.addEventListener('click', () => loadAdminProfilePage(session, { onLogout }));
   }
 }
@@ -130,24 +134,24 @@ async function loadAccounts(session, { onLogout }) {
     role, user: session.user, activeNav: 'accounts',
     mainHtml: `
       <div class="page-header">
-        <div><h1>Administration</h1><p class="page-lead">Manage all user accounts</p></div>
+        <div><h1>${escapeHtml(t('admin.title'))}</h1><p class="page-lead">${escapeHtml(t('admin.lead'))}</p></div>
         <div class="page-actions">
-          <button type="button" id="btn-page-profile" class="btn btn-secondary">My Profile</button>
+          <button type="button" id="btn-page-profile" class="btn btn-secondary">${escapeHtml(t('nav.myProfile'))}</button>
         </div>
       </div>
       <div class="filter-bar">
         <div class="field">
-          <label for="acct-role">Filter by role</label>
+          <label for="acct-role">${escapeHtml(t('admin.filterByRole'))}</label>
           <select id="acct-role">
-            <option value="">All</option>
-            <option value="sme">SME</option>
-            <option value="lender">Lender</option>
-            <option value="admin">Admin</option>
-            <option value="subadmin">Sub-Admin</option>
+            <option value="">${escapeHtml(t('admin.roleFilterAll'))}</option>
+            <option value="sme">${escapeHtml(t('roles.sme'))}</option>
+            <option value="lender">${escapeHtml(t('roles.lender'))}</option>
+            <option value="admin">${escapeHtml(t('roles.admin'))}</option>
+            <option value="subadmin">${escapeHtml(t('roles.subadmin'))}</option>
           </select>
         </div>
       </div>
-      <div id="acct-table-host">${loadingBlock('Loading accounts…')}</div>
+      <div id="acct-table-host">${loadingBlock(t('admin.loadingAccounts'))}</div>
       <div id="admin-modal-host"></div>
     `,
   });
@@ -159,14 +163,14 @@ async function loadAccounts(session, { onLogout }) {
 
   async function fetchAccounts() {
     const roleFilter = roleSelect?.value || undefined;
-    host.innerHTML = loadingBlock('Loading accounts…');
+    host.innerHTML = loadingBlock(t('admin.loadingAccounts'));
     try {
       const payload = await api.getAdminAccounts({ role: roleFilter });
       const rows = normalizeListPayload(payload, ['accounts', 'items', 'data', 'results', 'users']);
       host.innerHTML = renderAccountsTable(rows);
       bindAccountActions(rows, host, modalHost);
     } catch (err) {
-      host.innerHTML = errorBlock('Could not load accounts', getErrorMessage(err), 'retry-acct');
+      host.innerHTML = errorBlock(t('admin.loadAccountsFailed'), getErrorMessage(err), 'retry-acct');
       document.getElementById('retry-acct')?.addEventListener('click', fetchAccounts);
     }
   }
@@ -176,20 +180,20 @@ async function loadAccounts(session, { onLogout }) {
 }
 
 function renderAccountsTable(rows) {
-  if (!rows.length) return emptyBlock('No accounts found', 'Try changing the role filter.');
+  if (!rows.length) return emptyBlock(t('admin.noAccounts'), t('admin.noAccountsLead'));
   return `
-    <div class="table-wrap" role="region" aria-label="Accounts table" tabindex="0">
+    <div class="table-wrap" role="region" aria-label="${escapeHtml(t('admin.accountsTableAria'))}" tabindex="0">
       <table class="data-table">
         <thead>
           <tr>
-            <th scope="col">ID</th>
+            <th scope="col">${escapeHtml(t('admin.colId'))}</th>
             <th scope="col">${escapeHtml(t('profile.loginId'))}</th>
-            <th scope="col">Full Name</th>
-            <th scope="col">Role</th>
-            <th scope="col">Gender</th>
-            <th scope="col">Status</th>
-            <th scope="col">Created</th>
-            <th scope="col">Actions</th>
+            <th scope="col">${escapeHtml(t('profile.fullName'))}</th>
+            <th scope="col">${escapeHtml(t('profile.role'))}</th>
+            <th scope="col">${escapeHtml(t('profile.gender'))}</th>
+            <th scope="col">${escapeHtml(t('common.status'))}</th>
+            <th scope="col">${escapeHtml(t('common.created'))}</th>
+            <th scope="col">${escapeHtml(t('common.actions'))}</th>
           </tr>
         </thead>
         <tbody>
@@ -202,17 +206,17 @@ function renderAccountsTable(rows) {
                 <td>${escapeHtml(String(id).slice(0, 8))}</td>
                 <td>${escapeHtml(loginId)}</td>
                 <td>${escapeHtml(r.full_name || '—')}</td>
-                <td><span class="role-pill role-pill-${escapeHtml(r.role || 'sme')}">${escapeHtml(capitalize(r.role || 'sme'))}</span></td>
+                <td><span class="role-pill role-pill-${escapeHtml(r.role || 'sme')}">${escapeHtml(roleText(r.role || 'sme'))}</span></td>
                 <td>${escapeHtml(genderLabel(r.gender) || '—')}</td>
-                <td><span class="status-badge ${active ? 'status-active' : 'status-inactive'}">${active ? 'Active' : 'Inactive'}</span></td>
+                <td><span class="status-badge ${active ? 'status-active' : 'status-inactive'}">${escapeHtml(active ? t('common.active') : t('common.inactive'))}</span></td>
                 <td>${escapeHtml(formatDate(r.created_at))}</td>
                 <td class="action-cell">
-                  <a href="#/admin/edit/${encodeURIComponent(id)}" class="btn btn-ghost btn-sm">Edit</a>
+                  <a href="#/admin/edit/${encodeURIComponent(id)}" class="btn btn-ghost btn-sm">${escapeHtml(t('common.edit'))}</a>
                   ${active
-                    ? `<button type="button" class="btn btn-ghost btn-sm btn-danger-text" data-delete-id="${escapeHtml(id)}">Delete</button>`
-                    : `<button type="button" class="btn btn-ghost btn-sm btn-success-text" data-restore-id="${escapeHtml(id)}">Restore</button>`
+                    ? `<button type="button" class="btn btn-ghost btn-sm btn-danger-text" data-delete-id="${escapeHtml(id)}">${escapeHtml(t('common.delete'))}</button>`
+                    : `<button type="button" class="btn btn-ghost btn-sm btn-success-text" data-restore-id="${escapeHtml(id)}">${escapeHtml(t('common.restore'))}</button>`
                   }
-                  <button type="button" class="btn btn-ghost btn-sm" data-reset-pin-id="${escapeHtml(id)}">Reset PIN</button>
+                  <button type="button" class="btn btn-ghost btn-sm" data-reset-pin-id="${escapeHtml(id)}">${escapeHtml(t('auth.resetPin'))}</button>
                 </td>
               </tr>`;
           }).join('')}
@@ -226,13 +230,13 @@ function bindAccountActions(rows, host, modalHost) {
   host.querySelectorAll('[data-delete-id]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-delete-id');
-      showConfirmDialog(modalHost, 'Delete account?', 'This will soft-delete the account. You can restore it later.', async () => {
+      showConfirmDialog(modalHost, t('admin.deleteTitle'), t('admin.deleteConfirm'), async () => {
         try {
           await api.deleteAccount(id);
-          showToast('Account deleted.', 'success');
+          showToast(t('admin.deleted'), 'success');
           document.getElementById('acct-role')?.dispatchEvent(new Event('change'));
         } catch (err) {
-          showToast(getErrorMessage(err, 'Delete failed'), 'error');
+          showToast(getErrorMessage(err, t('admin.deleteFailed')), 'error');
         }
       });
     });
@@ -243,10 +247,10 @@ function bindAccountActions(rows, host, modalHost) {
       const id = btn.getAttribute('data-restore-id');
       try {
         await api.restoreAccount(id);
-        showToast('Account restored.', 'success');
+        showToast(t('admin.restored'), 'success');
         document.getElementById('acct-role')?.dispatchEvent(new Event('change'));
       } catch (err) {
-        showToast(getErrorMessage(err, 'Restore failed'), 'error');
+        showToast(getErrorMessage(err, t('admin.restoreFailed')), 'error');
       }
     });
   });
@@ -266,8 +270,8 @@ function showConfirmDialog(host, title, message, onConfirm) {
         <h3>${escapeHtml(title)}</h3>
         <p>${escapeHtml(message)}</p>
         <div class="modal-actions">
-          <button type="button" class="btn btn-ghost" id="modal-cancel">Cancel</button>
-          <button type="button" class="btn btn-primary btn-danger" id="modal-confirm">Confirm</button>
+          <button type="button" class="btn btn-ghost" id="modal-cancel">${escapeHtml(t('common.cancel'))}</button>
+          <button type="button" class="btn btn-primary btn-danger" id="modal-confirm">${escapeHtml(t('common.confirm'))}</button>
         </div>
       </div>
     </div>
@@ -283,20 +287,20 @@ function showResetPinDialog(host, userId) {
   host.innerHTML = `
     <div class="modal-backdrop">
       <div class="modal-dialog">
-        <h3>Reset PIN</h3>
+        <h3>${escapeHtml(t('admin.resetPinTitle'))}</h3>
         <form id="reset-pin-form" class="auth-form">
           <div class="field">
-            <label for="new-pin">New PIN</label>
-            <input id="new-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" />
+            <label for="new-pin">${escapeHtml(t('auth.newPin'))}</label>
+            <input id="new-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="${escapeHtml(t('auth.pinPlaceholder'))}" />
           </div>
           <div class="field">
-            <label for="confirm-new-pin">Confirm PIN</label>
-            <input id="confirm-new-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="Re-enter" />
+            <label for="confirm-new-pin">${escapeHtml(t('auth.confirmPin'))}</label>
+            <input id="confirm-new-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="${escapeHtml(t('auth.confirmPinPlaceholder'))}" />
           </div>
           <div id="reset-pin-error" class="form-error" hidden></div>
           <div class="modal-actions">
-            <button type="button" class="btn btn-ghost" id="modal-cancel">Cancel</button>
-            <button type="submit" class="btn btn-primary">Reset PIN</button>
+            <button type="button" class="btn btn-ghost" id="modal-cancel">${escapeHtml(t('common.cancel'))}</button>
+            <button type="submit" class="btn btn-primary">${escapeHtml(t('auth.resetPin'))}</button>
           </div>
         </form>
       </div>
@@ -309,19 +313,19 @@ function showResetPinDialog(host, userId) {
     const confirm = document.getElementById('confirm-new-pin')?.value || '';
     const errEl = document.getElementById('reset-pin-error');
     if (!/^[0-9]{4}$/.test(pin)) {
-      if (errEl) { errEl.hidden = false; errEl.textContent = 'PIN must be exactly 4 digits.'; }
+      if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errPinDigits'); }
       return;
     }
     if (pin !== confirm) {
-      if (errEl) { errEl.hidden = false; errEl.textContent = 'PINs do not match.'; }
+      if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errPinsMatch'); }
       return;
     }
     try {
       await api.resetPin(userId, pin);
-      showToast('PIN has been reset.', 'success');
+      showToast(t('admin.pinResetOk'), 'success');
       host.innerHTML = '';
     } catch (err) {
-      showToast(getErrorMessage(err, 'Reset failed'), 'error');
+      showToast(getErrorMessage(err, t('admin.resetFailed')), 'error');
       host.innerHTML = '';
     }
   });
@@ -334,19 +338,19 @@ function loadCreateLender(session, { onLogout }) {
   app.innerHTML = renderShell({
     role: session.role, user: session.user, activeNav: 'create-lender',
     mainHtml: `
-      <div class="page-header"><div><h1>Create Lender Account</h1></div></div>
+      <div class="page-header"><div><h1>${escapeHtml(t('admin.createLenderTitle'))}</h1></div></div>
       <div class="admin-form-wrap">
         <form id="create-form" class="auth-form panel" novalidate>
-          <div class="field"><label for="membership_number">Membership Number</label><input id="membership_number" name="membership_number" type="text" required /></div>
-          <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required /></div>
+          <div class="field"><label for="membership_number">${escapeHtml(t('profile.membership'))}</label><input id="membership_number" name="membership_number" type="text" required /></div>
+          <div class="field"><label for="full_name">${escapeHtml(t('profile.fullName'))}</label><input id="full_name" name="full_name" type="text" required /></div>
           <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label><select id="gender" name="gender" required><option value="">${escapeHtml(t('common.select'))}</option>${genderOptions()}</select></div>
-          <div class="field"><label for="organization">Organization</label><input id="organization" name="organization" type="text" required placeholder="e.g. CRDB, NMB" /></div>
-          <div class="field"><label for="work_email">Work Email</label><input id="work_email" name="work_email" type="email" required /></div>
-          <div class="field"><label for="phone">Phone <span class="optional">(optional)</span></label>${phoneInputHtml({ id: 'phone' })}</div>
-          <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
-          <div class="field"><label for="confirm_pin">Confirm PIN</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
+          <div class="field"><label for="organization">${escapeHtml(t('profile.organization'))}</label><input id="organization" name="organization" type="text" required placeholder="${escapeHtml(t('admin.orgPlaceholder'))}" /></div>
+          <div class="field"><label for="work_email">${escapeHtml(t('profile.workEmail'))}</label><input id="work_email" name="work_email" type="email" required /></div>
+          <div class="field"><label for="phone">${escapeHtml(t('profile.phone'))} <span class="optional">${escapeHtml(t('common.optional'))}</span></label>${phoneInputHtml({ id: 'phone' })}</div>
+          <div class="field"><label for="pin">${escapeHtml(t('auth.pin'))}</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="${escapeHtml(t('auth.pinPlaceholder'))}" /></div>
+          <div class="field"><label for="confirm_pin">${escapeHtml(t('auth.confirmPin'))}</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
           <div id="create-error" class="form-error" hidden></div>
-          <button type="submit" class="btn btn-primary btn-block" id="create-submit">Create Lender</button>
+          <button type="submit" class="btn btn-primary btn-block" id="create-submit">${escapeHtml(t('nav.createLender'))}</button>
         </form>
       </div>
     `,
@@ -355,8 +359,8 @@ function loadCreateLender(session, { onLogout }) {
   bindCreateForm('create-form', async (fd) => {
     const pin = fd.get('pin');
     const confirm_pin = fd.get('confirm_pin');
-    if (!/^[0-9]{4}$/.test(pin)) return 'PIN must be exactly 4 digits.';
-    if (pin !== confirm_pin) return 'PINs do not match.';
+    if (!/^[0-9]{4}$/.test(pin)) return t('auth.errPinDigits');
+    if (pin !== confirm_pin) return t('auth.errPinsMatch');
     const work_email = String(fd.get('work_email') || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(work_email)) return t('auth.errEmail');
     const phoneRaw = String(fd.get('phone') || '').trim();
@@ -372,7 +376,7 @@ function loadCreateLender(session, { onLogout }) {
       pin,
     });
     return null;
-  }, 'Lender account created.');
+  }, t('admin.lenderCreated'));
 }
 
 /* ─── Create SME ─────────────────────────────────────────── */
@@ -383,22 +387,22 @@ function loadCreateSme(session, { onLogout }) {
   app.innerHTML = renderShell({
     role: session.role, user: session.user, activeNav: 'create-sme',
     mainHtml: `
-      <div class="page-header"><div><h1>Create SME Account</h1></div></div>
+      <div class="page-header"><div><h1>${escapeHtml(t('admin.createSmeTitle'))}</h1></div></div>
       <div class="admin-form-wrap">
         <form id="create-form" class="auth-form panel" novalidate>
-          <div class="field"><label for="nida">NIDA</label><input id="nida" name="nida" type="text" inputmode="numeric" maxlength="20" pattern="[0-9]{20}" required placeholder="20 digits" /></div>
-          <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required /></div>
-          <div class="field"><label for="phone">Phone</label>${phoneInputHtml({ id: 'phone', required: true })}</div>
-          <div class="field"><label for="email">Email <span class="optional">(optional)</span></label><input id="email" name="email" type="email" /></div>
-          <div class="field"><label for="location">Location</label><input id="location" name="location" type="text" required /></div>
+          <div class="field"><label for="nida">${escapeHtml(t('auth.nida'))}</label><input id="nida" name="nida" type="text" inputmode="numeric" maxlength="20" pattern="[0-9]{20}" required placeholder="${escapeHtml(t('auth.nidaPlaceholder'))}" /></div>
+          <div class="field"><label for="full_name">${escapeHtml(t('auth.fullName'))}</label><input id="full_name" name="full_name" type="text" required /></div>
+          <div class="field"><label for="phone">${escapeHtml(t('auth.phone'))}</label>${phoneInputHtml({ id: 'phone', required: true })}</div>
+          <div class="field"><label for="email">${escapeHtml(t('auth.email'))} <span class="optional">${escapeHtml(t('common.optional'))}</span></label><input id="email" name="email" type="email" /></div>
+          <div class="field"><label for="location">${escapeHtml(t('auth.location'))}</label><input id="location" name="location" type="text" required /></div>
           <div class="field"><label for="business_type">${escapeHtml(t('auth.businessType'))}</label><select id="business_type" name="business_type" required><option value="">${escapeHtml(t('common.select'))}</option>${bizOptions}</select></div>
           <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label><select id="gender" name="gender" required><option value="">${escapeHtml(t('common.select'))}</option>${genderOptions()}</select></div>
-          <div class="field"><label for="date_of_birth">Date of Birth</label><input id="date_of_birth" name="date_of_birth" type="text" inputmode="numeric" maxlength="10" placeholder="DD-MM-YYYY" autocomplete="bday" required /><p class="field-hint">${escapeHtml(t('auth.ageHint'))}</p></div>
-          <div class="field"><label for="tin">${escapeHtml(t('admin.createSmeTin'))}</label><input id="tin" name="tin" type="text" inputmode="numeric" required minlength="9" maxlength="9" pattern="[0-9]{9}" placeholder="Exactly 9 digits" /></div>
-          <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
-          <div class="field"><label for="confirm_pin">Confirm PIN</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
+          <div class="field"><label for="date_of_birth">${escapeHtml(t('auth.dateOfBirth'))}</label><input id="date_of_birth" name="date_of_birth" type="text" inputmode="numeric" maxlength="10" placeholder="DD-MM-YYYY" autocomplete="bday" required /><p class="field-hint">${escapeHtml(t('auth.ageHint'))}</p></div>
+          <div class="field"><label for="tin">${escapeHtml(t('admin.createSmeTin'))}</label><input id="tin" name="tin" type="text" inputmode="numeric" required minlength="9" maxlength="9" pattern="[0-9]{9}" placeholder="${escapeHtml(t('auth.tinPlaceholder'))}" /></div>
+          <div class="field"><label for="pin">${escapeHtml(t('auth.pin'))}</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="${escapeHtml(t('auth.pinPlaceholder'))}" /></div>
+          <div class="field"><label for="confirm_pin">${escapeHtml(t('auth.confirmPin'))}</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
           <div id="create-error" class="form-error" hidden></div>
-          <button type="submit" class="btn btn-primary btn-block" id="create-submit">Create SME</button>
+          <button type="submit" class="btn btn-primary btn-block" id="create-submit">${escapeHtml(t('nav.createSme'))}</button>
         </form>
       </div>
     `,
@@ -409,10 +413,10 @@ function loadCreateSme(session, { onLogout }) {
     const pin = fd.get('pin');
     const confirm_pin = fd.get('confirm_pin');
     const tin = String(fd.get('tin') || '').trim().replace(/\D/g, '');
-    if (!/^[0-9]{20}$/.test(nida)) return 'NIDA must be exactly 20 digits.';
+    if (!/^[0-9]{20}$/.test(nida)) return t('auth.errNida');
     if (!/^[0-9]{9}$/.test(tin)) return t('admin.tinRequired');
-    if (!/^[0-9]{4}$/.test(pin)) return 'PIN must be exactly 4 digits.';
-    if (pin !== confirm_pin) return 'PINs do not match.';
+    if (!/^[0-9]{4}$/.test(pin)) return t('auth.errPinDigits');
+    if (pin !== confirm_pin) return t('auth.errPinsMatch');
     const email = String(fd.get('email') || '').trim();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t('auth.errEmail');
     const phone = normalizeTzPhone(fd.get('phone'));
@@ -430,7 +434,7 @@ function loadCreateSme(session, { onLogout }) {
       tin, pin,
     });
     return null;
-  }, 'SME account created.');
+  }, t('admin.smeCreated'));
 }
 
 /* ─── Create Sub-Admin ───────────────────────────────────── */
@@ -440,18 +444,18 @@ function loadCreateSubAdmin(session, { onLogout }) {
   app.innerHTML = renderShell({
     role: session.role, user: session.user, activeNav: 'create-subadmin',
     mainHtml: `
-      <div class="page-header"><div><h1>Create Sub-Admin Account</h1></div></div>
+      <div class="page-header"><div><h1>${escapeHtml(t('admin.createSubadminTitle'))}</h1></div></div>
       <div class="admin-form-wrap">
         <form id="create-form" class="auth-form panel" novalidate>
           <div class="field"><label for="login_id">${escapeHtml(t('profile.loginId'))}</label><input id="login_id" name="login_id" type="text" required /></div>
-          <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required /></div>
+          <div class="field"><label for="full_name">${escapeHtml(t('profile.fullName'))}</label><input id="full_name" name="full_name" type="text" required /></div>
           <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label><select id="gender" name="gender" required><option value="">${escapeHtml(t('common.select'))}</option>${genderOptions()}</select></div>
-          <div class="field"><label for="organization">Organization</label><input id="organization" name="organization" type="text" required /></div>
-          <div class="field"><label for="work_email">Work Email</label><input id="work_email" name="work_email" type="email" required /></div>
-          <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
-          <div class="field"><label for="confirm_pin">Confirm PIN</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
+          <div class="field"><label for="organization">${escapeHtml(t('profile.organization'))}</label><input id="organization" name="organization" type="text" required /></div>
+          <div class="field"><label for="work_email">${escapeHtml(t('profile.workEmail'))}</label><input id="work_email" name="work_email" type="email" required /></div>
+          <div class="field"><label for="pin">${escapeHtml(t('auth.pin'))}</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="${escapeHtml(t('auth.pinPlaceholder'))}" /></div>
+          <div class="field"><label for="confirm_pin">${escapeHtml(t('auth.confirmPin'))}</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
           <div id="create-error" class="form-error" hidden></div>
-          <button type="submit" class="btn btn-primary btn-block" id="create-submit">Create Sub-Admin</button>
+          <button type="submit" class="btn btn-primary btn-block" id="create-submit">${escapeHtml(t('nav.createSubadmin'))}</button>
         </form>
       </div>
     `,
@@ -460,8 +464,8 @@ function loadCreateSubAdmin(session, { onLogout }) {
   bindCreateForm('create-form', async (fd) => {
     const pin = fd.get('pin');
     const confirm_pin = fd.get('confirm_pin');
-    if (!/^[0-9]{4}$/.test(pin)) return 'PIN must be exactly 4 digits.';
-    if (pin !== confirm_pin) return 'PINs do not match.';
+    if (!/^[0-9]{4}$/.test(pin)) return t('auth.errPinDigits');
+    if (pin !== confirm_pin) return t('auth.errPinsMatch');
     const work_email = String(fd.get('work_email') || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(work_email)) return t('auth.errEmail');
     await api.createSubAdmin({
@@ -473,14 +477,14 @@ function loadCreateSubAdmin(session, { onLogout }) {
       pin,
     });
     return null;
-  }, 'Sub-Admin account created.');
+  }, t('admin.subadminCreated'));
 }
 
 function bindCreateForm(formId, handler, successMsg) {
   const form = document.getElementById(formId);
   const errEl = document.getElementById('create-error');
   const submitBtn = document.getElementById('create-submit');
-  const origText = submitBtn?.textContent || 'Submit';
+  const origText = submitBtn?.textContent || t('common.submit');
   bindExactDigitsValidation(form?.querySelector('input[name="nida"]'), {
     length: 20,
     digitsOnlyMessage: t('auth.errNidaDigitsOnly'),
@@ -502,7 +506,7 @@ function bindCreateForm(formId, handler, successMsg) {
     if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
     const fd = new FormData(form);
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating…';
+    submitBtn.textContent = t('auth.creating');
     try {
       const validationError = await handler(fd);
       if (validationError) {
@@ -512,7 +516,7 @@ function bindCreateForm(formId, handler, successMsg) {
       showToast(successMsg, 'success');
       form.reset();
     } catch (err) {
-      const msg = getErrorMessage(err, 'Creation failed');
+      const msg = getErrorMessage(err, t('admin.createFailed'));
       if (errEl) { errEl.hidden = false; errEl.textContent = msg; }
       showToast(msg, 'error');
     } finally {
@@ -528,7 +532,7 @@ async function loadEditAccount(session, { onLogout, editId }) {
   const app = document.getElementById('app');
   app.innerHTML = renderShell({
     role: session.role, user: session.user, activeNav: 'accounts',
-    mainHtml: loadingBlock('Loading account…'),
+    mainHtml: loadingBlock(t('admin.loadingAccount')),
   });
   bindAdminShell(session, onLogout);
 
@@ -537,7 +541,7 @@ async function loadEditAccount(session, { onLogout, editId }) {
     renderEditForm(session, acct, { onLogout });
   } catch (err) {
     const main = document.getElementById('main');
-    if (main) main.innerHTML = errorBlock('Could not load account', getErrorMessage(err));
+    if (main) main.innerHTML = errorBlock(t('admin.loadAccountFailed'), getErrorMessage(err));
   }
 }
 
@@ -550,16 +554,16 @@ function renderEditForm(session, acct, { onLogout }) {
   let extraFields = '';
   if (isLender) {
     extraFields = `
-      <div class="field"><label for="organization">Organization</label><input id="organization" name="organization" type="text" value="${escapeHtml(acct.organization || '')}" /></div>
-      <div class="field"><label for="work_email">Work Email</label><input id="work_email" name="work_email" type="email" value="${escapeHtml(acct.work_email || '')}" /></div>
-      <div class="field"><label for="phone">Phone</label>${phoneInputHtml({ id: 'phone', value: acct.phone })}</div>
+      <div class="field"><label for="organization">${escapeHtml(t('profile.organization'))}</label><input id="organization" name="organization" type="text" value="${escapeHtml(acct.organization || '')}" /></div>
+      <div class="field"><label for="work_email">${escapeHtml(t('profile.workEmail'))}</label><input id="work_email" name="work_email" type="email" value="${escapeHtml(acct.work_email || '')}" /></div>
+      <div class="field"><label for="phone">${escapeHtml(t('profile.phone'))}</label>${phoneInputHtml({ id: 'phone', value: acct.phone })}</div>
     `;
   } else if (isSme) {
     const bizOptions = businessTypeOptions(acct.business_type);
     extraFields = `
-      <div class="field"><label for="phone">Phone</label>${phoneInputHtml({ id: 'phone', value: acct.phone, required: true })}</div>
-      <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="${escapeHtml(acct.email || '')}" /></div>
-      <div class="field"><label for="location">Location</label><input id="location" name="location" type="text" value="${escapeHtml(acct.location || '')}" /></div>
+      <div class="field"><label for="phone">${escapeHtml(t('profile.phone'))}</label>${phoneInputHtml({ id: 'phone', value: acct.phone, required: true })}</div>
+      <div class="field"><label for="email">${escapeHtml(t('profile.email'))}</label><input id="email" name="email" type="email" value="${escapeHtml(acct.email || '')}" /></div>
+      <div class="field"><label for="location">${escapeHtml(t('profile.location'))}</label><input id="location" name="location" type="text" value="${escapeHtml(acct.location || '')}" /></div>
       <div class="field"><label for="business_type">${escapeHtml(t('auth.businessType'))}</label><select id="business_type" name="business_type"><option value="">${escapeHtml(t('common.select'))}</option>${bizOptions}</select></div>
     `;
   }
@@ -568,12 +572,12 @@ function renderEditForm(session, acct, { onLogout }) {
     role: session.role, user: session.user, activeNav: 'accounts',
     mainHtml: `
       <div class="page-header">
-        <div><h1>Edit Account</h1><p class="page-lead">${escapeHtml(acct.full_name || '')} — ${escapeHtml(capitalize(acctRole))}</p></div>
-        <div class="page-actions"><a href="#/admin" class="btn btn-secondary">Back to accounts</a></div>
+        <div><h1>${escapeHtml(t('admin.editTitle'))}</h1><p class="page-lead">${escapeHtml(acct.full_name || '')} — ${escapeHtml(roleText(acctRole))}</p></div>
+        <div class="page-actions"><a href="#/admin" class="btn btn-secondary">${escapeHtml(t('admin.backToAccounts'))}</a></div>
       </div>
       <div class="admin-form-wrap">
         <form id="edit-form" class="auth-form panel" novalidate>
-          <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required value="${escapeHtml(acct.full_name || '')}" /></div>
+          <div class="field"><label for="full_name">${escapeHtml(t('profile.fullName'))}</label><input id="full_name" name="full_name" type="text" required value="${escapeHtml(acct.full_name || '')}" /></div>
           <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label>
             <select id="gender" name="gender">
               <option value="">${escapeHtml(t('common.select'))}</option>
@@ -581,15 +585,15 @@ function renderEditForm(session, acct, { onLogout }) {
             </select>
           </div>
           <div class="field">
-            <label for="is_active">Status</label>
+            <label for="is_active">${escapeHtml(t('common.status'))}</label>
             <select id="is_active" name="is_active">
-              <option value="true" ${acct.is_active !== false ? 'selected' : ''}>Active</option>
-              <option value="false" ${acct.is_active === false ? 'selected' : ''}>Inactive</option>
+              <option value="true" ${acct.is_active !== false ? 'selected' : ''}>${escapeHtml(t('common.active'))}</option>
+              <option value="false" ${acct.is_active === false ? 'selected' : ''}>${escapeHtml(t('common.inactive'))}</option>
             </select>
           </div>
           ${extraFields}
           <div id="edit-error" class="form-error" hidden></div>
-          <button type="submit" class="btn btn-primary btn-block" id="edit-submit">Save Changes</button>
+          <button type="submit" class="btn btn-primary btn-block" id="edit-submit">${escapeHtml(t('admin.saveChanges'))}</button>
         </form>
       </div>
     `,
@@ -608,7 +612,7 @@ function renderEditForm(session, acct, { onLogout }) {
     e.preventDefault();
     if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving…';
+    submitBtn.textContent = t('admin.saving');
     const fd = new FormData(form);
     const data = { full_name: fd.get('full_name'), gender: fd.get('gender'), is_active: fd.get('is_active') === 'true' };
     if (isLender) {
@@ -619,7 +623,7 @@ function renderEditForm(session, acct, { onLogout }) {
       if (phoneRaw && !data.phone) {
         if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errPhoneFormat'); }
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Save Changes';
+        submitBtn.textContent = t('admin.saveChanges');
         return;
       }
     } else if (isSme) {
@@ -627,7 +631,7 @@ function renderEditForm(session, acct, { onLogout }) {
       if (!data.phone) {
         if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errPhoneFormat'); }
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Save Changes';
+        submitBtn.textContent = t('admin.saveChanges');
         return;
       }
       data.email = fd.get('email') || undefined;
@@ -636,14 +640,14 @@ function renderEditForm(session, acct, { onLogout }) {
     }
     try {
       await api.updateAccount(acct.id || acct.user_id, data);
-      showToast('Account updated.', 'success');
+      showToast(t('admin.updated'), 'success');
     } catch (err) {
-      const msg = getErrorMessage(err, 'Update failed');
+      const msg = getErrorMessage(err, t('admin.updateFailed'));
       if (errEl) { errEl.hidden = false; errEl.textContent = msg; }
       showToast(msg, 'error');
     } finally {
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Save Changes';
+      submitBtn.textContent = t('admin.saveChanges');
     }
   });
 }

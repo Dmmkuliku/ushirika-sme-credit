@@ -312,7 +312,7 @@ def build():
         "Conservative score mapping (~300–680) and explicit risk bands.",
         "Financing capped at ~50% of typical (non-outlier) volume — reduces unpaid-loan risk.",
         "Input validation: 20-digit NIDA with DOB match (DD-MM-YYYY), +255 phone, live email checks, and no future dates.",
-        "Stable sessions: 4-hour tokens, auto sign-out after 15 min idle, clean redirect on expiry.",
+        "Stable sessions: 4-hour tokens, reliable 90-second idle sign-out across device sleep/wake, and clean expiry redirects.",
         "Technical Performance Report documents honesty of evaluation.",
     ], size=13)
     round_rect(s, Inches(6.9), Inches(1.7), Inches(5.9), Inches(4.7), WHITE)
@@ -323,7 +323,7 @@ def build():
         "Crucial score signals only (not every engineered feature).",
         "Lender: progressive NIDA search + tabbed SME analytics.",
         "TIN shown on SME profile (SME + Lender views).",
-        "Language-matched CSV templates and forms (Receipt No. / Namba ya Stakabadhi).",
+        "Fully bilingual account dashboards, headers, forms, and language-matched CSV templates.",
     ], size=13)
     footer(s, 9)
 

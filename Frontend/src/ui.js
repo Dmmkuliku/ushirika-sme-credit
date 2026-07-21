@@ -16,7 +16,7 @@ export function showToast(message, type = 'info', durationMs = 4500) {
   toast.appendChild(el('p', { className: 'toast-message', text: message }));
   const close = el('button', {
     className: 'toast-close',
-    attrs: { type: 'button', 'aria-label': 'Dismiss notification' },
+    attrs: { type: 'button', 'aria-label': t('common.dismissNotification') },
     text: '×',
   });
   close.addEventListener('click', () => toast.remove());
@@ -118,7 +118,7 @@ export function renderShell({ role, user, activeNav, mainHtml }) {
     <div class="app-shell">
       <header class="topbar">
         <div class="topbar-brand">
-          <a href="#/${roleHome(role)}" class="brand-mark" aria-label="${escapeHtml(t('brand.name'))} home">
+          <a href="#/${roleHome(role)}" class="brand-mark" aria-label="${escapeHtml(t('common.brandHome', { name: t('brand.name') }))}">
             <span class="brand-glyph" aria-hidden="true"></span>
             <span class="brand-text">${escapeHtml(t('brand.name'))}</span>
           </a>
@@ -132,12 +132,12 @@ export function renderShell({ role, user, activeNav, mainHtml }) {
             id="btn-nav-toggle"
             aria-expanded="false"
             aria-controls="primary-nav"
-            aria-label="Menu"
+            aria-label="${escapeHtml(t('common.menu'))}"
           >
             <span class="nav-toggle-bars" aria-hidden="true"></span>
           </button>
         </div>
-        <nav class="topbar-nav" id="primary-nav" aria-label="Primary">
+        <nav class="topbar-nav" id="primary-nav" aria-label="${escapeHtml(t('common.primaryNav'))}">
           ${navHtml}
           <div class="topbar-user">
             <div class="user-meta">

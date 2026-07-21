@@ -2,6 +2,12 @@
  * Formatting, escaping, and small helpers.
  */
 
+import { getLang, t } from './i18n.js';
+
+function locale() {
+  return getLang() === 'sw' ? 'sw-TZ' : 'en-TZ';
+}
+
 export function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -59,7 +65,7 @@ export function formatDate(value) {
   if (!value) return '—';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleDateString('en-TZ', {
+  return d.toLocaleDateString(locale(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -77,7 +83,7 @@ export function formatMonthLabel(value) {
   // Accept "2024-01" or ISO date
   const d = /^\d{4}-\d{2}$/.test(value) ? new Date(`${value}-01T00:00:00`) : new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleDateString('en-TZ', { month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(locale(), { month: 'short', year: 'numeric' });
 }
 
 export function riskClass(risk) {
@@ -111,7 +117,7 @@ export function normalizeListPayload(payload, keys = ['items', 'data', 'results'
   return [];
 }
 
-export function getErrorMessage(err, fallback = 'Something went wrong') {
+export function getErrorMessage(err, fallback = t('common.unknownError')) {
   if (!err) return fallback;
   if (typeof err === 'string') return err;
   return err.message || fallback;
