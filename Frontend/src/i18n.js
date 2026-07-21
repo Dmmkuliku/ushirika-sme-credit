@@ -126,7 +126,7 @@ const dict = {
       descBefore: 'No activity detected. You will be signed out in',
       descAfter: 'seconds.',
       stay: 'Stay signed in',
-      loggedOut: 'Signed out after 90 seconds of inactivity.',
+      loggedOut: 'Signed out after 15 minutes of inactivity.',
     },
     risk: {
       low: 'Low',
@@ -527,7 +527,7 @@ const dict = {
       descBefore: 'Hakuna shughuli iliyogunduliwa. Utaondolewa baada ya',
       descAfter: 'sekunde.',
       stay: 'Baki umeingia',
-      loggedOut: 'Umeondolewa baada ya sekunde 90 bila shughuli.',
+      loggedOut: 'Umeondolewa baada ya dakika 15 bila shughuli.',
     },
     risk: {
       low: 'Chini',

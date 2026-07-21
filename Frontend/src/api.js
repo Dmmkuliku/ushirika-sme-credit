@@ -284,6 +284,17 @@ export async function request(path, options = {}) {
 
   if (!response.ok) {
     const detail = body && typeof body === 'object' ? body.detail ?? body.message ?? body : body;
+    // Expired/invalid token on an authenticated call: clean sign-out instead of broken page.
+    if (response.status === 401 && auth && getToken() && !path.startsWith('/auth/')) {
+      try {
+        sessionStorage.removeItem('ushirika_token');
+        sessionStorage.removeItem('ushirika_user');
+      } catch {
+        /* ignore */
+      }
+      window.location.hash = '#/login';
+      window.location.reload();
+    }
     const message =
       formatDetail(detail) ||
       `Request failed (${response.status}${response.statusText ? ` ${response.statusText}` : ''})`;

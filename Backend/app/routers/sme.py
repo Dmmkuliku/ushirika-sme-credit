@@ -20,6 +20,7 @@ def _sme_profile_response(profile: SMEProfile, user) -> SMEProfileResponse:
         business_type=profile.business_type,
         nationality=profile.nationality,
         date_of_birth=profile.date_of_birth,
+        tin=profile.tin,
         display_token=profile.display_token,
         full_name=user.full_name,
         gender=user.gender,

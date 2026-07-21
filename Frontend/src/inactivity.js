@@ -1,12 +1,12 @@
 /**
- * Auto-logout after 90s of no mouse/keyboard/touch/scroll activity.
- * Warning overlay with countdown starts at 75s idle (15s remaining).
+ * Auto-logout after 15 minutes of no mouse/keyboard/touch/scroll activity.
+ * Warning overlay with countdown starts 60s before logout.
  */
 
 import { t } from './i18n.js';
 
-const IDLE_LIMIT_MS = 90_000;
-const WARNING_AT_MS = 75_000;
+const IDLE_LIMIT_MS = 15 * 60_000;
+const WARNING_AT_MS = 14 * 60_000;
 
 const ACTIVITY_EVENTS = [
   'mousemove',
