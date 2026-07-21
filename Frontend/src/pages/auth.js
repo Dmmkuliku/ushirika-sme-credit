@@ -10,10 +10,12 @@ import { escapeHtml, getErrorMessage } from '../utils.js';
 import { showToast } from '../ui.js';
 import { t, langSwitchHtml, toggleLang, getLang } from '../i18n.js';
 import {
-  bindAdultDobValidation,
   bindExactDigitsValidation,
   bindImmediateEmailValidation,
+  bindNidaMatchedDobValidation,
+  dmyToIso,
   eighteenthBirthdayIso,
+  isoToDmy,
   latestAdultDobIso,
   normalizeTzPhone,
   phoneInputHtml,
@@ -165,7 +167,8 @@ function renderRegisterFields() {
     </div>
     <div class="field">
       <label for="date_of_birth">${escapeHtml(t('auth.dateOfBirth'))}</label>
-      <input id="date_of_birth" name="date_of_birth" type="date" max="${latestAdultDobIso()}" required />
+      <input id="date_of_birth" name="date_of_birth" type="text" inputmode="numeric"
+        maxlength="10" placeholder="DD-MM-YYYY" autocomplete="bday" required />
       <p class="field-hint">${escapeHtml(t('auth.ageHint'))}</p>
     </div>
     <div class="field">
@@ -209,10 +212,15 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
   });
   bindImmediateEmailValidation(document.getElementById('email'), t('auth.errEmail'));
   if (mode === 'register') {
-    bindAdultDobValidation(
-      document.getElementById('date_of_birth'),
-      (dob) => t('auth.errUnder18', { date: eighteenthBirthdayIso(dob) }),
-    );
+    bindNidaMatchedDobValidation({
+      input: document.getElementById('date_of_birth'),
+      nidaInput: document.getElementById('nida'),
+      invalidDateMessage: t('auth.errDobFormat'),
+      mismatchMessage: t('auth.errDobNidaMismatch'),
+      underageMessage: (dob) => t('auth.errUnder18', {
+        date: isoToDmy(eighteenthBirthdayIso(dob)),
+      }),
+    });
   }
 
   if (mode === 'login' && api.isCloudDeployment()) {
@@ -327,7 +335,8 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     const location = String(fd.get('location') || '').trim();
     const business_type = String(fd.get('business_type') || '');
     const gender = String(fd.get('gender') || '');
-    const date_of_birth = String(fd.get('date_of_birth') || '');
+    const dateOfBirthInput = String(fd.get('date_of_birth') || '');
+    const date_of_birth = dmyToIso(dateOfBirthInput);
     const pin = String(fd.get('pin') || '');
     const confirm_pin = String(fd.get('confirm_pin') || '');
 
@@ -341,9 +350,16 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     if (!location) { showError(t('auth.errLocation')); return; }
     if (!business_type) { showError(t('auth.errBusinessType')); return; }
     if (!gender) { showError(t('auth.errGender')); return; }
-    if (!date_of_birth) { showError(t('auth.errDob')); return; }
+    if (!dateOfBirthInput) { showError(t('auth.errDob')); return; }
+    if (!date_of_birth) { showError(t('auth.errDobFormat')); return; }
+    if (nida.slice(0, 8) !== date_of_birth.replaceAll('-', '')) {
+      showError(t('auth.errDobNidaMismatch'));
+      return;
+    }
     if (date_of_birth > latestAdultDobIso()) {
-      showError(t('auth.errUnder18', { date: eighteenthBirthdayIso(date_of_birth) }));
+      showError(t('auth.errUnder18', {
+        date: isoToDmy(eighteenthBirthdayIso(date_of_birth)),
+      }));
       return;
     }
     if (!/^[0-9]{4}$/.test(pin)) { showError(t('auth.errPinDigits')); return; }

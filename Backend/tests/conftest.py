@@ -52,6 +52,7 @@ def client(db):
 
 
 def register_sme(client: TestClient, nida: str = "19900101123456789012") -> dict:
+    date_of_birth = f"{nida[:4]}-{nida[4:6]}-{nida[6:8]}"
     resp = client.post(
         "/api/auth/register",
         json={
@@ -62,7 +63,7 @@ def register_sme(client: TestClient, nida: str = "19900101123456789012") -> dict
             "business_type": "Retailer",
             "gender": "Male",
             "nationality": "Tanzanian",
-            "date_of_birth": "1990-01-01",
+            "date_of_birth": date_of_birth,
             "tin": "123456789",
             "pin": "1234",
         },

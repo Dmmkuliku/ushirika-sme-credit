@@ -7,6 +7,7 @@ import {
   escapeHtml,
   formatTZS,
   formatScore,
+  formatBirthDate,
   formatDate,
   formatNumber,
   formatMonthLabel,
@@ -374,7 +375,7 @@ function renderDetail(host, detail, txPayload, id) {
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.location'))}</span><span>${escapeHtml(detail?.location || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.businessType'))}</span><span>${escapeHtml(detail?.business_type || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.nationality'))}</span><span>${escapeHtml(detail?.nationality || '—')}</span></div>
-      <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.dateOfBirth'))}</span><span>${escapeHtml(formatDate(detail?.date_of_birth))}</span></div>
+      <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.dateOfBirth'))}</span><span>${escapeHtml(formatBirthDate(detail?.date_of_birth))}</span></div>
     </div>
 
     <div class="detail-tabs" role="tablist" aria-label="${escapeHtml(t('lender.detailTabs'))}">

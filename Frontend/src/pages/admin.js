@@ -21,10 +21,12 @@ import {
 import { openProfileModal } from './profile.js';
 import { t } from '../i18n.js';
 import {
-  bindAdultDobValidation,
   bindExactDigitsValidation,
   bindImmediateEmailValidation,
+  bindNidaMatchedDobValidation,
+  dmyToIso,
   eighteenthBirthdayIso,
+  isoToDmy,
   latestAdultDobIso,
   normalizeTzPhone,
   phoneInputHtml,
@@ -382,7 +384,7 @@ function loadCreateSme(session, { onLogout }) {
           <div class="field"><label for="location">Location</label><input id="location" name="location" type="text" required /></div>
           <div class="field"><label for="business_type">Business Type</label><select id="business_type" name="business_type" required><option value="">Select…</option>${bizOptions}</select></div>
           <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
-          <div class="field"><label for="date_of_birth">Date of Birth</label><input id="date_of_birth" name="date_of_birth" type="date" max="${latestAdultDobIso()}" required /><p class="field-hint">${escapeHtml(t('auth.ageHint'))}</p></div>
+          <div class="field"><label for="date_of_birth">Date of Birth</label><input id="date_of_birth" name="date_of_birth" type="text" inputmode="numeric" maxlength="10" placeholder="DD-MM-YYYY" autocomplete="bday" required /><p class="field-hint">${escapeHtml(t('auth.ageHint'))}</p></div>
           <div class="field"><label for="tin">${escapeHtml(t('admin.createSmeTin'))}</label><input id="tin" name="tin" type="text" inputmode="numeric" required minlength="9" maxlength="9" pattern="[0-9]{9}" placeholder="Exactly 9 digits" /></div>
           <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
           <div class="field"><label for="confirm_pin">Confirm PIN</label><input id="confirm_pin" name="confirm_pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required /></div>
@@ -406,9 +408,13 @@ function loadCreateSme(session, { onLogout }) {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t('auth.errEmail');
     const phone = normalizeTzPhone(fd.get('phone'));
     if (!phone) return t('auth.errPhoneFormat');
-    const dateOfBirth = String(fd.get('date_of_birth') || '');
+    const dateOfBirth = dmyToIso(String(fd.get('date_of_birth') || ''));
+    if (!dateOfBirth) return t('auth.errDobFormat');
+    if (String(nida).slice(0, 8) !== dateOfBirth.replaceAll('-', '')) {
+      return t('auth.errDobNidaMismatch');
+    }
     if (dateOfBirth > latestAdultDobIso()) {
-      return t('auth.errUnder18', { date: eighteenthBirthdayIso(dateOfBirth) });
+      return t('auth.errUnder18', { date: isoToDmy(eighteenthBirthdayIso(dateOfBirth)) });
     }
     await api.createSmeByAdmin({
       nida, full_name: fd.get('full_name'), phone,
@@ -474,10 +480,15 @@ function bindCreateForm(formId, handler, successMsg) {
     digitsOnlyMessage: t('auth.errNidaDigitsOnly'),
     exactLengthMessage: t('auth.errNida'),
   });
-  bindAdultDobValidation(
-    form?.querySelector('input[name="date_of_birth"]'),
-    (dob) => t('auth.errUnder18', { date: eighteenthBirthdayIso(dob) }),
-  );
+  bindNidaMatchedDobValidation({
+    input: form?.querySelector('input[name="date_of_birth"]'),
+    nidaInput: form?.querySelector('input[name="nida"]'),
+    invalidDateMessage: t('auth.errDobFormat'),
+    mismatchMessage: t('auth.errDobNidaMismatch'),
+    underageMessage: (dob) => t('auth.errUnder18', {
+      date: isoToDmy(eighteenthBirthdayIso(dob)),
+    }),
+  });
   bindImmediateEmailValidation(
     form?.querySelector('input[type="email"]'),
     t('auth.errEmail'),

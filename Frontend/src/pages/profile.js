@@ -3,7 +3,7 @@
  */
 
 import * as api from '../api.js';
-import { escapeHtml, formatDate, getErrorMessage, capitalize } from '../utils.js';
+import { escapeHtml, formatBirthDate, getErrorMessage, capitalize } from '../utils.js';
 import { showToast } from '../ui.js';
 import { t } from '../i18n.js';
 import {
@@ -107,7 +107,7 @@ function viewFieldsHtml(role, profile) {
     rows.push([t('profile.nida'), profile.nida]);
     rows.push([t('profile.tin'), profile.tin || '—']);
     rows.push([t('profile.loginId'), profile.nida]);
-    rows.push([t('profile.dateOfBirth'), formatDate(profile.date_of_birth)]);
+    rows.push([t('profile.dateOfBirth'), formatBirthDate(profile.date_of_birth)]);
   } else if (role === 'lender') {
     rows.push([t('profile.fullName'), profile.full_name]);
     rows.push([t('profile.gender'), profile.gender]);
@@ -162,7 +162,7 @@ function editFormHtml(role, profile) {
           ${genderSelect('prof-gender', 'gender', profile.gender)}
         </div>
         <div class="profile-readonly-note">
-          <p><strong>${escapeHtml(t('profile.readonly'))}:</strong> ${escapeHtml(t('profile.nida'))} ${escapeHtml(profile.nida || '—')}, ${escapeHtml(t('profile.tin'))} ${escapeHtml(profile.tin || '—')}, ${escapeHtml(t('profile.dateOfBirth'))} ${escapeHtml(formatDate(profile.date_of_birth))}</p>
+          <p><strong>${escapeHtml(t('profile.readonly'))}:</strong> ${escapeHtml(t('profile.nida'))} ${escapeHtml(profile.nida || '—')}, ${escapeHtml(t('profile.tin'))} ${escapeHtml(profile.tin || '—')}, ${escapeHtml(t('profile.dateOfBirth'))} ${escapeHtml(formatBirthDate(profile.date_of_birth))}</p>
         </div>
         <div id="profile-edit-error" class="form-error" hidden></div>
         <div class="modal-actions">

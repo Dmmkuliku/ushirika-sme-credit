@@ -156,7 +156,7 @@ def test_pin_validation(client):
 
 def test_registration_normalizes_tanzanian_phone_and_rejects_under_18(client):
     payload = {
-        "nida": "20000101123456789012",
+        "nida": "19900101123456789012",
         "phone": "655786630",
         "full_name": "Adult SME",
         "location": "Dar es Salaam",
@@ -168,10 +168,16 @@ def test_registration_normalizes_tanzanian_phone_and_rejects_under_18(client):
         "pin": "1234",
     }
     invalid_nida = dict(payload)
-    invalid_nida["nida"] = "2000010112345678901A"
+    invalid_nida["nida"] = "1990010112345678901A"
     resp = client.post("/api/auth/register", json=invalid_nida)
     assert resp.status_code == 422
     assert "NIDA must be exactly 20 digits" in resp.text
+
+    mismatched_dob = dict(payload)
+    mismatched_dob["date_of_birth"] = "1990-01-02"
+    resp = client.post("/api/auth/register", json=mismatched_dob)
+    assert resp.status_code == 422
+    assert "must match the first 8 NIDA digits" in resp.text
 
     resp = client.post("/api/auth/register", json=payload)
     assert resp.status_code == 201
@@ -180,9 +186,10 @@ def test_registration_normalizes_tanzanian_phone_and_rejects_under_18(client):
     assert profile["phone"] == "+255655786630"
 
     underage = dict(payload)
-    underage["nida"] = "20150101123456789012"
     underage["tin"] = "987654322"
-    underage["date_of_birth"] = (date.today() - timedelta(days=17 * 365)).isoformat()
+    underage_dob = date.today() - timedelta(days=17 * 365)
+    underage["date_of_birth"] = underage_dob.isoformat()
+    underage["nida"] = f"{underage_dob:%Y%m%d}123456789012"
     resp = client.post("/api/auth/register", json=underage)
     assert resp.status_code == 422
     assert "turn 18" in resp.text

@@ -22,6 +22,27 @@ export function eighteenthBirthdayIso(dobValue) {
   return localIsoDate(dob);
 }
 
+export function isoToDmy(isoValue) {
+  const match = String(isoValue || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+}
+
+export function dmyToIso(dmyValue) {
+  const match = String(dmyValue || '').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!match) return '';
+  const [, day, month, year] = match;
+  const iso = `${year}-${month}-${day}`;
+  const parsed = new Date(`${iso}T00:00:00`);
+  return !Number.isNaN(parsed.getTime()) && localIsoDate(parsed) === iso ? iso : '';
+}
+
+function formatDmyInput(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+}
+
 export function normalizeTzPhone(localDigits) {
   const raw = String(localDigits || '').replace(/\D/g, '');
   let local = raw;
@@ -68,7 +89,13 @@ export function bindImmediateEmailValidation(input, message) {
   input.addEventListener('blur', validate);
 }
 
-export function bindAdultDobValidation(input, buildMessage) {
+export function bindNidaMatchedDobValidation({
+  input,
+  nidaInput,
+  invalidDateMessage,
+  mismatchMessage,
+  underageMessage,
+} = {}) {
   if (!input) return;
 
   const message = document.createElement('p');
@@ -77,26 +104,48 @@ export function bindAdultDobValidation(input, buildMessage) {
   message.hidden = true;
   input.insertAdjacentElement('afterend', message);
 
-  const validate = () => {
-    const dob = input.value;
-    const underage = dob && dob > latestAdultDobIso();
-    if (underage) {
-      const text = buildMessage(dob);
-      input.setCustomValidity(text);
-      input.setAttribute('aria-invalid', 'true');
-      message.textContent = text;
-      message.hidden = false;
-    } else {
-      input.setCustomValidity('');
-      input.setAttribute('aria-invalid', 'false');
-      message.textContent = '';
-      message.hidden = true;
-    }
+  const showMessage = (text) => {
+    input.setCustomValidity(text);
+    input.setAttribute('aria-invalid', 'true');
+    message.textContent = text;
+    message.hidden = false;
+  };
+  const clearMessage = () => {
+    input.setCustomValidity('');
+    input.setAttribute('aria-invalid', 'false');
+    message.textContent = '';
+    message.hidden = true;
   };
 
-  input.addEventListener('input', validate);
-  input.addEventListener('change', validate);
-  input.addEventListener('blur', validate);
+  const validate = ({ showIncomplete = false } = {}) => {
+    if (!input.value) {
+      clearMessage();
+      return;
+    }
+    const dobIso = dmyToIso(input.value);
+    if (!dobIso) {
+      if (showIncomplete || input.value.length === 10) showMessage(invalidDateMessage);
+      else clearMessage();
+      return;
+    }
+    if (dobIso > latestAdultDobIso()) {
+      showMessage(underageMessage(dobIso));
+      return;
+    }
+    const nida = String(nidaInput?.value || '');
+    if (/^\d{20}$/.test(nida) && nida.slice(0, 8) !== dobIso.replaceAll('-', '')) {
+      showMessage(mismatchMessage);
+      return;
+    }
+    clearMessage();
+  };
+
+  input.addEventListener('input', () => {
+    input.value = formatDmyInput(input.value);
+    validate();
+  });
+  input.addEventListener('blur', () => validate({ showIncomplete: true }));
+  nidaInput?.addEventListener('input', () => validate());
 }
 
 export function bindExactDigitsValidation(input, {

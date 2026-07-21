@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, date
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 _PIN_RE = re.compile(r"^\d{4}$")
@@ -26,7 +26,7 @@ def _require_adult_dob(v: str) -> str:
     eligible_on = _eighteenth_birthday(dob)
     if eligible_on > date.today():
         raise ValueError(
-            f"You are not eligible yet. Try again when you turn 18 on {eligible_on.isoformat()}"
+            f"You are not eligible yet. Try again when you turn 18 on {eligible_on:%d-%m-%Y}"
         )
     return v
 
@@ -121,6 +121,15 @@ class SMERegisterRequest(BaseModel):
         if not _PIN_RE.match(v):
             raise ValueError("PIN must be exactly 4 digits")
         return v
+
+    @model_validator(mode="after")
+    def validate_dob_matches_nida(self):
+        dob = date.fromisoformat(self.date_of_birth)
+        if self.nida[:8] != dob.strftime("%Y%m%d"):
+            raise ValueError(
+                "Date of birth must match the first 8 NIDA digits (YYYYMMDD)"
+            )
+        return self
 
 
 class LenderCreateRequest(BaseModel):
