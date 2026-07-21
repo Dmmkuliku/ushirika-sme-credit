@@ -284,18 +284,18 @@ def build():
     # 8 Findings SO2
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "FINDINGS — OBJECTIVE 2", "Ensemble Random Forest outperforms classical Logistic Regression")
+    section_header(s, "FINDINGS — OBJECTIVE 2", "Random Forest outperformed Logistic Regression on unseen test data")
     metric(s, Inches(0.5), Inches(1.7), Inches(3.0), Inches(1.35), "95.8%", "RF ROC-AUC (primary)", SUCCESS)
     metric(s, Inches(3.7), Inches(1.7), Inches(3.0), Inches(1.35), "88.6%", "RF Accuracy", LAGOON)
     metric(s, Inches(6.9), Inches(1.7), Inches(3.0), Inches(1.35), "87.5%", "LR ROC-AUC (baseline)", RGBColor(0x8A, 0x5A, 0x00))
     metric(s, Inches(10.1), Inches(1.7), Inches(2.7), Inches(1.35), "RF wins", "Outperforms baseline", FOREST)
     round_rect(s, Inches(0.5), Inches(3.35), Inches(12.3), Inches(3.1), WHITE)
-    textbox(s, Inches(0.8), Inches(3.55), Inches(11.7), Inches(0.35), "Hold-out comparison (seed=42) — metrics from model_meta.json", size=14, bold=True, color=FOREST)
+    textbox(s, Inches(0.8), Inches(3.55), Inches(11.7), Inches(0.35), "Hold-out comparison: 280 unseen records · stratified split · seed=42", size=14, bold=True, color=FOREST)
     bullets(s, Inches(0.8), Inches(4.1), Inches(11.7), Inches(2.1), [
         "Random Forest: Accuracy 88.6% · Precision 93.0% · Recall 85.7% · F1 89.2% · ROC-AUC 95.8%.",
         "Logistic Regression: Accuracy 77.9% · Precision 75.8% · Recall 87.7% · F1 81.3% · ROC-AUC 87.5%.",
         "This answers Research Question 2: ensemble learning improves classification relative to classical regression on this task.",
-        "Evidence is reproducible via scripts/train_model.py and stored artifacts under Backend/models/.",
+        "Interpretation: RF ranked higher-risk vs creditworthy cases more reliably; this supports its selection for the prototype.",
     ], size=14)
     footer(s, 8)
 
@@ -307,26 +307,21 @@ def build():
     textbox(s, Inches(0.75), Inches(1.9), Inches(5.6), Inches(0.35), "RELIABILITY CONTROLS", size=14, bold=True, color=LAGOON)
     bullets(s, Inches(0.75), Inches(2.4), Inches(5.6), Inches(3.7), [
         "Hold-out ROC-AUC, Accuracy, Precision, Recall, F1 reported for both models.",
-        "k-fold GridSearchCV on the training split reduces overfitting risk.",
+        "5-fold GridSearchCV on training data only reduces leakage and overfitting risk.",
         "Minimum 5 transactions before an SME is scored.",
-        "Conservative score mapping (~300–680) and explicit risk bands.",
-        "Financing capped at ~50% of typical (non-outlier) volume — reduces unpaid-loan risk.",
-        "Input validation: 20-digit NIDA with DOB match (DD-MM-YYYY), +255 phone, live email checks, and no future dates.",
-        "Instant per-field errors: forms flag mistakes on the field itself and PIN recovery enforces step-by-step completion.",
-        "Counterparty TIN optional on transactions — informal buyers/sellers without TIN are supported.",
-        "PIN recovery verifies both birth date and registered phone number before a reset.",
-        "Stable sessions: 4-hour tokens, reliable 90-second idle sign-out across device sleep/wake, and clean expiry redirects.",
-        "Technical Performance Report documents honesty of evaluation.",
+        "Score mapping (~300–680) uses explicit Low / Medium / High bands.",
+        "Financing capped at ~50% of typical non-outlier volume.",
+        "PII is excluded from ML features; counterparties are pseudonymised.",
     ], size=13)
     round_rect(s, Inches(6.9), Inches(1.7), Inches(5.9), Inches(4.7), WHITE)
     textbox(s, Inches(7.15), Inches(1.9), Inches(5.4), Inches(0.35), "RUNTIME OUTPUTS", size=14, bold=True, color=LAGOON)
     bullets(s, Inches(7.15), Inches(2.4), Inches(5.4), Inches(3.7), [
         "Credit score + risk band (Low / Medium / High).",
-        "Eligible financing (TZS) with 25% outlier-aware caps.",
-        "Crucial score signals only (not every engineered feature).",
-        "Lender: progressive NIDA search + tabbed SME analytics.",
-        "TIN shown on SME profile (SME + Lender views).",
-        "Fully bilingual account dashboards, headers, forms, and language-matched CSV templates.",
+        "Creditworthy probability + indicative financing (TZS).",
+        "Explainable behavioural signals for each SME.",
+        "Bilingual SME, lender, admin and sub-admin workflows.",
+        "English / Kiswahili CSV templates and manual entry.",
+        "Optional counterparty TIN supports informal trading partners.",
     ], size=13)
     footer(s, 9)
 
@@ -364,11 +359,11 @@ def build():
     round_rect(s, Inches(6.9), Inches(1.65), Inches(5.9), Inches(4.7), WHITE)
     textbox(s, Inches(7.15), Inches(1.85), Inches(5.4), Inches(0.35), "LIMITATIONS & NEXT STEPS", size=14, bold=True, color=LAGOON)
     bullets(s, Inches(7.15), Inches(2.35), Inches(5.4), Inches(3.7), [
-        "Prototype scope — not yet a full bank production system.",
-        "Training still relies partly on synthetic bootstrap when live SMEs are few.",
-        "Need larger, multi-sector Tanzanian transaction panels.",
-        "Future: XGBoost/GBM, live ERP connectors, stronger model monitoring.",
-        "Future: formal NIDA verification and managed Postgres.",
+        "Online prototype is operational, but not yet a bank-production system.",
+        "Training still partly uses synthetic bootstrap and engineered labels.",
+        "Need longitudinal repayment outcomes from multiple Tanzanian sectors.",
+        "Pilot priorities: fairness, calibration, drift, security and human review.",
+        "Production: verified NIDA, managed Postgres, ERP/payment integrations.",
     ], size=13)
     footer(s, 11)
 
