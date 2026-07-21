@@ -137,8 +137,10 @@ def change_pin(db: Session, user: User, current_pin: str, new_pin: str) -> None:
     db.commit()
 
 
-def reset_pin_with_birthdate(db: Session, login_id: str, date_of_birth: str, new_pin: str) -> None:
-    """Allow PIN reset when birthdate matches the SME registration record."""
+def reset_pin_with_birthdate(
+    db: Session, login_id: str, date_of_birth: str, phone: str, new_pin: str
+) -> None:
+    """Allow PIN reset when both birthdate and phone match the SME registration record."""
     user = db.query(User).filter(User.login_id == login_id).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
@@ -162,6 +164,12 @@ def reset_pin_with_birthdate(db: Session, login_id: str, date_of_birth: str, new
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Date of birth does not match our records",
+        )
+
+    if (profile.phone or "") != (phone or ""):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Phone number does not match our records",
         )
 
     user.hashed_pin = hash_pin(new_pin)

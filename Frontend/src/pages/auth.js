@@ -10,9 +10,13 @@ import { escapeHtml, getErrorMessage } from '../utils.js';
 import { showToast } from '../ui.js';
 import { businessTypeLabel, t, langSwitchHtml, toggleLang, getLang } from '../i18n.js';
 import {
+  bindConfirmPinField,
   bindExactDigitsValidation,
   bindImmediateEmailValidation,
   bindNidaMatchedDobValidation,
+  bindPhoneField,
+  bindPinField,
+  bindRequiredField,
   dmyToIso,
   normalizeTzPhone,
   phoneInputHtml,
@@ -105,7 +109,13 @@ function renderForgotFields() {
     </div>
     <div class="field">
       <label for="date_of_birth">${escapeHtml(t('auth.dateOfBirth'))}</label>
-      <input id="date_of_birth" name="date_of_birth" type="date" required />
+      <input id="date_of_birth" name="date_of_birth" type="text" inputmode="numeric"
+        maxlength="10" placeholder="DD-MM-YYYY" autocomplete="bday" required />
+    </div>
+    <div class="field">
+      <label for="phone">${escapeHtml(t('auth.phone'))}</label>
+      ${phoneInputHtml({ id: 'phone', required: true })}
+      <p class="field-hint">${escapeHtml(t('auth.forgotPhoneHint'))}</p>
     </div>
     <div class="field">
       <label for="new_pin">${escapeHtml(t('auth.newPin'))}</label>
@@ -210,6 +220,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     exactLengthMessage: t('auth.errNida'),
   });
   bindImmediateEmailValidation(document.getElementById('email'), t('auth.errEmail'));
+  bindPinField(document.getElementById('pin'), t('auth.errPinDigits'));
   if (mode === 'register') {
     bindNidaMatchedDobValidation({
       input: document.getElementById('date_of_birth'),
@@ -217,6 +228,35 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
       invalidDateMessage: t('auth.errDobFormat'),
       mismatchMessage: t('auth.errDobNidaMismatch'),
     });
+    bindRequiredField(document.getElementById('full_name'), t('auth.errFullName'));
+    bindExactDigitsValidation(document.getElementById('tin'), {
+      length: 9,
+      digitsOnlyMessage: t('auth.errTin'),
+      exactLengthMessage: t('auth.errTin'),
+    });
+    bindPhoneField(document.getElementById('phone'), t('auth.errPhoneFormat'));
+    bindRequiredField(document.getElementById('location'), t('auth.errLocation'));
+    bindRequiredField(document.getElementById('business_type'), t('auth.errBusinessType'));
+    bindRequiredField(document.getElementById('gender'), t('auth.errGender'));
+    bindConfirmPinField(
+      document.getElementById('confirm_pin'),
+      document.getElementById('pin'),
+      t('auth.errPinsMatch'),
+    );
+  }
+  if (mode === 'forgot-pin') {
+    bindRequiredField(document.getElementById('login_id'), t('auth.errIdRequired'));
+    bindNidaMatchedDobValidation({
+      input: document.getElementById('date_of_birth'),
+      invalidDateMessage: t('auth.errDobFormat'),
+    });
+    bindPhoneField(document.getElementById('phone'), t('auth.errPhoneFormat'));
+    bindPinField(document.getElementById('new_pin'), t('auth.errPinDigits'));
+    bindConfirmPinField(
+      document.getElementById('confirm_pin'),
+      document.getElementById('new_pin'),
+      t('auth.errPinsMatch'),
+    );
   }
 
   if (mode === 'login' && api.isCloudDeployment()) {
@@ -296,19 +336,24 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
 
     if (mode === 'forgot-pin') {
       const login_id = String(fd.get('login_id') || '').trim();
-      const date_of_birth = String(fd.get('date_of_birth') || '');
+      const dobInput = String(fd.get('date_of_birth') || '');
+      const date_of_birth = dmyToIso(dobInput);
+      const phoneRaw = String(fd.get('phone') || '').trim();
+      const phone = normalizeTzPhone(phoneRaw);
       const new_pin = String(fd.get('new_pin') || '');
       const confirm_pin = String(fd.get('confirm_pin') || '');
 
       if (!login_id) { showError(t('auth.errIdRequired')); return; }
-      if (!date_of_birth) { showError(t('auth.errDob')); return; }
+      if (!dobInput) { showError(t('auth.errDob')); return; }
+      if (!date_of_birth) { showError(t('auth.errDobFormat')); return; }
+      if (!phone) { showError(t('auth.errPhoneFormat')); return; }
       if (!/^[0-9]{4}$/.test(new_pin)) { showError(t('auth.errPinDigits')); return; }
       if (new_pin !== confirm_pin) { showError(t('auth.errPinsMatch')); return; }
 
       submitBtn.disabled = true;
       submitBtn.textContent = t('auth.resetting');
       try {
-        await api.forgotPin({ login_id, date_of_birth, new_pin });
+        await api.forgotPin({ login_id, date_of_birth, phone, new_pin });
         showToast(t('auth.pinReset'), 'success');
         window.location.hash = '#/login';
       } catch (err) {

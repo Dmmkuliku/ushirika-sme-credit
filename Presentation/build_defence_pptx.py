@@ -312,6 +312,8 @@ def build():
         "Conservative score mapping (~300–680) and explicit risk bands.",
         "Financing capped at ~50% of typical (non-outlier) volume — reduces unpaid-loan risk.",
         "Input validation: 20-digit NIDA with DOB match (DD-MM-YYYY), +255 phone, live email checks, and no future dates.",
+        "Instant per-field errors: every form flags mistakes on the field itself before the user moves on.",
+        "PIN recovery verifies both birth date and registered phone number before a reset.",
         "Stable sessions: 4-hour tokens, reliable 90-second idle sign-out across device sleep/wake, and clean expiry redirects.",
         "Technical Performance Report documents honesty of evaluation.",
     ], size=13)

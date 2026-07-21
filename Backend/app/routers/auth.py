@@ -30,7 +30,9 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/forgot-pin")
 def forgot_pin(payload: ForgotPinRequest, db: Session = Depends(get_db)):
-    reset_pin_with_birthdate(db, payload.login_id, payload.date_of_birth, payload.new_pin)
+    reset_pin_with_birthdate(
+        db, payload.login_id, payload.date_of_birth, payload.phone, payload.new_pin
+    )
     return {"message": "PIN reset successfully. You can now sign in with your new PIN."}
 
 

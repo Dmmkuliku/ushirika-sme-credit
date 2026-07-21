@@ -336,12 +336,12 @@ export function login({ login_id, pin }) {
   });
 }
 
-/** POST /auth/forgot-pin — reset PIN via DOB verification */
-export function forgotPin({ login_id, date_of_birth, new_pin }) {
+/** POST /auth/forgot-pin — reset PIN via DOB + registered phone verification */
+export function forgotPin({ login_id, date_of_birth, phone, new_pin }) {
   return request('/auth/forgot-pin', {
     method: 'POST',
     auth: false,
-    body: JSON.stringify({ login_id, date_of_birth, new_pin }),
+    body: JSON.stringify({ login_id, date_of_birth, phone, new_pin }),
   });
 }
 

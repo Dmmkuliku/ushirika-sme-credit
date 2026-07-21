@@ -263,11 +263,17 @@ class ChangePinRequest(BaseModel):
 
 
 class ForgotPinRequest(BaseModel):
-    """Reset PIN by verifying the date of birth given at registration."""
+    """Reset PIN by verifying the date of birth and registered phone number."""
 
     login_id: str = Field(min_length=3, max_length=20)
     date_of_birth: str
+    phone: str = Field(min_length=9, max_length=20)
     new_pin: str
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        return _normalize_tz_phone(v) or ""
 
     @field_validator("date_of_birth")
     @classmethod

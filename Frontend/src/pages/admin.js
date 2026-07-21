@@ -20,9 +20,13 @@ import {
 import { openProfileModal } from './profile.js';
 import { businessTypeLabel, genderLabel, t } from '../i18n.js';
 import {
+  bindConfirmPinField,
   bindExactDigitsValidation,
   bindImmediateEmailValidation,
   bindNidaMatchedDobValidation,
+  bindPhoneField,
+  bindPinField,
+  bindRequiredField,
   dmyToIso,
   normalizeTzPhone,
   phoneInputHtml,
@@ -500,6 +504,25 @@ function bindCreateForm(formId, handler, successMsg) {
     form?.querySelector('input[type="email"]'),
     t('auth.errEmail'),
   );
+  bindExactDigitsValidation(form?.querySelector('input[name="tin"]'), {
+    length: 9,
+    digitsOnlyMessage: t('admin.tinRequired'),
+    exactLengthMessage: t('admin.tinRequired'),
+  });
+  bindPhoneField(form?.querySelector('input[name="phone"]'), t('auth.errPhoneFormat'));
+  bindPinField(form?.querySelector('input[name="pin"]'), t('auth.errPinDigits'));
+  bindConfirmPinField(
+    form?.querySelector('input[name="confirm_pin"]'),
+    form?.querySelector('input[name="pin"]'),
+    t('auth.errPinsMatch'),
+  );
+  bindRequiredField(form?.querySelector('input[name="full_name"]'), t('auth.errFullName'));
+  bindRequiredField(form?.querySelector('input[name="location"]'), t('auth.errLocation'));
+  bindRequiredField(form?.querySelector('select[name="business_type"]'), t('auth.errBusinessType'));
+  bindRequiredField(form?.querySelector('select[name="gender"]'), t('auth.errGender'));
+  ['membership_number', 'organization', 'login_id'].forEach((name) => {
+    bindRequiredField(form?.querySelector(`input[name="${name}"]`), t('common.fieldRequired'));
+  });
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -607,6 +630,8 @@ function renderEditForm(session, acct, { onLogout }) {
     form?.querySelector('input[type="email"]'),
     t('auth.errEmail'),
   );
+  bindPhoneField(form?.querySelector('input[name="phone"]'), t('auth.errPhoneFormat'));
+  bindRequiredField(form?.querySelector('input[name="full_name"]'), t('auth.errFullName'));
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();

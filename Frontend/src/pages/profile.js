@@ -8,6 +8,7 @@ import { showToast } from '../ui.js';
 import { businessTypeLabel, genderLabel, t } from '../i18n.js';
 import {
   bindImmediateEmailValidation,
+  bindPhoneField,
   formatTzPhone,
   normalizeTzPhone,
   phoneInputHtml,
@@ -304,6 +305,7 @@ function bindEditForm(role, profile, { onUpdated }) {
     document.getElementById(role === 'lender' ? 'prof-work_email' : 'prof-email'),
     t('auth.errEmail'),
   );
+  bindPhoneField(document.getElementById('prof-phone'), t('auth.errPhoneFormat'));
 
   document.getElementById('profile-edit-cancel')?.addEventListener('click', () => {
     renderModal(role, profile, 'view', { onUpdated });

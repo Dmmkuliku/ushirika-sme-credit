@@ -154,6 +154,52 @@ def test_pin_validation(client):
     assert resp.status_code == 422
 
 
+def test_forgot_pin_requires_matching_dob_and_phone(client):
+    register_sme(client)  # phone +255712345678, dob 1990-01-01
+
+    # Wrong phone is rejected even with correct birthdate.
+    resp = client.post(
+        "/api/auth/forgot-pin",
+        json={
+            "login_id": "19900101123456789012",
+            "date_of_birth": "1990-01-01",
+            "phone": "+255798765432",
+            "new_pin": "9999",
+        },
+    )
+    assert resp.status_code == 400
+    assert "Phone" in resp.json()["detail"]
+
+    # Wrong birthdate is rejected even with correct phone.
+    resp = client.post(
+        "/api/auth/forgot-pin",
+        json={
+            "login_id": "19900101123456789012",
+            "date_of_birth": "1991-02-02",
+            "phone": "+255712345678",
+            "new_pin": "9999",
+        },
+    )
+    assert resp.status_code == 400
+
+    # Both correct: PIN is reset and login works with the new PIN.
+    resp = client.post(
+        "/api/auth/forgot-pin",
+        json={
+            "login_id": "19900101123456789012",
+            "date_of_birth": "1990-01-01",
+            "phone": "0712345678",
+            "new_pin": "9999",
+        },
+    )
+    assert resp.status_code == 200
+    login_resp = client.post(
+        "/api/auth/login",
+        json={"login_id": "19900101123456789012", "pin": "9999"},
+    )
+    assert login_resp.status_code == 200
+
+
 def test_registration_normalizes_phone_and_matches_dob_to_nida(client):
     payload = {
         "nida": "19900101123456789012",

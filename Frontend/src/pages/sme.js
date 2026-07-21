@@ -28,7 +28,11 @@ import {
 } from '../ui.js';
 import { openProfileModal } from './profile.js';
 import { getLang, t, featureLabel } from '../i18n.js';
-import { todayIso } from '../form-validation.js';
+import {
+  bindExactDigitsValidation,
+  bindRequiredField,
+  todayIso,
+} from '../form-validation.js';
 
 function bindSmeShell(onLogout) {
   bindShellActions({
@@ -464,6 +468,23 @@ function recordTxFieldsHtml(prefix, row = null) {
   `;
 }
 
+/** Inline, per-field errors so mistakes surface before moving to the next field. */
+function bindTxFieldValidation(prefix) {
+  const el = (name) => document.getElementById(`${prefix}-${name}`);
+  bindRequiredField(el('ref'), t('sme.fillRequired'));
+  bindExactDigitsValidation(el('cp-tin'), {
+    length: 9,
+    digitsOnlyMessage: t('sme.errTinExact'),
+    exactLengthMessage: t('sme.errTinExact'),
+  });
+  bindRequiredField(el('cp-name'), t('sme.fillRequired'));
+  bindRequiredField(el('cp-type'), t('sme.fillRequired'));
+  bindRequiredField(el('order-type'), t('sme.fillRequired'));
+  bindRequiredField(el('amount'), t('sme.fillRequired'));
+  bindRequiredField(el('status'), t('sme.fillRequired'));
+  bindRequiredField(el('date'), t('sme.fillRequired'));
+}
+
 function parseTxFormData(fd) {
   return {
     transaction_ref: String(fd.get('transaction_ref') || '').trim(),
@@ -550,6 +571,7 @@ export async function loadSmeTransactions(session, { onLogout }) {
   const form = document.getElementById('tx-filters');
   const recordSection = document.getElementById('record-tx-section');
   const recordForm = document.getElementById('record-tx-form');
+  bindTxFieldValidation('rtx');
 
   document.getElementById('btn-toggle-record')?.addEventListener('click', () => {
     if (recordSection) recordSection.hidden = !recordSection.hidden;
@@ -750,6 +772,7 @@ function openEditTxModal(row, refresh) {
   document.getElementById('tx-edit-backdrop')?.addEventListener('click', (e) => {
     if (e.target.id === 'tx-edit-backdrop') closeTxModal();
   });
+  bindTxFieldValidation('etx');
 
   document.getElementById('edit-tx-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
