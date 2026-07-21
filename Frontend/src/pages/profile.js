@@ -5,7 +5,7 @@
 import * as api from '../api.js';
 import { escapeHtml, formatBirthDate, getErrorMessage, capitalize } from '../utils.js';
 import { showToast } from '../ui.js';
-import { t } from '../i18n.js';
+import { businessTypeLabel, genderLabel, t } from '../i18n.js';
 import {
   bindImmediateEmailValidation,
   formatTzPhone,
@@ -82,7 +82,7 @@ function genderSelect(id, name, value) {
 
 function businessTypeSelect(value) {
   const opts = BUSINESS_TYPES.map(
-    (bt) => `<option value="${escapeHtml(bt)}"${bt === value ? ' selected' : ''}>${escapeHtml(bt)}</option>`
+    (bt) => `<option value="${escapeHtml(bt)}"${bt === value ? ' selected' : ''}>${escapeHtml(businessTypeLabel(bt))}</option>`
   ).join('');
   return `
     <div class="field">
@@ -102,22 +102,22 @@ function viewFieldsHtml(role, profile) {
     rows.push([t('profile.phone'), formatTzPhone(profile.phone)]);
     rows.push([t('profile.email'), profile.email || '—']);
     rows.push([t('profile.location'), profile.location]);
-    rows.push([t('profile.businessType'), profile.business_type]);
-    rows.push([t('profile.gender'), profile.gender]);
+    rows.push([t('profile.businessType'), businessTypeLabel(profile.business_type)]);
+    rows.push([t('profile.gender'), genderLabel(profile.gender)]);
     rows.push([t('profile.nida'), profile.nida]);
     rows.push([t('profile.tin'), profile.tin || '—']);
     rows.push([t('profile.loginId'), profile.nida]);
     rows.push([t('profile.dateOfBirth'), formatBirthDate(profile.date_of_birth)]);
   } else if (role === 'lender') {
     rows.push([t('profile.fullName'), profile.full_name]);
-    rows.push([t('profile.gender'), profile.gender]);
+    rows.push([t('profile.gender'), genderLabel(profile.gender)]);
     rows.push([t('profile.organization'), profile.organization]);
     rows.push([t('profile.workEmail'), profile.work_email]);
     rows.push([t('profile.phone'), profile.phone ? formatTzPhone(profile.phone) : '—']);
     rows.push([t('profile.membership'), profile.membership_number]);
   } else {
     rows.push([t('profile.fullName'), profile.full_name]);
-    rows.push([t('profile.gender'), profile.gender]);
+    rows.push([t('profile.gender'), genderLabel(profile.gender)]);
     rows.push([t('profile.loginId'), profile.login_id]);
     rows.push([t('profile.role'), capitalize(profile.role || role)]);
   }

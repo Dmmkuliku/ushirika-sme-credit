@@ -190,7 +190,7 @@ def build():
     section_header(s, "WHAT WAS BUILT", "Ushirika — a working credit platform for SMEs and lenders", "Deliverables match proposal Section 3.10")
     layers = [
         ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nCloud API wake-up\nSimple EN / Kiswahili UI", LAGOON),
-        ("API", "FastAPI + JWT\nStrict age, phone, email\nNo future transactions", FOREST),
+        ("API", "FastAPI + JWT\nNIDA-DOB, phone, email\nNo future transactions", FOREST),
         ("ML Core", "Feature engineering\nRF (primary) + LR\nUpload scores immediately", LAGOON_BRIGHT),
         ("Data & Ethics", "SQL storage\nHMAC PII hashes\n25% outlier rule\nConservative loans", FOREST_DEEP),
     ]
@@ -205,7 +205,7 @@ def build():
     textbox(s, Inches(0.55), Inches(5.45), Inches(12.2), Inches(1.2),
             "Proposal fulfilment: operational ML backend · Vite interactive portal · technical performance report.\n"
             "Lender workflow: progressive NIDA search → SME profile (incl. TIN) → tabs for ML metrics, signals, txs, history.\n"
-            "Inclusive controls: +255 phone entry, age 18+ eligibility, Male/Female choices, live email checks, and clear bilingual labels.",
+            "Inclusive controls: NIDA-DOB matching, +255 phone entry, bilingual gender/business labels, live email checks, and clear forms.",
             size=13, color=MUTED)
     footer(s, 4)
 
@@ -311,7 +311,7 @@ def build():
         "Minimum 5 transactions before an SME is scored.",
         "Conservative score mapping (~300–680) and explicit risk bands.",
         "Financing capped at ~50% of typical (non-outlier) volume — reduces unpaid-loan risk.",
-        "Input validation: 20-digit NIDA with DOB match (DD-MM-YYYY), +255 phone, live email checks, age 18+, and no future dates.",
+        "Input validation: 20-digit NIDA with DOB match (DD-MM-YYYY), +255 phone, live email checks, and no future dates.",
         "Stable sessions: 4-hour tokens, auto sign-out after 15 min idle, clean redirect on expiry.",
         "Technical Performance Report documents honesty of evaluation.",
     ], size=13)
@@ -323,7 +323,7 @@ def build():
         "Crucial score signals only (not every engineered feature).",
         "Lender: progressive NIDA search + tabbed SME analytics.",
         "TIN shown on SME profile (SME + Lender views).",
-        "Plain-language bilingual forms (e.g. Receipt No / Namba ya risiti ya malipo).",
+        "Language-matched CSV templates and forms (Receipt No. / Namba ya Stakabadhi).",
     ], size=13)
     footer(s, 9)
 

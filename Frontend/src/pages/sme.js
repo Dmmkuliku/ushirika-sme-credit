@@ -27,7 +27,7 @@ import {
   mountChartResize,
 } from '../ui.js';
 import { openProfileModal } from './profile.js';
-import { t, featureLabel } from '../i18n.js';
+import { getLang, t, featureLabel } from '../i18n.js';
 import { todayIso } from '../form-validation.js';
 
 function bindSmeShell(onLogout) {
@@ -830,6 +830,16 @@ function renderTxTable(rows) {
 /* ─── Upload ───────────────────────────────────────────── */
 
 export function loadSmeUpload(session, { onLogout }) {
+  const csvColumnLabels = [
+    t('sme.reference'),
+    t('sme.otherPartyTin'),
+    t('sme.otherPartyName'),
+    t('sme.partyType'),
+    t('sme.orderType'),
+    t('sme.amountTzs'),
+    t('sme.paymentStatus'),
+    t('sme.transactionDate'),
+  ].map((label) => `<code>${escapeHtml(label)}</code>`).join(', ');
   const app = document.getElementById('app');
   app.innerHTML = renderShell({
     role: 'sme',
@@ -847,9 +857,7 @@ export function loadSmeUpload(session, { onLogout }) {
           <h2 id="upload-title">${escapeHtml(t('sme.selectFile'))}</h2>
           <p class="help-text">
             ${escapeHtml(t('sme.acceptedFormat'))}
-            <code>transaction_ref</code>, <code>counterparty_tin</code>, <code>counterparty_name</code>,
-            <code>counterparty_type</code>, <code>order_type</code>, <code>amount_tzs</code>,
-            <code>payment_status</code>, <code>transaction_date</code>.
+            ${csvColumnLabels}.
           </p>
           <div class="upload-actions">
             <button type="button" class="btn btn-secondary" id="btn-template">${escapeHtml(t('sme.downloadTemplate'))}</button>
@@ -992,7 +1000,7 @@ export function loadSmeUpload(session, { onLogout }) {
 
   document.getElementById('btn-template')?.addEventListener('click', async () => {
     try {
-      await api.downloadSmeCsvTemplate();
+      await api.downloadSmeCsvTemplate(getLang());
       showToast(t('sme.templateStarted'), 'success');
     } catch (err) {
       showToast(getErrorMessage(err, t('sme.templateFailed')), 'error');

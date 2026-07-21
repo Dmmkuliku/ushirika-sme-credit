@@ -19,15 +19,12 @@ import {
   showToast,
 } from '../ui.js';
 import { openProfileModal } from './profile.js';
-import { t } from '../i18n.js';
+import { businessTypeLabel, genderLabel, t } from '../i18n.js';
 import {
   bindExactDigitsValidation,
   bindImmediateEmailValidation,
   bindNidaMatchedDobValidation,
   dmyToIso,
-  eighteenthBirthdayIso,
-  isoToDmy,
-  latestAdultDobIso,
   normalizeTzPhone,
   phoneInputHtml,
 } from '../form-validation.js';
@@ -36,6 +33,18 @@ const BUSINESS_TYPES = [
   'Entrepreneur', 'Machinga', 'Retailer', 'Wholesaler', 'Manufacturer',
   'Farmer', 'Service Provider', 'Transport', 'Food Vendor', 'Other',
 ];
+
+function genderOptions(selected = '') {
+  return ['Male', 'Female'].map(
+    (value) => `<option value="${value}"${selected === value ? ' selected' : ''}>${escapeHtml(genderLabel(value))}</option>`,
+  ).join('');
+}
+
+function businessTypeOptions(selected = '') {
+  return BUSINESS_TYPES.map(
+    (value) => `<option value="${escapeHtml(value)}"${selected === value ? ' selected' : ''}>${escapeHtml(businessTypeLabel(value))}</option>`,
+  ).join('');
+}
 
 function bindAdminShell(session, onLogout) {
   const openProfile = () => openProfileModal(session.role);
@@ -96,9 +105,9 @@ async function loadAdminProfilePage(session, { onLogout }) {
     panel.innerHTML = `
       <dl class="profile-dl profile-dl-inline">
         <dt>Full name</dt><dd>${escapeHtml(profile.full_name || '—')}</dd>
-        <dt>Login ID</dt><dd>${escapeHtml(profile.login_id || '—')}</dd>
+        <dt>${escapeHtml(t('profile.loginId'))}</dt><dd>${escapeHtml(profile.login_id || '—')}</dd>
         <dt>Role</dt><dd>${escapeHtml(capitalize(profile.role || session.role))}</dd>
-        <dt>Gender</dt><dd>${escapeHtml(profile.gender || '—')}</dd>
+        <dt>${escapeHtml(t('profile.gender'))}</dt><dd>${escapeHtml(genderLabel(profile.gender) || '—')}</dd>
         <dt>Status</dt><dd>${profile.is_active === false ? 'Inactive' : 'Active'}</dd>
       </dl>
       <div class="modal-actions" style="justify-content:flex-start;margin-top:1rem">
@@ -174,7 +183,7 @@ function renderAccountsTable(rows) {
         <thead>
           <tr>
             <th scope="col">ID</th>
-            <th scope="col">Login ID</th>
+            <th scope="col">${escapeHtml(t('profile.loginId'))}</th>
             <th scope="col">Full Name</th>
             <th scope="col">Role</th>
             <th scope="col">Gender</th>
@@ -194,7 +203,7 @@ function renderAccountsTable(rows) {
                 <td>${escapeHtml(loginId)}</td>
                 <td>${escapeHtml(r.full_name || '—')}</td>
                 <td><span class="role-pill role-pill-${escapeHtml(r.role || 'sme')}">${escapeHtml(capitalize(r.role || 'sme'))}</span></td>
-                <td>${escapeHtml(r.gender || '—')}</td>
+                <td>${escapeHtml(genderLabel(r.gender) || '—')}</td>
                 <td><span class="status-badge ${active ? 'status-active' : 'status-inactive'}">${active ? 'Active' : 'Inactive'}</span></td>
                 <td>${escapeHtml(formatDate(r.created_at))}</td>
                 <td class="action-cell">
@@ -330,7 +339,7 @@ function loadCreateLender(session, { onLogout }) {
         <form id="create-form" class="auth-form panel" novalidate>
           <div class="field"><label for="membership_number">Membership Number</label><input id="membership_number" name="membership_number" type="text" required /></div>
           <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required /></div>
-          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+          <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label><select id="gender" name="gender" required><option value="">${escapeHtml(t('common.select'))}</option>${genderOptions()}</select></div>
           <div class="field"><label for="organization">Organization</label><input id="organization" name="organization" type="text" required placeholder="e.g. CRDB, NMB" /></div>
           <div class="field"><label for="work_email">Work Email</label><input id="work_email" name="work_email" type="email" required /></div>
           <div class="field"><label for="phone">Phone <span class="optional">(optional)</span></label>${phoneInputHtml({ id: 'phone' })}</div>
@@ -369,7 +378,7 @@ function loadCreateLender(session, { onLogout }) {
 /* ─── Create SME ─────────────────────────────────────────── */
 
 function loadCreateSme(session, { onLogout }) {
-  const bizOptions = BUSINESS_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  const bizOptions = businessTypeOptions();
   const app = document.getElementById('app');
   app.innerHTML = renderShell({
     role: session.role, user: session.user, activeNav: 'create-sme',
@@ -382,8 +391,8 @@ function loadCreateSme(session, { onLogout }) {
           <div class="field"><label for="phone">Phone</label>${phoneInputHtml({ id: 'phone', required: true })}</div>
           <div class="field"><label for="email">Email <span class="optional">(optional)</span></label><input id="email" name="email" type="email" /></div>
           <div class="field"><label for="location">Location</label><input id="location" name="location" type="text" required /></div>
-          <div class="field"><label for="business_type">Business Type</label><select id="business_type" name="business_type" required><option value="">Select…</option>${bizOptions}</select></div>
-          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+          <div class="field"><label for="business_type">${escapeHtml(t('auth.businessType'))}</label><select id="business_type" name="business_type" required><option value="">${escapeHtml(t('common.select'))}</option>${bizOptions}</select></div>
+          <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label><select id="gender" name="gender" required><option value="">${escapeHtml(t('common.select'))}</option>${genderOptions()}</select></div>
           <div class="field"><label for="date_of_birth">Date of Birth</label><input id="date_of_birth" name="date_of_birth" type="text" inputmode="numeric" maxlength="10" placeholder="DD-MM-YYYY" autocomplete="bday" required /><p class="field-hint">${escapeHtml(t('auth.ageHint'))}</p></div>
           <div class="field"><label for="tin">${escapeHtml(t('admin.createSmeTin'))}</label><input id="tin" name="tin" type="text" inputmode="numeric" required minlength="9" maxlength="9" pattern="[0-9]{9}" placeholder="Exactly 9 digits" /></div>
           <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
@@ -413,9 +422,6 @@ function loadCreateSme(session, { onLogout }) {
     if (String(nida).slice(0, 8) !== dateOfBirth.replaceAll('-', '')) {
       return t('auth.errDobNidaMismatch');
     }
-    if (dateOfBirth > latestAdultDobIso()) {
-      return t('auth.errUnder18', { date: isoToDmy(eighteenthBirthdayIso(dateOfBirth)) });
-    }
     await api.createSmeByAdmin({
       nida, full_name: fd.get('full_name'), phone,
       email: email || undefined, location: fd.get('location'),
@@ -437,9 +443,9 @@ function loadCreateSubAdmin(session, { onLogout }) {
       <div class="page-header"><div><h1>Create Sub-Admin Account</h1></div></div>
       <div class="admin-form-wrap">
         <form id="create-form" class="auth-form panel" novalidate>
-          <div class="field"><label for="login_id">Login ID</label><input id="login_id" name="login_id" type="text" required /></div>
+          <div class="field"><label for="login_id">${escapeHtml(t('profile.loginId'))}</label><input id="login_id" name="login_id" type="text" required /></div>
           <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required /></div>
-          <div class="field"><label for="gender">Gender</label><select id="gender" name="gender" required><option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
+          <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label><select id="gender" name="gender" required><option value="">${escapeHtml(t('common.select'))}</option>${genderOptions()}</select></div>
           <div class="field"><label for="organization">Organization</label><input id="organization" name="organization" type="text" required /></div>
           <div class="field"><label for="work_email">Work Email</label><input id="work_email" name="work_email" type="email" required /></div>
           <div class="field"><label for="pin">PIN</label><input id="pin" name="pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required placeholder="4 digits" /></div>
@@ -485,9 +491,6 @@ function bindCreateForm(formId, handler, successMsg) {
     nidaInput: form?.querySelector('input[name="nida"]'),
     invalidDateMessage: t('auth.errDobFormat'),
     mismatchMessage: t('auth.errDobNidaMismatch'),
-    underageMessage: (dob) => t('auth.errUnder18', {
-      date: isoToDmy(eighteenthBirthdayIso(dob)),
-    }),
   });
   bindImmediateEmailValidation(
     form?.querySelector('input[type="email"]'),
@@ -552,14 +555,12 @@ function renderEditForm(session, acct, { onLogout }) {
       <div class="field"><label for="phone">Phone</label>${phoneInputHtml({ id: 'phone', value: acct.phone })}</div>
     `;
   } else if (isSme) {
-    const bizOptions = BUSINESS_TYPES.map(t =>
-      `<option value="${escapeHtml(t)}" ${t === acct.business_type ? 'selected' : ''}>${escapeHtml(t)}</option>`
-    ).join('');
+    const bizOptions = businessTypeOptions(acct.business_type);
     extraFields = `
       <div class="field"><label for="phone">Phone</label>${phoneInputHtml({ id: 'phone', value: acct.phone, required: true })}</div>
       <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" value="${escapeHtml(acct.email || '')}" /></div>
       <div class="field"><label for="location">Location</label><input id="location" name="location" type="text" value="${escapeHtml(acct.location || '')}" /></div>
-      <div class="field"><label for="business_type">Business Type</label><select id="business_type" name="business_type"><option value="">Select…</option>${bizOptions}</select></div>
+      <div class="field"><label for="business_type">${escapeHtml(t('auth.businessType'))}</label><select id="business_type" name="business_type"><option value="">${escapeHtml(t('common.select'))}</option>${bizOptions}</select></div>
     `;
   }
 
@@ -573,11 +574,10 @@ function renderEditForm(session, acct, { onLogout }) {
       <div class="admin-form-wrap">
         <form id="edit-form" class="auth-form panel" novalidate>
           <div class="field"><label for="full_name">Full Name</label><input id="full_name" name="full_name" type="text" required value="${escapeHtml(acct.full_name || '')}" /></div>
-          <div class="field"><label for="gender">Gender</label>
+          <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label>
             <select id="gender" name="gender">
-              <option value="">Select…</option>
-              <option value="Male" ${acct.gender === 'Male' ? 'selected' : ''}>Male</option>
-              <option value="Female" ${acct.gender === 'Female' ? 'selected' : ''}>Female</option>
+              <option value="">${escapeHtml(t('common.select'))}</option>
+              ${genderOptions(acct.gender)}
             </select>
           </div>
           <div class="field">

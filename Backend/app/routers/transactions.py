@@ -3,6 +3,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+import csv
 import io
 
 from app.database import get_db
@@ -15,7 +16,7 @@ from app.schemas.transaction import (
     TransactionUpdate,
 )
 from app.services.csv_export import export_estatement_csv
-from app.services.csv_import import REQUIRED_COLUMNS, OPTIONAL_COLUMNS, import_transactions_csv
+from app.services.csv_import import CSV_HEADERS, REQUIRED_COLUMNS, OPTIONAL_COLUMNS, import_transactions_csv
 from app.services.monthly_history import refresh_monthly_history
 from app.services.scoring_pipeline import score_after_data_change, schedule_background_retrain
 from app.utils.pseudonymization import pseudonymize
@@ -61,7 +62,7 @@ def create_transaction(
         .first()
     )
     if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Transaction ref already exists")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Receipt No. already exists")
 
     due = payload.due_date or (payload.transaction_date + timedelta(days=14))
     paid = payload.paid_date
@@ -177,22 +178,39 @@ async def import_csv(
 
 
 @router.get("/template")
-def download_template(current_user: RequireSME):
-    header = ",".join(REQUIRED_COLUMNS + OPTIONAL_COLUMNS)
-    sample_rows = [
-        "TX-1001,100123456,Dar Fresh Foods,buyer,sale,250000,paid,2025-01-10,On-time settlement",
-        "TX-1002,100234567,Kilimo Supplies,seller,purchase,180000,paid,2025-01-20,Inventory restock",
-        "TX-1003,100345678,Mwanza Distributors,buyer,sale,320000,partial,2025-02-05,Partial payment",
-        "TX-1004,100456789,Arusha Traders,buyer,sale,150000,pending,2025-02-10,Awaiting balance",
-        "TX-1005,100567890,Coastal Logistics,seller,purchase,210000,paid,2025-03-01,Logistics services",
-    ]
-    content = header + "\n" + "\n".join(sample_rows) + "\n"
+def download_template(current_user: RequireSME, lang: str = "en"):
+    language = "sw" if str(lang).lower() == "sw" else "en"
+    headers = CSV_HEADERS[language]
+    columns = REQUIRED_COLUMNS + OPTIONAL_COLUMNS
+    sample_rows = (
+        [
+            ["ST-1001", "100123456", "Dar Fresh Foods", "mteja", "uuzaji", "250000", "imelipwa", "2025-01-10", "Malipo kwa wakati"],
+            ["ST-1002", "100234567", "Kilimo Supplies", "msambazaji", "ununuzi", "180000", "imelipwa", "2025-01-20", "Ununuzi wa bidhaa"],
+            ["ST-1003", "100345678", "Mwanza Distributors", "mteja", "uuzaji", "320000", "sehemu", "2025-02-05", "Malipo ya sehemu"],
+            ["ST-1004", "100456789", "Arusha Traders", "mteja", "uuzaji", "150000", "inasubiri", "2025-02-10", "Inasubiri salio"],
+            ["ST-1005", "100567890", "Coastal Logistics", "msambazaji", "huduma", "210000", "imelipwa", "2025-03-01", "Huduma za usafirishaji"],
+        ]
+        if language == "sw"
+        else [
+            ["RC-1001", "100123456", "Dar Fresh Foods", "customer", "sale", "250000", "paid", "2025-01-10", "Paid on time"],
+            ["RC-1002", "100234567", "Kilimo Supplies", "supplier", "purchase", "180000", "paid", "2025-01-20", "Stock purchase"],
+            ["RC-1003", "100345678", "Mwanza Distributors", "customer", "sale", "320000", "partial", "2025-02-05", "Part payment"],
+            ["RC-1004", "100456789", "Arusha Traders", "customer", "sale", "150000", "pending", "2025-02-10", "Waiting for balance"],
+            ["RC-1005", "100567890", "Coastal Logistics", "supplier", "service", "210000", "paid", "2025-03-01", "Transport service"],
+        ]
+    )
+    stream = io.StringIO()
+    writer = csv.writer(stream, lineterminator="\n")
+    writer.writerow([headers[column] for column in columns])
+    writer.writerows(sample_rows)
+    content = "\ufeff" + stream.getvalue()
+    filename = "kiolezo_cha_miamala.csv" if language == "sw" else "transaction_template.csv"
     # BytesIO avoids some browser/proxy issues with text StreamingResponse
     return StreamingResponse(
         io.BytesIO(content.encode("utf-8")),
         media_type="text/csv; charset=utf-8",
         headers={
-            "Content-Disposition": 'attachment; filename="transaction_template.csv"',
+            "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "no-store",
         },
     )
@@ -245,7 +263,7 @@ def update_transaction(
             .first()
         )
         if clash:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Transaction ref already exists")
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Receipt No. already exists")
     if "payment_status" in data and data["payment_status"] is not None:
         data["payment_status"] = _coerce_payment_status(data["payment_status"])
 

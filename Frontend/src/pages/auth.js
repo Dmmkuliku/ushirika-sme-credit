@@ -8,15 +8,12 @@ import * as api from '../api.js';
 import { setSession } from '../session.js';
 import { escapeHtml, getErrorMessage } from '../utils.js';
 import { showToast } from '../ui.js';
-import { t, langSwitchHtml, toggleLang, getLang } from '../i18n.js';
+import { businessTypeLabel, t, langSwitchHtml, toggleLang, getLang } from '../i18n.js';
 import {
   bindExactDigitsValidation,
   bindImmediateEmailValidation,
   bindNidaMatchedDobValidation,
   dmyToIso,
-  eighteenthBirthdayIso,
-  isoToDmy,
-  latestAdultDobIso,
   normalizeTzPhone,
   phoneInputHtml,
 } from '../form-validation.js';
@@ -122,7 +119,9 @@ function renderForgotFields() {
 }
 
 function renderRegisterFields() {
-  const bizOptions = BUSINESS_TYPES.map((bt) => `<option value="${escapeHtml(bt)}">${escapeHtml(bt)}</option>`).join('');
+  const bizOptions = BUSINESS_TYPES.map(
+    (bt) => `<option value="${escapeHtml(bt)}">${escapeHtml(businessTypeLabel(bt))}</option>`,
+  ).join('');
   return `
     <div class="field">
       <label for="nida">${escapeHtml(t('auth.nida'))}</label>
@@ -217,9 +216,6 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
       nidaInput: document.getElementById('nida'),
       invalidDateMessage: t('auth.errDobFormat'),
       mismatchMessage: t('auth.errDobNidaMismatch'),
-      underageMessage: (dob) => t('auth.errUnder18', {
-        date: isoToDmy(eighteenthBirthdayIso(dob)),
-      }),
     });
   }
 
@@ -354,12 +350,6 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     if (!date_of_birth) { showError(t('auth.errDobFormat')); return; }
     if (nida.slice(0, 8) !== date_of_birth.replaceAll('-', '')) {
       showError(t('auth.errDobNidaMismatch'));
-      return;
-    }
-    if (date_of_birth > latestAdultDobIso()) {
-      showError(t('auth.errUnder18', {
-        date: isoToDmy(eighteenthBirthdayIso(date_of_birth)),
-      }));
       return;
     }
     if (!/^[0-9]{4}$/.test(pin)) { showError(t('auth.errPinDigits')); return; }

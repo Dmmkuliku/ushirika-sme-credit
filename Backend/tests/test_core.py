@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from tests.conftest import create_admin, create_lender_via_admin, login, register_sme
 
@@ -154,7 +154,7 @@ def test_pin_validation(client):
     assert resp.status_code == 422
 
 
-def test_registration_normalizes_tanzanian_phone_and_rejects_under_18(client):
+def test_registration_normalizes_phone_and_matches_dob_to_nida(client):
     payload = {
         "nida": "19900101123456789012",
         "phone": "655786630",
@@ -184,16 +184,6 @@ def test_registration_normalizes_tanzanian_phone_and_rejects_under_18(client):
     token = login(client, payload["nida"])
     profile = client.get("/api/sme/profile", headers={"Authorization": f"Bearer {token}"}).json()
     assert profile["phone"] == "+255655786630"
-
-    underage = dict(payload)
-    underage["tin"] = "987654322"
-    underage_dob = date.today() - timedelta(days=17 * 365)
-    underage["date_of_birth"] = underage_dob.isoformat()
-    underage["nida"] = f"{underage_dob:%Y%m%d}123456789012"
-    resp = client.post("/api/auth/register", json=underage)
-    assert resp.status_code == 422
-    assert "turn 18" in resp.text
-
 
 def test_future_transaction_date_is_rejected(client):
     register_sme(client, "19951231456789012345")
@@ -285,3 +275,29 @@ def test_csv_import_scores_without_blocking_training(client, monkeypatch):
     assert sync_called["value"] is False
     assert scheduled["value"] is True
     assert data.get("score_ready") is True
+
+
+def test_swahili_csv_template_and_headers_are_importable(client):
+    register_sme(client, "19920102456789012345")
+    token = login(client, "19920102456789012345")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    template = client.get("/api/transactions/template?lang=sw", headers=headers)
+    assert template.status_code == 200
+    assert "Namba ya Stakabadhi" in template.text
+    assert "Tarehe ya malipo" in template.text
+    assert "kiolezo_cha_miamala.csv" in template.headers["content-disposition"]
+
+    csv_content = (
+        "Namba ya Stakabadhi,TIN ya mteja au msambazaji,Jina la mteja au msambazaji,"
+        "Alikuwa mteja au msambazaji?,Malipo yalikuwa ya nini?,Kiasi kilicholipwa (TZS),"
+        "Malipo yamekamilika?,Tarehe ya malipo,Maelezo ya ziada\n"
+        "ST-TEST,100123456,Mteja Mfano,mteja,uuzaji,250000,imelipwa,2025-01-10,Malipo kwa wakati\n"
+    )
+    imported = client.post(
+        "/api/transactions/import",
+        files={"file": ("miamala.csv", csv_content.encode("utf-8"), "text/csv")},
+        headers=headers,
+    )
+    assert imported.status_code == 200
+    assert imported.json()["imported"] == 1

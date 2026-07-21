@@ -515,8 +515,9 @@ export function uploadSmeCsv(file) {
   });
 }
 
-export async function downloadSmeCsvTemplate() {
-  const response = await request('/transactions/template', { raw: true });
+export async function downloadSmeCsvTemplate(lang = 'en') {
+  const language = lang === 'sw' ? 'sw' : 'en';
+  const response = await request(`/transactions/template?lang=${language}`, { raw: true });
   if (!response.ok) {
     const body = await parseBody(response);
     const detail = body && typeof body === 'object' ? body.detail : body;

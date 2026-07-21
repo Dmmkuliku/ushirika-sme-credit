@@ -27,7 +27,7 @@ import {
   mountChartResize,
 } from '../ui.js';
 import { openProfileModal } from './profile.js';
-import { t, featureLabel } from '../i18n.js';
+import { businessTypeLabel, t, featureLabel } from '../i18n.js';
 import { formatTzPhone } from '../form-validation.js';
 
 function smeId(row) {
@@ -361,7 +361,7 @@ function renderDetail(host, detail, txPayload, id) {
     <div class="detail-header">
       <div>
         <h3 class="detail-name">${escapeHtml(smeName(detail))}</h3>
-        <p class="detail-sub">${escapeHtml(detail?.business_type ? capitalize(detail.business_type) : '')}${detail?.location ? ` · ${escapeHtml(detail.location)}` : ''}</p>
+        <p class="detail-sub">${escapeHtml(detail?.business_type ? businessTypeLabel(detail.business_type) : '')}${detail?.location ? ` · ${escapeHtml(detail.location)}` : ''}</p>
       </div>
       <button type="button" class="btn btn-secondary" id="btn-download-statement">${escapeHtml(t('lender.downloadStatement'))}</button>
     </div>
@@ -373,7 +373,7 @@ function renderDetail(host, detail, txPayload, id) {
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.phone'))}</span><span>${escapeHtml(detail?.phone ? formatTzPhone(detail.phone) : '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.email'))}</span><span>${escapeHtml(detail?.email || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.location'))}</span><span>${escapeHtml(detail?.location || '—')}</span></div>
-      <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.businessType'))}</span><span>${escapeHtml(detail?.business_type || '—')}</span></div>
+      <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.businessType'))}</span><span>${escapeHtml(detail?.business_type ? businessTypeLabel(detail.business_type) : '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.nationality'))}</span><span>${escapeHtml(detail?.nationality || '—')}</span></div>
       <div class="profile-info-item"><span class="profile-info-label">${escapeHtml(t('profile.dateOfBirth'))}</span><span>${escapeHtml(formatBirthDate(detail?.date_of_birth))}</span></div>
     </div>

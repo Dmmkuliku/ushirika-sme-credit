@@ -11,23 +11,11 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _TZ_PHONE_RE = re.compile(r"^\+255[67]\d{8}$")
 
 
-def _eighteenth_birthday(dob: date) -> date:
+def _require_valid_dob(v: str) -> str:
     try:
-        return dob.replace(year=dob.year + 18)
-    except ValueError:
-        return dob.replace(year=dob.year + 18, month=2, day=28)
-
-
-def _require_adult_dob(v: str) -> str:
-    try:
-        dob = date.fromisoformat(v)
+        date.fromisoformat(v)
     except ValueError:
         raise ValueError("date_of_birth must be YYYY-MM-DD format")
-    eligible_on = _eighteenth_birthday(dob)
-    if eligible_on > date.today():
-        raise ValueError(
-            f"You are not eligible yet. Try again when you turn 18 on {eligible_on:%d-%m-%Y}"
-        )
     return v
 
 
@@ -113,7 +101,7 @@ class SMERegisterRequest(BaseModel):
     @field_validator("date_of_birth")
     @classmethod
     def validate_dob(cls, v: str) -> str:
-        return _require_adult_dob(v)
+        return _require_valid_dob(v)
 
     @field_validator("pin")
     @classmethod

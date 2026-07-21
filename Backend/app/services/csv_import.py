@@ -24,8 +24,73 @@ OPTIONAL_COLUMNS = [
     "notes",
 ]
 
-ALLOWED_PARTY = {"buyer", "seller", "supplier", "distributor", "customer", "vendor"}
-ALLOWED_ORDER = {"sale", "purchase", "service"}
+CSV_HEADERS = {
+    "en": {
+        "transaction_ref": "Receipt No.",
+        "counterparty_tin": "Customer or supplier TIN",
+        "counterparty_name": "Customer or supplier name",
+        "counterparty_type": "Was this a customer or supplier?",
+        "order_type": "What was the payment for?",
+        "amount_tzs": "Amount paid (TZS)",
+        "payment_status": "Was the payment completed?",
+        "transaction_date": "Payment date",
+        "notes": "Extra details",
+    },
+    "sw": {
+        "transaction_ref": "Namba ya Stakabadhi",
+        "counterparty_tin": "TIN ya mteja au msambazaji",
+        "counterparty_name": "Jina la mteja au msambazaji",
+        "counterparty_type": "Alikuwa mteja au msambazaji?",
+        "order_type": "Malipo yalikuwa ya nini?",
+        "amount_tzs": "Kiasi kilicholipwa (TZS)",
+        "payment_status": "Malipo yamekamilika?",
+        "transaction_date": "Tarehe ya malipo",
+        "notes": "Maelezo ya ziada",
+    },
+}
+
+
+def _normalize_header(value: str) -> str:
+    return " ".join(str(value).strip().lower().split())
+
+
+HEADER_ALIASES = {
+    _normalize_header(label): canonical
+    for headers in CSV_HEADERS.values()
+    for canonical, label in headers.items()
+}
+HEADER_ALIASES.update({column: column for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS})
+
+PARTY_ALIASES = {
+    "buyer": "buyer",
+    "customer": "buyer",
+    "mteja": "buyer",
+    "seller": "seller",
+    "supplier": "seller",
+    "vendor": "seller",
+    "distributor": "distributor",
+    "msambazaji": "seller",
+}
+ORDER_ALIASES = {
+    "sale": "sale",
+    "uuzaji": "sale",
+    "purchase": "purchase",
+    "ununuzi": "purchase",
+    "service": "service",
+    "huduma": "service",
+}
+PAYMENT_STATUS_ALIASES = {
+    "pending": "pending",
+    "inasubiri": "pending",
+    "paid": "paid",
+    "imelipwa": "paid",
+    "partial": "partial",
+    "sehemu": "partial",
+    "overdue": "overdue",
+    "imechelewa": "overdue",
+    "defaulted": "defaulted",
+    "haijalipwa": "defaulted",
+}
 
 
 def _parse_datetime(val) -> datetime:
@@ -61,20 +126,18 @@ def _clean_tin(val) -> str:
 
 def _normalize_party(val: str) -> str:
     v = str(val).strip().lower()
-    if v not in ALLOWED_PARTY:
-        raise ValueError(f"Invalid counterparty_type: {val}. Use buyer, seller, supplier, or distributor.")
-    if v in ("customer",):
-        return "buyer"
-    if v in ("vendor",):
-        return "seller"
-    return v
+    normalized = PARTY_ALIASES.get(v)
+    if normalized is None:
+        raise ValueError(f"Invalid customer or supplier value: {val}.")
+    return normalized
 
 
 def _normalize_order(val: str) -> str:
     v = str(val).strip().lower()
-    if v not in ALLOWED_ORDER:
-        raise ValueError(f"Invalid order_type: {val}. Use sale, purchase, or service.")
-    return v
+    normalized = ORDER_ALIASES.get(v)
+    if normalized is None:
+        raise ValueError(f"Invalid payment purpose: {val}.")
+    return normalized
 
 
 async def import_transactions_csv(
@@ -93,15 +156,7 @@ async def import_transactions_csv(
     try:
         df = pd.read_csv(
             io.BytesIO(content),
-            dtype={
-                "transaction_ref": str,
-                "counterparty_tin": str,
-                "counterparty_name": str,
-                "counterparty_type": str,
-                "order_type": str,
-                "payment_status": str,
-                "notes": str,
-            },
+            dtype=str,
             keep_default_na=False,
             na_values=["", "NA", "N/A", "null", "None"],
         )
@@ -109,7 +164,10 @@ async def import_transactions_csv(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid CSV: {exc}") from exc
 
     # Normalize headers
-    df.columns = [str(c).strip().lower() for c in df.columns]
+    df.columns = [
+        HEADER_ALIASES.get(_normalize_header(c), _normalize_header(c))
+        for c in df.columns
+    ]
 
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if "counterparty_tin" in missing and "counterparty_name" in df.columns:
@@ -140,7 +198,8 @@ async def import_transactions_csv(
                 skipped += 1
                 continue
 
-            status_val = str(row["payment_status"]).strip().lower()
+            status_raw = str(row["payment_status"]).strip().lower()
+            status_val = PAYMENT_STATUS_ALIASES.get(status_raw, status_raw)
             if status_val not in {s.value for s in SchemaPaymentStatus}:
                 raise ValueError(f"Invalid payment status: {status_val}")
 

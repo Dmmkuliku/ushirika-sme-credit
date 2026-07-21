@@ -9,24 +9,6 @@ export function todayIso() {
   return localIsoDate(new Date());
 }
 
-export function latestAdultDobIso() {
-  const today = new Date();
-  const adult = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-  return localIsoDate(adult);
-}
-
-export function eighteenthBirthdayIso(dobValue) {
-  const dob = new Date(`${dobValue}T00:00:00`);
-  if (Number.isNaN(dob.getTime())) return '';
-  dob.setFullYear(dob.getFullYear() + 18);
-  return localIsoDate(dob);
-}
-
-export function isoToDmy(isoValue) {
-  const match = String(isoValue || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return match ? `${match[3]}-${match[2]}-${match[1]}` : '';
-}
-
 export function dmyToIso(dmyValue) {
   const match = String(dmyValue || '').match(/^(\d{2})-(\d{2})-(\d{4})$/);
   if (!match) return '';
@@ -94,7 +76,6 @@ export function bindNidaMatchedDobValidation({
   nidaInput,
   invalidDateMessage,
   mismatchMessage,
-  underageMessage,
 } = {}) {
   if (!input) return;
 
@@ -126,10 +107,6 @@ export function bindNidaMatchedDobValidation({
     if (!dobIso) {
       if (showIncomplete || input.value.length === 10) showMessage(invalidDateMessage);
       else clearMessage();
-      return;
-    }
-    if (dobIso > latestAdultDobIso()) {
-      showMessage(underageMessage(dobIso));
       return;
     }
     const nida = String(nidaInput?.value || '');
