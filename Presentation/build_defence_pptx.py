@@ -285,15 +285,15 @@ def build():
     s = prs.slides.add_slide(blank)
     bg(s)
     section_header(s, "FINDINGS — OBJECTIVE 2", "Ensemble Random Forest outperforms classical Logistic Regression")
-    metric(s, Inches(0.5), Inches(1.7), Inches(3.0), Inches(1.35), "88.5%", "RF ROC-AUC (primary)", SUCCESS)
-    metric(s, Inches(3.7), Inches(1.7), Inches(3.0), Inches(1.35), "84.2%", "RF Accuracy", LAGOON)
-    metric(s, Inches(6.9), Inches(1.7), Inches(3.0), Inches(1.35), "75.4%", "LR ROC-AUC (baseline)", RGBColor(0x8A, 0x5A, 0x00))
+    metric(s, Inches(0.5), Inches(1.7), Inches(3.0), Inches(1.35), "95.8%", "RF ROC-AUC (primary)", SUCCESS)
+    metric(s, Inches(3.7), Inches(1.7), Inches(3.0), Inches(1.35), "88.6%", "RF Accuracy", LAGOON)
+    metric(s, Inches(6.9), Inches(1.7), Inches(3.0), Inches(1.35), "87.5%", "LR ROC-AUC (baseline)", RGBColor(0x8A, 0x5A, 0x00))
     metric(s, Inches(10.1), Inches(1.7), Inches(2.7), Inches(1.35), "RF wins", "Outperforms baseline", FOREST)
     round_rect(s, Inches(0.5), Inches(3.35), Inches(12.3), Inches(3.1), WHITE)
     textbox(s, Inches(0.8), Inches(3.55), Inches(11.7), Inches(0.35), "Hold-out comparison (seed=42) — metrics from model_meta.json", size=14, bold=True, color=FOREST)
     bullets(s, Inches(0.8), Inches(4.1), Inches(11.7), Inches(2.1), [
-        "Random Forest: Accuracy 84.2% · Precision 85.7% · Recall 52.9% · F1 65.5% · ROC-AUC 88.5%.",
-        "Logistic Regression: Accuracy 74.6% · Precision 64.0% · Recall 23.5% · F1 34.4% · ROC-AUC 75.4%.",
+        "Random Forest: Accuracy 88.6% · Precision 93.0% · Recall 85.7% · F1 89.2% · ROC-AUC 95.8%.",
+        "Logistic Regression: Accuracy 77.9% · Precision 75.8% · Recall 87.7% · F1 81.3% · ROC-AUC 87.5%.",
         "This answers Research Question 2: ensemble learning improves classification relative to classical regression on this task.",
         "Evidence is reproducible via scripts/train_model.py and stored artifacts under Backend/models/.",
     ], size=14)
@@ -311,6 +311,7 @@ def build():
         "Minimum 5 transactions before an SME is scored.",
         "Conservative score mapping (~300–680) and explicit risk bands.",
         "Financing capped at ~50% of typical (non-outlier) volume — reduces unpaid-loan risk.",
+        "Input validation: +255 phone (9 digits), live email checks, age 18+, Male/Female only, no future payment dates.",
         "Technical Performance Report documents honesty of evaluation.",
     ], size=13)
     round_rect(s, Inches(6.9), Inches(1.7), Inches(5.9), Inches(4.7), WHITE)
@@ -321,7 +322,7 @@ def build():
         "Crucial score signals only (not every engineered feature).",
         "Lender: progressive NIDA search + tabbed SME analytics.",
         "TIN shown on SME profile (SME + Lender views).",
-        "Bilingual portal (English / Kiswahili) end-to-end.",
+        "Plain-language bilingual forms (e.g. Receipt No / Namba ya risiti ya malipo).",
     ], size=13)
     footer(s, 9)
 
@@ -330,8 +331,8 @@ def build():
     bg(s)
     section_header(s, "RESULTS AGAINST AIM", "All three specific objectives were achieved")
     rows = [
-        ("1", "Preprocessing & feature engineering", "Transaction pipelines produce 13 engineered predictors + outlier flags used for scoring and financing."),
-        ("2", "Ensemble vs classical regression", "RF and LR trained on identical split; RF wins on ROC-AUC (88.5% vs 75.4%)."),
+        ("1", "Preprocessing & feature engineering", "Transaction pipelines produce 17 engineered predictors + outlier flags used for scoring and financing."),
+        ("2", "Ensemble vs classical regression", "RF and LR trained on identical split; RF wins on ROC-AUC (95.8% vs 87.5%)."),
         ("3", "Industry-standard evaluation", "Accuracy, Precision, Recall, F1, ROC-AUC stored and used to select the primary model."),
     ]
     for i, (num, title, body) in enumerate(rows):

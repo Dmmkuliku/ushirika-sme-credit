@@ -76,8 +76,8 @@ def restore_admin() -> None:
                 sub.hashed_pin = hash_pin(ADMIN_PIN)
                 if not sub.full_name:
                     sub.full_name = f"Sub Admin {idx}"
-                if not sub.gender:
-                    sub.gender = "Other"
+                if not sub.gender or sub.gender == "Other":
+                    sub.gender = "Female" if idx % 2 else "Male"
                 reset_subadmins += 1
             else:
                 db.add(
@@ -86,7 +86,7 @@ def restore_admin() -> None:
                         hashed_pin=hash_pin(ADMIN_PIN),
                         role=UserRole.SUBADMIN,
                         full_name=f"Sub Admin {idx}",
-                        gender="Other",
+                        gender="Female" if idx % 2 else "Male",
                         is_active=True,
                     )
                 )

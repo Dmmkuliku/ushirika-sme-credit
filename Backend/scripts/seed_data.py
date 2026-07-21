@@ -133,7 +133,7 @@ def seed():
                     hashed_pin=hash_pin("1234"),
                     role=UserRole.SUBADMIN,
                     full_name=f"Sub Admin {idx}",
-                    gender="Other",
+                    gender="Female" if idx % 2 else "Male",
                 )
             )
 
