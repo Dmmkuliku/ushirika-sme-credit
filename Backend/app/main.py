@@ -38,9 +38,13 @@ def ensure_model() -> None:
 
             with open(meta_path, encoding="utf-8") as f:
                 meta = json.load(f)
-            if meta.get("training_recipe") != "strong_rf_v2":
+            if meta.get("training_recipe") not in {"strong_rf_v2", "strong_rf_v2b"}:
                 needs_train = True
-                logger.info("Retraining model for strong_rf_v2 recipe…")
+                logger.info("Retraining model for strong_rf_v2b recipe…")
+            elif meta.get("training_recipe") == "strong_rf_v2":
+                # Previous recipe was too heavy for free-tier boot; refresh once.
+                needs_train = True
+                logger.info("Refreshing model from strong_rf_v2 to strong_rf_v2b…")
         except Exception:
             needs_train = True
     if needs_train:

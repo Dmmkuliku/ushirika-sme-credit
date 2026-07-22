@@ -248,6 +248,7 @@ def train_models(db_session=None, include_real_data: bool = True) -> dict[str, A
     lr_model = lr_grid.best_estimator_
     lr_metrics = evaluate_model(lr_model, X_test, y_test)
 
+    # Strong Random Forest with a compact search (Render free-tier startup time).
     rf_grid = GridSearchCV(
         RandomForestClassifier(
             random_state=settings.random_seed,
@@ -256,11 +257,10 @@ def train_models(db_session=None, include_real_data: bool = True) -> dict[str, A
             bootstrap=True,
         ),
         {
-            "n_estimators": [200, 400],
-            "max_depth": [8, 14, None],
+            "n_estimators": [250, 350],
+            "max_depth": [10, None],
             "min_samples_leaf": [1, 2],
-            "min_samples_split": [2, 5],
-            "max_features": ["sqrt", 0.6],
+            "max_features": ["sqrt"],
         },
         cv=cv,
         scoring="roc_auc",
@@ -321,11 +321,11 @@ def train_models(db_session=None, include_real_data: bool = True) -> dict[str, A
                 "Hold-out test metrics and confusion matrices are reported separately."
             ),
         },
-        "training_recipe": "strong_rf_v2",
+        "training_recipe": "strong_rf_v2b",
         "notes": (
-            "Random Forest is primary with balanced class weights and a wider "
-            "hyperparameter search. Value-chain role shares and order-type diversity "
-            "are included. Live SME features mix into retraining."
+            "Random Forest is primary with balanced class weights and a focused "
+            "hyperparameter search suitable for cloud startup. Value-chain role shares "
+            "and order-type diversity are included. Live SME features mix into retraining."
         ),
     }
     logger.info(
