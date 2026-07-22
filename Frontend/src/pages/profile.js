@@ -9,9 +9,12 @@ import { businessTypeLabel, genderLabel, t } from '../i18n.js';
 import {
   bindImmediateEmailValidation,
   bindPhoneField,
+  bindRequiredField,
   formatTzPhone,
+  isTanzaniaRegion,
   normalizeTzPhone,
   phoneInputHtml,
+  regionSelectHtml,
 } from '../form-validation.js';
 
 const BUSINESS_TYPES = [
@@ -159,7 +162,7 @@ function editFormHtml(role, profile) {
           </div>
           <div class="field">
             <label for="prof-location">${escapeHtml(t('profile.location'))}</label>
-            <input id="prof-location" name="location" type="text" required value="${escapeHtml(profile.location || '')}" />
+            ${regionSelectHtml({ id: 'prof-location', name: 'location', value: profile.location || '', required: true, placeholder: t('common.select') })}
           </div>
         </div>
         <div class="form-grid-2">
@@ -306,6 +309,7 @@ function bindEditForm(role, profile, { onUpdated }) {
     t('auth.errEmail'),
   );
   bindPhoneField(document.getElementById('prof-phone'), t('auth.errPhoneFormat'));
+  bindRequiredField(document.getElementById('prof-location'), t('auth.errLocation'));
 
   document.getElementById('profile-edit-cancel')?.addEventListener('click', () => {
     renderModal(role, profile, 'view', { onUpdated });
@@ -329,11 +333,16 @@ function bindEditForm(role, profile, { onUpdated }) {
         if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errPhoneFormat'); }
         return;
       }
+      const location = String(fd.get('location') || '').trim();
+      if (!isTanzaniaRegion(location)) {
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errLocation'); }
+        return;
+      }
       data = {
         full_name: fd.get('full_name'),
         phone,
         email: email || undefined,
-        location: fd.get('location'),
+        location,
         business_type: fd.get('business_type'),
         gender: fd.get('gender'),
       };

@@ -20,8 +20,10 @@ import {
   dmyToIso,
   enforceSequentialFields,
   focusInvalidField,
+  isTanzaniaRegion,
   normalizeTzPhone,
   phoneInputHtml,
+  regionSelectHtml,
 } from '../form-validation.js';
 
 const BUSINESS_TYPES = [
@@ -158,7 +160,7 @@ function renderRegisterFields() {
     </div>
     <div class="field">
       <label for="location">${escapeHtml(t('auth.location'))}</label>
-      <input id="location" name="location" type="text" required />
+      ${regionSelectHtml({ id: 'location', required: true, placeholder: t('common.select') })}
     </div>
     <div class="field">
       <label for="business_type">${escapeHtml(t('auth.businessType'))}</label>
@@ -382,7 +384,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     const normalizedPhone = normalizeTzPhone(phone);
     if (!normalizedPhone) { fail(t('auth.errPhoneFormat'), 'phone'); return; }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { fail(t('auth.errEmail'), 'email'); return; }
-    if (!location) { fail(t('auth.errLocation'), 'location'); return; }
+    if (!isTanzaniaRegion(location)) { fail(t('auth.errLocation'), 'location'); return; }
     if (!business_type) { fail(t('auth.errBusinessType'), 'business_type'); return; }
     if (!gender) { fail(t('auth.errGender'), 'gender'); return; }
     if (!dateOfBirthInput) { fail(t('auth.errDob'), 'date_of_birth'); return; }

@@ -10,6 +10,49 @@ _TIN_RE = re.compile(r"^\d{9}$")
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _TZ_PHONE_RE = re.compile(r"^\+255[67]\d{8}$")
 
+TANZANIA_REGIONS = {
+    "Arusha",
+    "Dar es Salaam",
+    "Dodoma",
+    "Geita",
+    "Iringa",
+    "Kagera",
+    "Katavi",
+    "Kigoma",
+    "Kilimanjaro",
+    "Lindi",
+    "Manyara",
+    "Mara",
+    "Mbeya",
+    "Morogoro",
+    "Mtwara",
+    "Mwanza",
+    "Njombe",
+    "Pwani",
+    "Rukwa",
+    "Ruvuma",
+    "Shinyanga",
+    "Simiyu",
+    "Singida",
+    "Songwe",
+    "Tabora",
+    "Tanga",
+    "Kaskazini Unguja",
+    "Kusini Unguja",
+    "Mjini Magharibi",
+    "Kaskazini Pemba",
+    "Kusini Pemba",
+}
+
+
+def _require_tanzania_region(v: str | None) -> str | None:
+    if v is None:
+        return None
+    cleaned = str(v).strip()
+    if cleaned not in TANZANIA_REGIONS:
+        raise ValueError("location must be a Tanzania region")
+    return cleaned
+
 
 def _require_valid_dob(v: str) -> str:
     try:
@@ -83,6 +126,11 @@ class SMERegisterRequest(BaseModel):
     @classmethod
     def validate_phone(cls, v: str) -> str:
         return _normalize_tz_phone(v) or ""
+
+    @field_validator("location")
+    @classmethod
+    def validate_location(cls, v: str) -> str:
+        return _require_tanzania_region(v) or ""
 
     @field_validator("gender")
     @classmethod
@@ -313,6 +361,11 @@ class SMEProfileUpdateRequest(BaseModel):
     @classmethod
     def validate_phone(cls, v: str | None) -> str | None:
         return _normalize_tz_phone(v)
+
+    @field_validator("location")
+    @classmethod
+    def validate_location(cls, v: str | None) -> str | None:
+        return _require_tanzania_region(v)
 
     @field_validator("email")
     @classmethod

@@ -17,6 +17,7 @@ from app.schemas.auth import (
     SubAdminCreateRequest,
     UserResponse,
     _normalize_tz_phone,
+    _require_tanzania_region,
     _require_valid_email,
 )
 from app.schemas.credit import ModelMetricsResponse, TrainingResultResponse
@@ -83,6 +84,11 @@ class AccountUpdateRequest(BaseModel):
     @classmethod
     def validate_phone(cls, v: str | None) -> str | None:
         return _normalize_tz_phone(v)
+
+    @field_validator("location")
+    @classmethod
+    def validate_location(cls, v: str | None) -> str | None:
+        return _require_tanzania_region(v)
 
     @field_validator("email", "work_email")
     @classmethod
