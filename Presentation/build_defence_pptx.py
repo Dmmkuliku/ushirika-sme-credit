@@ -207,6 +207,7 @@ def build():
             "Lender workflow: progressive NIDA search → SME profile (incl. TIN) → tabs for ML metrics, signals, txs, history.\n"
             "Inclusive controls: NIDA-DOB matching, +255 phone entry, cascading Tanzania region→district dropdowns, bilingual labels, live email checks, and clear forms.\n"
             "Security: production API docs disabled, auth rate limits, short-lived JWTs, strict CORS, security headers, no production source maps, and no boot-time PIN resets.\n"
+            "Admin hard-delete removes accounts permanently; create-account flows return to the accounts list; ML uses stronger Random Forest tuning with plain-language repayment signals (no technical model-version chips in the UI).\n"
             "Responsive UI: the same portal is usable on desktop computers and mobile phones.",
             size=13, color=MUTED)
     footer(s, 4)

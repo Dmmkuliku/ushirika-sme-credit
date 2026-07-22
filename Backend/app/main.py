@@ -31,8 +31,20 @@ def init_db() -> None:
 def ensure_model() -> None:
     settings = get_settings()
     meta_path = Path(settings.model_dir) / "model_meta.json"
-    if not meta_path.exists():
-        logger.info("No trained model found – training on startup...")
+    needs_train = not meta_path.exists()
+    if meta_path.exists():
+        try:
+            import json
+
+            with open(meta_path, encoding="utf-8") as f:
+                meta = json.load(f)
+            if meta.get("training_recipe") != "strong_rf_v2":
+                needs_train = True
+                logger.info("Retraining model for strong_rf_v2 recipe…")
+        except Exception:
+            needs_train = True
+    if needs_train:
+        logger.info("Training credit model on startup...")
         db = SessionLocal()
         try:
             train_models(db_session=db)

@@ -250,7 +250,6 @@ function renderSmeOverview(session, overview, historyPayload, { onLogout }) {
   const components = componentsList(overview);
   const history = normalizeListPayload(historyPayload, ['months', 'history', 'items', 'data', 'series']);
   const outlierCount = overview?.outlier_transaction_count;
-  const modelVersion = overview?.model_version;
 
   const lockNote = locked
     ? t('sme.scoreUnlocks', { count: formatNumber(txCount, 0) })
@@ -259,9 +258,6 @@ function renderSmeOverview(session, overview, historyPayload, { onLogout }) {
   const notesHtml = [
     outlierCount != null && Number(outlierCount) > 0
       ? `<p class="score-note">${escapeHtml(t('sme.outlierNote', { count: formatNumber(outlierCount, 0) }))}</p>`
-      : '',
-    modelVersion
-      ? `<p class="score-note score-note-muted">${escapeHtml(t('sme.modelVersion', { version: modelVersion }))}</p>`
       : '',
   ].join('');
 
@@ -965,35 +961,11 @@ export function loadSmeUpload(session, { onLogout }) {
     const proba = Number(result.probability_creditworthy);
     const probaPct = Number.isFinite(proba) ? `${(proba * 100).toFixed(1)}%` : '—';
     const rows = Array.isArray(result.ml_features_display) ? result.ml_features_display.slice(0, 10) : [];
-    const training = result?.model_training_summary && typeof result.model_training_summary === 'object'
-      ? result.model_training_summary
-      : null;
-    const trainingHtml = training
-      ? (result.model_training_scheduled || training.note)
-        ? `
-        <div class="detail-section" style="margin-top:0.9rem">
-          <h5 class="ml-feature-title">${escapeHtml(t('sme.trainingOutputTitle'))}</h5>
-          <p class="help-text">${escapeHtml(training.note || t('sme.trainingScheduled'))}</p>
-        </div>`
-        : `
-        <div class="detail-section" style="margin-top:0.9rem">
-          <h5 class="ml-feature-title">${escapeHtml(t('sme.trainingOutputTitle'))}</h5>
-          <ul class="ml-feature-list">
-            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.trainingVersion'))}</span><strong>${escapeHtml(String(result.model_training_version || '—'))}</strong></div></li>
-            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.rfAccuracy'))}</span><strong>${escapeHtml(training.rf_accuracy != null ? formatNumber(training.rf_accuracy * 100, 2) + '%' : '—')}</strong></div></li>
-            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.rfRocAuc'))}</span><strong>${escapeHtml(training.rf_roc_auc != null ? formatNumber(training.rf_roc_auc * 100, 2) + '%' : '—')}</strong></div></li>
-            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.lrRocAuc'))}</span><strong>${escapeHtml(training.lr_roc_auc != null ? formatNumber(training.lr_roc_auc * 100, 2) + '%' : '—')}</strong></div></li>
-            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.trainingProfilesUsed'))}</span><strong>${escapeHtml(training.real_sme_profiles_used != null ? formatNumber(training.real_sme_profiles_used, 0) : '—')}</strong></div></li>
-            <li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(t('sme.trainingComparison'))}</span><strong>${escapeHtml(training.rf_outperforms_baseline ? 'RF > LR' : 'RF ≤ LR')}</strong></div></li>
-          </ul>
-        </div>`
-      : '';
     resultHost.hidden = false;
     resultHost.innerHTML = `
       <section class="ml-metrics-panel" aria-live="polite">
         <div class="ml-metrics-header">
           <h4>${escapeHtml(t('sme.mlReadyTitle'))}</h4>
-          <span class="ml-chip">v${escapeHtml(String(result.model_version || '—'))}</span>
         </div>
         <p class="page-lead">${escapeHtml(result.message || t('sme.mlReadyLead'))}</p>
         <div class="metric-grid metric-grid-compact">
@@ -1014,7 +986,6 @@ export function loadSmeUpload(session, { onLogout }) {
               return `<li class="ml-feature-row"><div class="ml-feature-meta"><span>${escapeHtml(label)}</span><strong>${escapeHtml(shown)}</strong></div></li>`;
             }).join('')}
           </ul>` : ''}
-        ${trainingHtml}
         <div class="upload-actions" style="margin-top:1rem">
           <a class="btn btn-primary" href="#/sme">${escapeHtml(t('sme.viewFullOverview'))}</a>
         </div>

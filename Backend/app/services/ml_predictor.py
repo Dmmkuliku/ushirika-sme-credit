@@ -51,9 +51,8 @@ class CreditPredictor:
 
         X = np.array([[features.get(col, 0.0) for col in self.feature_columns]])
         proba = float(self.model.predict_proba(X)[0, 1])
-        raw = 300 + proba * 500
-        score = 350 + (raw - 350) * 0.66
-        score = round(max(300.0, min(680.0, score)), 2)
+        # Map probability of good repayment to a clear 300–850 credit score
+        score = round(300.0 + max(0.0, min(1.0, proba)) * 550.0, 2)
         return {
             "score": score,
             "model_version": self.model_version,

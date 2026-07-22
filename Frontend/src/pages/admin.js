@@ -222,10 +222,7 @@ function renderAccountsTable(rows) {
                 <td>${escapeHtml(formatDate(r.created_at))}</td>
                 <td class="action-cell">
                   <a href="#/admin/edit/${encodeURIComponent(id)}" class="btn btn-ghost btn-sm">${escapeHtml(t('common.edit'))}</a>
-                  ${active
-                    ? `<button type="button" class="btn btn-ghost btn-sm btn-danger-text" data-delete-id="${escapeHtml(id)}">${escapeHtml(t('common.delete'))}</button>`
-                    : `<button type="button" class="btn btn-ghost btn-sm btn-success-text" data-restore-id="${escapeHtml(id)}">${escapeHtml(t('common.restore'))}</button>`
-                  }
+                  <button type="button" class="btn btn-ghost btn-sm btn-danger-text" data-delete-id="${escapeHtml(id)}">${escapeHtml(t('common.delete'))}</button>
                   <button type="button" class="btn btn-ghost btn-sm" data-reset-pin-id="${escapeHtml(id)}">${escapeHtml(t('auth.resetPin'))}</button>
                 </td>
               </tr>`;
@@ -249,19 +246,6 @@ function bindAccountActions(rows, host, modalHost) {
           showToast(getErrorMessage(err, t('admin.deleteFailed')), 'error');
         }
       });
-    });
-  });
-
-  host.querySelectorAll('[data-restore-id]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-restore-id');
-      try {
-        await api.restoreAccount(id);
-        showToast(t('admin.restored'), 'success');
-        document.getElementById('acct-role')?.dispatchEvent(new Event('change'));
-      } catch (err) {
-        showToast(getErrorMessage(err, t('admin.restoreFailed')), 'error');
-      }
     });
   });
 
@@ -559,6 +543,7 @@ function bindCreateForm(formId, handler, successMsg) {
       }
       showToast(successMsg, 'success');
       form.reset();
+      window.location.hash = '#/admin';
     } catch (err) {
       const msg = getErrorMessage(err, t('admin.createFailed'));
       if (errEl) { errEl.hidden = false; errEl.textContent = msg; }

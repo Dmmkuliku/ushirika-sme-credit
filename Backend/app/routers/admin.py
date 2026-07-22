@@ -314,23 +314,42 @@ def update_account(user_id: int, payload: AccountUpdateRequest, current_user: Re
 
 
 @router.delete("/admin/accounts/{user_id}", tags=["Admin"])
-def soft_delete_account(user_id: int, current_user: RequireAdminOrSubAdmin, db: Session = Depends(get_db)):
+def delete_account(user_id: int, current_user: RequireAdminOrSubAdmin, db: Session = Depends(get_db)):
+    """Permanently delete a user account and related profile/transaction data."""
+    from app.models import CreditScore, MonthlyHistory, Transaction
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    user.is_active = False
-    db.commit()
-    return {"detail": "Account deactivated"}
+    if user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own account",
+        )
+    if user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Administrator accounts cannot be deleted here",
+        )
 
+    db.query(CreditScore).filter(CreditScore.user_id == user.id).delete(synchronize_session=False)
 
-@router.post("/admin/accounts/{user_id}/restore", tags=["Admin"])
-def restore_account(user_id: int, current_user: RequireAdminOrSubAdmin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    user.is_active = True
+    if user.sme_profile:
+        profile_id = user.sme_profile.id
+        db.query(Transaction).filter(Transaction.sme_profile_id == profile_id).delete(
+            synchronize_session=False
+        )
+        db.query(MonthlyHistory).filter(MonthlyHistory.sme_profile_id == profile_id).delete(
+            synchronize_session=False
+        )
+        db.delete(user.sme_profile)
+
+    if user.lender_profile:
+        db.delete(user.lender_profile)
+
+    db.delete(user)
     db.commit()
-    return {"detail": "Account restored"}
+    return {"detail": "Account permanently deleted"}
 
 
 @router.put("/admin/accounts/{user_id}/reset-pin", tags=["Admin"])

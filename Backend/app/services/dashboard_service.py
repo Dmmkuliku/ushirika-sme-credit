@@ -240,14 +240,14 @@ def lender_sme_detail(db: Session, sme_profile_id: int) -> SMEDetailResponse | N
     if not score_eligible:
         needed = max(0, settings.min_transactions_for_score - tx_count)
         ml_summary = (
-            f"ML scoring locked until this SME records at least "
-            f"{settings.min_transactions_for_score} transactions "
-            f"({needed} more needed). Metrics use this SME’s own supply-chain feed."
+            f"Score is not ready yet. This business needs at least "
+            f"{settings.min_transactions_for_score} recorded trades "
+            f"({needed} more)."
         )
     elif latest or ml_features:
         ml_summary = (
-            "These ML metrics are computed from this SME’s uploaded / recorded "
-            "transactions only (payment behaviour, value-chain roles, delays)."
+            "These results come from this business’s own payment and trading "
+            "history — on-time payments, delays, partners, and sales pattern."
         )
 
     return SMEDetailResponse(

@@ -303,8 +303,6 @@ function renderDetail(host, detail, txPayload, id) {
   const totalVolume = detail?.total_volume ?? detail?.total_volume_tzs ?? null;
   const locked = detail?.score_locked === true || detail?.is_locked === true || (txCount != null && Number(txCount) < 5 && score == null);
   const proba = detail?.probability_creditworthy;
-  const modelVersion = detail?.model_version || '—';
-  const primaryModel = detail?.primary_model || 'random_forest';
   const mlSummary = localizedMlSummary(detail?.ml_summary || '');
   const featureRows = Array.isArray(detail?.ml_features_display) ? detail.ml_features_display : [];
   const outlierCount = detail?.outlier_transaction_count;
@@ -326,7 +324,6 @@ function renderDetail(host, detail, txPayload, id) {
     <section class="detail-tab-panel ml-metrics-panel" data-tab-panel="ml" aria-labelledby="ml-metrics-title">
       <div class="ml-metrics-header">
         <h4 id="ml-metrics-title">${escapeHtml(t('lender.mlMetricsTitle'))}</h4>
-        <span class="ml-chip">v${escapeHtml(String(modelVersion))}</span>
       </div>
       <p class="page-lead">${escapeHtml(mlSummary || t('lender.mlMetricsLead'))}</p>
       <div class="metric-grid metric-grid-compact" aria-label="${escapeHtml(t('lender.mlMetricsTitle'))}">
@@ -334,7 +331,6 @@ function renderDetail(host, detail, txPayload, id) {
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.riskBand'))}</h4><p class="metric-value"><span class="risk-badge ${riskClass(locked ? '' : risk)}">${escapeHtml(riskLabel)}</span></p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.creditworthyProb'))}</h4><p class="metric-value">${escapeHtml(locked ? '—' : probaPct)}</p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.eligibleTzs'))}</h4><p class="metric-value metric-tzs">${escapeHtml(locked ? '—' : formatTZS(eligible))}</p></article>
-        <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.primaryModel'))}</h4><p class="metric-value" style="font-size:1rem">${escapeHtml(localizedModel(primaryModel))}</p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.txUsed'))}</h4><p class="metric-value">${escapeHtml(txCount != null ? formatNumber(txCount, 0) : '—')}</p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.totalVolume'))}</h4><p class="metric-value metric-tzs">${escapeHtml(totalVolume != null ? formatTZS(totalVolume) : '—')}</p></article>
         <article class="metric-card"><h4 class="metric-label">${escapeHtml(t('lender.typicalVolume'))}</h4><p class="metric-value metric-tzs">${escapeHtml(typicalVol != null ? formatTZS(typicalVol) : '—')}</p></article>
