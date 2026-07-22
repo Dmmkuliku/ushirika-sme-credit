@@ -127,7 +127,7 @@ class SMERegisterRequest(BaseModel):
         dob = date.fromisoformat(self.date_of_birth)
         if self.nida[:8] != dob.strftime("%Y%m%d"):
             raise ValueError(
-                "Date of birth must match the first 8 NIDA digits (YYYYMMDD)"
+                "Date of birth must match your NIDA"
             )
         require_district_in_region(self.location, self.district)
         return self

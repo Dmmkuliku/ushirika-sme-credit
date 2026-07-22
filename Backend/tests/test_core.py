@@ -249,7 +249,7 @@ def test_registration_normalizes_phone_and_matches_dob_to_nida(client):
     mismatched_dob["date_of_birth"] = "1990-01-02"
     resp = client.post("/api/auth/register", json=mismatched_dob)
     assert resp.status_code == 422
-    assert "must match the first 8 NIDA digits" in resp.text
+    assert "must match your NIDA" in resp.text
 
     resp = client.post("/api/auth/register", json=payload)
     assert resp.status_code == 201
