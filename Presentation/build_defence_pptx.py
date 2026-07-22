@@ -205,7 +205,7 @@ def build():
     textbox(s, Inches(0.55), Inches(5.45), Inches(12.2), Inches(1.2),
             "Proposal fulfilment: operational ML backend · Vite interactive portal · technical performance report.\n"
             "Lender workflow: progressive NIDA search → SME profile (incl. TIN) → tabs for ML metrics, signals, txs, history.\n"
-            "Inclusive controls: NIDA-DOB matching, +255 phone entry, bilingual gender/business labels, live email checks, and clear forms.\n"
+            "Inclusive controls: NIDA-DOB matching, +255 phone entry, Tanzania region dropdown, bilingual labels, live email checks, and clear forms.\n"
             "Responsive UI: the same portal is usable on desktop computers and mobile phones.",
             size=13, color=MUTED)
     footer(s, 4)
