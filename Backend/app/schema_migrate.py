@@ -26,6 +26,9 @@ def migrate_schema() -> None:
         if sme_cols and "tin" not in sme_cols:
             logger.info("Adding sme_profiles.tin")
             conn.execute(text("ALTER TABLE sme_profiles ADD COLUMN tin VARCHAR(20)"))
+        if sme_cols and "district" not in sme_cols:
+            logger.info("Adding sme_profiles.district")
+            conn.execute(text("ALTER TABLE sme_profiles ADD COLUMN district VARCHAR(100)"))
 
         tx_cols = _existing_columns("transactions")
         if tx_cols:

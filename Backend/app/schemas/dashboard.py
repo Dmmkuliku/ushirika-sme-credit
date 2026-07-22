@@ -12,6 +12,7 @@ class SMEProfileResponse(BaseModel):
     phone: str
     email: str | None
     location: str
+    district: str | None = None
     nationality: str
     date_of_birth: date
     created_at: datetime
@@ -42,6 +43,7 @@ class SMEDetailResponse(BaseModel):
     email: str | None
     tin: str | None = None
     location: str
+    district: str | None = None
     nationality: str
     date_of_birth: date
     transaction_count: int

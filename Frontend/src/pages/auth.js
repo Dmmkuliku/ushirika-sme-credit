@@ -21,9 +21,12 @@ import {
   enforceSequentialFields,
   focusInvalidField,
   isTanzaniaRegion,
+  isDistrictInRegion,
   normalizeTzPhone,
   phoneInputHtml,
   regionSelectHtml,
+  districtSelectHtml,
+  bindRegionDistrictCascade,
 } from '../form-validation.js';
 
 const BUSINESS_TYPES = [
@@ -163,6 +166,10 @@ function renderRegisterFields() {
       ${regionSelectHtml({ id: 'location', required: true, placeholder: t('common.select') })}
     </div>
     <div class="field">
+      <label for="district">${escapeHtml(t('auth.district'))}</label>
+      ${districtSelectHtml({ id: 'district', required: true, placeholder: t('common.select') })}
+    </div>
+    <div class="field">
       <label for="business_type">${escapeHtml(t('auth.businessType'))}</label>
       <select id="business_type" name="business_type" required>
         <option value="">${escapeHtml(t('common.select'))}</option>
@@ -232,6 +239,12 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     });
     bindPhoneField(document.getElementById('phone'), t('auth.errPhoneFormat'));
     bindRequiredField(document.getElementById('location'), t('auth.errLocation'));
+    bindRequiredField(document.getElementById('district'), t('auth.errDistrict'));
+    bindRegionDistrictCascade({
+      regionSelect: document.getElementById('location'),
+      districtSelect: document.getElementById('district'),
+      placeholder: t('common.select'),
+    });
     bindRequiredField(document.getElementById('business_type'), t('auth.errBusinessType'));
     bindRequiredField(document.getElementById('gender'), t('auth.errGender'));
     bindConfirmPinField(
@@ -370,6 +383,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     const phone = String(fd.get('phone') || '').trim();
     const email = String(fd.get('email') || '').trim();
     const location = String(fd.get('location') || '').trim();
+    const district = String(fd.get('district') || '').trim();
     const business_type = String(fd.get('business_type') || '');
     const gender = String(fd.get('gender') || '');
     const dateOfBirthInput = String(fd.get('date_of_birth') || '');
@@ -385,6 +399,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     if (!normalizedPhone) { fail(t('auth.errPhoneFormat'), 'phone'); return; }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { fail(t('auth.errEmail'), 'email'); return; }
     if (!isTanzaniaRegion(location)) { fail(t('auth.errLocation'), 'location'); return; }
+    if (!isDistrictInRegion(location, district)) { fail(t('auth.errDistrict'), 'district'); return; }
     if (!business_type) { fail(t('auth.errBusinessType'), 'business_type'); return; }
     if (!gender) { fail(t('auth.errGender'), 'gender'); return; }
     if (!dateOfBirthInput) { fail(t('auth.errDob'), 'date_of_birth'); return; }
@@ -400,7 +415,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     submitBtn.textContent = t('auth.creating');
     try {
       await api.registerSme({
-        nida, phone: normalizedPhone, full_name, email, location, business_type, gender,
+        nida, phone: normalizedPhone, full_name, email, location, district, business_type, gender,
         nationality: 'Tanzanian', date_of_birth, tin: tinClean, pin,
       });
       const loginPayload = await api.login({ login_id: nida, pin });

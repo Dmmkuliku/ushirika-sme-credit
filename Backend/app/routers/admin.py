@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,7 @@ from app.schemas.auth import (
     _require_tanzania_region,
     _require_valid_email,
 )
+from app.tanzania_geo import require_district_in_region
 from app.schemas.credit import ModelMetricsResponse, TrainingResultResponse
 from app.schemas.health import HealthResponse
 from app.services.auth_service import create_lender, create_subadmin, register_sme, update_admin_self
@@ -53,6 +54,7 @@ class AdminAccountDetail(BaseModel):
     phone: str | None = None
     email: str | None = None
     location: str | None = None
+    district: str | None = None
     business_type: str | None = None
     nationality: str | None = None
     date_of_birth: str | None = None
@@ -70,6 +72,7 @@ class AccountUpdateRequest(BaseModel):
     work_email: str | None = None
     phone: str | None = None
     location: str | None = None
+    district: str | None = None
     business_type: str | None = None
     email: str | None = None
 
@@ -94,6 +97,14 @@ class AccountUpdateRequest(BaseModel):
     @classmethod
     def validate_email(cls, v: str | None) -> str | None:
         return _require_valid_email(v)
+
+    @model_validator(mode="after")
+    def validate_district_matches_region(self):
+        if self.district is not None:
+            if self.location is None:
+                raise ValueError("region is required when updating district")
+            require_district_in_region(self.location, self.district)
+        return self
 
 
 class ResetPinRequest(BaseModel):
@@ -123,6 +134,7 @@ def _build_detail(user: User) -> AdminAccountDetail:
         d.phone = p.phone
         d.email = p.email
         d.location = p.location
+        d.district = p.district
         d.business_type = p.business_type
         d.nationality = p.nationality
         d.date_of_birth = str(p.date_of_birth)
@@ -279,6 +291,8 @@ def update_account(user_id: int, payload: AccountUpdateRequest, current_user: Re
     if user.sme_profile:
         if payload.location is not None:
             user.sme_profile.location = payload.location
+        if payload.district is not None:
+            user.sme_profile.district = payload.district
         if payload.business_type is not None:
             user.sme_profile.business_type = payload.business_type
         if payload.email is not None:

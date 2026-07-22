@@ -60,6 +60,7 @@ def register_sme(client: TestClient, nida: str = "19900101123456789012") -> dict
             "phone": "+255712345678",
             "full_name": "Test Business Ltd",
             "location": "Dar es Salaam",
+            "district": "Ilala",
             "business_type": "Retailer",
             "gender": "Male",
             "nationality": "Tanzanian",

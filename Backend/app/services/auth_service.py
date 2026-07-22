@@ -31,6 +31,7 @@ def register_sme(db: Session, payload: SMERegisterRequest) -> User:
         phone=payload.phone,
         email=payload.email,
         location=payload.location,
+        district=payload.district,
         nationality=payload.nationality,
         date_of_birth=date.fromisoformat(payload.date_of_birth),
         business_type=payload.business_type,

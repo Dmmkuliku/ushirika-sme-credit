@@ -55,76 +55,16 @@ export function phoneInputHtml({ id, name = 'phone', value = '', required = fals
     </div>`;
 }
 
-/** All 31 administrative regions of the United Republic of Tanzania. */
-export const TANZANIA_REGIONS = [
-  'Arusha',
-  'Dar es Salaam',
-  'Dodoma',
-  'Geita',
-  'Iringa',
-  'Kagera',
-  'Katavi',
-  'Kigoma',
-  'Kilimanjaro',
-  'Lindi',
-  'Manyara',
-  'Mara',
-  'Mbeya',
-  'Morogoro',
-  'Mtwara',
-  'Mwanza',
-  'Njombe',
-  'Pwani',
-  'Rukwa',
-  'Ruvuma',
-  'Shinyanga',
-  'Simiyu',
-  'Singida',
-  'Songwe',
-  'Tabora',
-  'Tanga',
-  'Kaskazini Unguja',
-  'Kusini Unguja',
-  'Mjini Magharibi',
-  'Kaskazini Pemba',
-  'Kusini Pemba',
-];
-
-export function isTanzaniaRegion(value) {
-  return TANZANIA_REGIONS.includes(String(value || '').trim());
-}
-
-/**
- * Region dropdown limited to Tanzania regions.
- * If an existing free-text value is not in the list, it is shown once so the
- * user can replace it with a valid region.
- */
-export function regionSelectHtml({
-  id = 'location',
-  name = 'location',
-  value = '',
-  required = true,
-  placeholder = 'Select region',
-} = {}) {
-  const escape = (s) => String(s)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-  const selected = String(value || '').trim();
-  const options = [...TANZANIA_REGIONS];
-  if (selected && !options.includes(selected)) {
-    options.unshift(selected);
-  }
-  const opts = [
-    `<option value="">${escape(placeholder)}</option>`,
-    ...options.map((region) => {
-      const isSelected = region === selected ? ' selected' : '';
-      return `<option value="${escape(region)}"${isSelected}>${escape(region)}</option>`;
-    }),
-  ].join('');
-  return `<select id="${escape(id)}" name="${escape(name)}"${required ? ' required' : ''}>${opts}</select>`;
-}
+export {
+  TANZANIA_REGIONS,
+  DISTRICTS_BY_REGION,
+  isTanzaniaRegion,
+  districtsForRegion,
+  isDistrictInRegion,
+  regionSelectHtml,
+  districtSelectHtml,
+  bindRegionDistrictCascade,
+} from './tanzania-geo.js';
 
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());

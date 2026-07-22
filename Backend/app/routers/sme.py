@@ -17,6 +17,7 @@ def _sme_profile_response(profile: SMEProfile, user) -> SMEProfileResponse:
         phone=profile.phone,
         email=profile.email,
         location=profile.location,
+        district=profile.district,
         business_type=profile.business_type,
         nationality=profile.nationality,
         date_of_birth=profile.date_of_birth,

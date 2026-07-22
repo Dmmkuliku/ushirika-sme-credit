@@ -48,6 +48,7 @@ class SMEProfile(Base):
     phone: Mapped[str] = mapped_column(String(20), nullable=False)
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
     location: Mapped[str] = mapped_column(String(200), nullable=False)
+    district: Mapped[str | None] = mapped_column(String(100), nullable=True)
     nationality: Mapped[str] = mapped_column(String(50), default="Tanzanian", nullable=False)
     date_of_birth: Mapped[date] = mapped_column(Date, nullable=False)
     business_type: Mapped[str] = mapped_column(String(100), nullable=False)

@@ -31,7 +31,8 @@ SME_SPECS = [
         "Grace Mwangi",
         "Entrepreneur",
         "+255712345001",
-        "Dar es Salaam, Kinondoni",
+        "Dar es Salaam",
+        "Kinondoni",
         date(1990, 1, 1),
         "100123456",
     ),
@@ -40,7 +41,8 @@ SME_SPECS = [
         "John Kimaro",
         "Machinga",
         "+255712345002",
-        "Arusha, Central Market",
+        "Arusha",
+        "Arusha City",
         date(1985, 5, 15),
         "100234567",
     ),
@@ -49,7 +51,8 @@ SME_SPECS = [
         "Fatuma Saidi",
         "Retailer",
         "+255712345003",
-        "Mwanza, Nyamagana",
+        "Mwanza",
+        "Nyamagana",
         date(1995, 12, 31),
         "100345678",
     ),
@@ -140,7 +143,7 @@ def seed():
         rng = random.Random(42)
         now = datetime.now(timezone.utc)
 
-        for nida, full_name, business_type, phone, location, dob, tin in SME_SPECS:
+        for nida, full_name, business_type, phone, location, district, dob, tin in SME_SPECS:
             user = User(
                 login_id=nida,
                 hashed_pin=hash_pin("1234"),
@@ -157,6 +160,7 @@ def seed():
                 phone=phone,
                 email=f"{full_name.split()[0].lower()}@example.co.tz",
                 location=location,
+                district=district,
                 nationality="Tanzanian",
                 date_of_birth=dob,
                 business_type=business_type,

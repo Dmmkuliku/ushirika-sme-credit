@@ -319,11 +319,11 @@ function downloadBlob(blob, filename) {
 /* ─── Auth ─────────────────────────────────────────────── */
 
 /** POST /auth/register — SME self-registration */
-export function registerSme({ nida, phone, full_name, email, location, business_type, gender, nationality, date_of_birth, tin, pin }) {
+export function registerSme({ nida, phone, full_name, email, location, district, business_type, gender, nationality, date_of_birth, tin, pin }) {
   return request('/auth/register', {
     method: 'POST',
     auth: false,
-    body: JSON.stringify({ nida, phone, full_name, email: email || undefined, location, business_type, gender, nationality, date_of_birth, tin, pin }),
+    body: JSON.stringify({ nida, phone, full_name, email: email || undefined, location, district, business_type, gender, nationality, date_of_birth, tin, pin }),
   });
 }
 

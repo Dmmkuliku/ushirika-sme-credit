@@ -260,6 +260,7 @@ def lender_sme_detail(db: Session, sme_profile_id: int) -> SMEDetailResponse | N
         email=profile.email,
         tin=profile.tin,
         location=profile.location,
+        district=profile.district,
         nationality=profile.nationality,
         date_of_birth=profile.date_of_birth,
         transaction_count=tx_count,

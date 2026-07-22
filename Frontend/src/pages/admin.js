@@ -30,9 +30,12 @@ import {
   dmyToIso,
   focusInvalidField,
   isTanzaniaRegion,
+  isDistrictInRegion,
   normalizeTzPhone,
   phoneInputHtml,
   regionSelectHtml,
+  districtSelectHtml,
+  bindRegionDistrictCascade,
 } from '../form-validation.js';
 
 const BUSINESS_TYPES = [
@@ -402,6 +405,7 @@ function loadCreateSme(session, { onLogout }) {
           <div class="field"><label for="phone">${escapeHtml(t('auth.phone'))}</label>${phoneInputHtml({ id: 'phone', required: true })}</div>
           <div class="field"><label for="email">${escapeHtml(t('auth.email'))} <span class="optional">${escapeHtml(t('common.optional'))}</span></label><input id="email" name="email" type="email" /></div>
           <div class="field"><label for="location">${escapeHtml(t('auth.location'))}</label>${regionSelectHtml({ id: 'location', required: true, placeholder: t('common.select') })}</div>
+          <div class="field"><label for="district">${escapeHtml(t('auth.district'))}</label>${districtSelectHtml({ id: 'district', required: true, placeholder: t('common.select') })}</div>
           <div class="field"><label for="business_type">${escapeHtml(t('auth.businessType'))}</label><select id="business_type" name="business_type" required><option value="">${escapeHtml(t('common.select'))}</option>${bizOptions}</select></div>
           <div class="field"><label for="gender">${escapeHtml(t('auth.gender'))}</label><select id="gender" name="gender" required><option value="">${escapeHtml(t('common.select'))}</option>${genderOptions()}</select></div>
           <div class="field"><label for="date_of_birth">${escapeHtml(t('auth.dateOfBirth'))}</label><input id="date_of_birth" name="date_of_birth" type="text" inputmode="numeric" maxlength="10" placeholder="DD-MM-YYYY" autocomplete="bday" required /><p class="field-hint">${escapeHtml(t('auth.ageHint'))}</p></div>
@@ -430,6 +434,8 @@ function loadCreateSme(session, { onLogout }) {
     if (!phone) return t('auth.errPhoneFormat');
     const location = String(fd.get('location') || '').trim();
     if (!isTanzaniaRegion(location)) return t('auth.errLocation');
+    const district = String(fd.get('district') || '').trim();
+    if (!isDistrictInRegion(location, district)) return t('auth.errDistrict');
     const dateOfBirth = dmyToIso(String(fd.get('date_of_birth') || ''));
     if (!dateOfBirth) return t('auth.errDobFormat');
     if (String(nida).slice(0, 8) !== dateOfBirth.replaceAll('-', '')) {
@@ -437,7 +443,7 @@ function loadCreateSme(session, { onLogout }) {
     }
     await api.createSmeByAdmin({
       nida, full_name: fd.get('full_name'), phone,
-      email: email || undefined, location,
+      email: email || undefined, location, district,
       business_type: fd.get('business_type'), gender: fd.get('gender'),
       nationality: 'Tanzanian', date_of_birth: dateOfBirth,
       tin, pin,
@@ -523,6 +529,12 @@ function bindCreateForm(formId, handler, successMsg) {
   );
   bindRequiredField(form?.querySelector('input[name="full_name"]'), t('auth.errFullName'));
   bindRequiredField(form?.querySelector('select[name="location"]'), t('auth.errLocation'));
+  bindRequiredField(form?.querySelector('select[name="district"]'), t('auth.errDistrict'));
+  bindRegionDistrictCascade({
+    regionSelect: form?.querySelector('select[name="location"]'),
+    districtSelect: form?.querySelector('select[name="district"]'),
+    placeholder: t('common.select'),
+  });
   bindRequiredField(form?.querySelector('select[name="business_type"]'), t('auth.errBusinessType'));
   bindRequiredField(form?.querySelector('select[name="gender"]'), t('auth.errGender'));
   ['membership_number', 'organization', 'login_id'].forEach((name) => {
@@ -596,6 +608,7 @@ function renderEditForm(session, acct, { onLogout }) {
       <div class="field"><label for="phone">${escapeHtml(t('profile.phone'))}</label>${phoneInputHtml({ id: 'phone', value: acct.phone, required: true })}</div>
       <div class="field"><label for="email">${escapeHtml(t('profile.email'))}</label><input id="email" name="email" type="email" value="${escapeHtml(acct.email || '')}" /></div>
       <div class="field"><label for="location">${escapeHtml(t('profile.location'))}</label>${regionSelectHtml({ id: 'location', value: acct.location || '', required: true, placeholder: t('common.select') })}</div>
+      <div class="field"><label for="district">${escapeHtml(t('profile.district'))}</label>${districtSelectHtml({ id: 'district', region: acct.location || '', value: acct.district || '', required: true, placeholder: t('common.select') })}</div>
       <div class="field"><label for="business_type">${escapeHtml(t('auth.businessType'))}</label><select id="business_type" name="business_type"><option value="">${escapeHtml(t('common.select'))}</option>${bizOptions}</select></div>
     `;
   }
@@ -642,6 +655,12 @@ function renderEditForm(session, acct, { onLogout }) {
   bindPhoneField(form?.querySelector('input[name="phone"]'), t('auth.errPhoneFormat'));
   bindRequiredField(form?.querySelector('input[name="full_name"]'), t('auth.errFullName'));
   bindRequiredField(form?.querySelector('select[name="location"]'), t('auth.errLocation'));
+  bindRequiredField(form?.querySelector('select[name="district"]'), t('auth.errDistrict'));
+  bindRegionDistrictCascade({
+    regionSelect: form?.querySelector('select[name="location"]'),
+    districtSelect: form?.querySelector('select[name="district"]'),
+    placeholder: t('common.select'),
+  });
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -673,6 +692,13 @@ function renderEditForm(session, acct, { onLogout }) {
       data.location = String(fd.get('location') || '').trim();
       if (!isTanzaniaRegion(data.location)) {
         if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errLocation'); }
+        submitBtn.disabled = false;
+        submitBtn.textContent = t('admin.saveChanges');
+        return;
+      }
+      data.district = String(fd.get('district') || '').trim();
+      if (!isDistrictInRegion(data.location, data.district)) {
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errDistrict'); }
         submitBtn.disabled = false;
         submitBtn.textContent = t('admin.saveChanges');
         return;

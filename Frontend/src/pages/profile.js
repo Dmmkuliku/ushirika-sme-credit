@@ -12,9 +12,12 @@ import {
   bindRequiredField,
   formatTzPhone,
   isTanzaniaRegion,
+  isDistrictInRegion,
   normalizeTzPhone,
   phoneInputHtml,
   regionSelectHtml,
+  districtSelectHtml,
+  bindRegionDistrictCascade,
 } from '../form-validation.js';
 
 const BUSINESS_TYPES = [
@@ -110,6 +113,7 @@ function viewFieldsHtml(role, profile) {
     rows.push([t('profile.phone'), formatTzPhone(profile.phone)]);
     rows.push([t('profile.email'), profile.email || '—']);
     rows.push([t('profile.location'), profile.location]);
+    rows.push([t('profile.district'), profile.district]);
     rows.push([t('profile.businessType'), businessTypeLabel(profile.business_type)]);
     rows.push([t('profile.gender'), genderLabel(profile.gender)]);
     rows.push([t('profile.nida'), profile.nida]);
@@ -166,7 +170,13 @@ function editFormHtml(role, profile) {
           </div>
         </div>
         <div class="form-grid-2">
+          <div class="field">
+            <label for="prof-district">${escapeHtml(t('profile.district'))}</label>
+            ${districtSelectHtml({ id: 'prof-district', name: 'district', region: profile.location || '', value: profile.district || '', required: true, placeholder: t('common.select') })}
+          </div>
           ${businessTypeSelect(profile.business_type)}
+        </div>
+        <div class="form-grid-2">
           ${genderSelect('prof-gender', 'gender', profile.gender)}
         </div>
         <div class="profile-readonly-note">
@@ -310,6 +320,12 @@ function bindEditForm(role, profile, { onUpdated }) {
   );
   bindPhoneField(document.getElementById('prof-phone'), t('auth.errPhoneFormat'));
   bindRequiredField(document.getElementById('prof-location'), t('auth.errLocation'));
+  bindRequiredField(document.getElementById('prof-district'), t('auth.errDistrict'));
+  bindRegionDistrictCascade({
+    regionSelect: document.getElementById('prof-location'),
+    districtSelect: document.getElementById('prof-district'),
+    placeholder: t('common.select'),
+  });
 
   document.getElementById('profile-edit-cancel')?.addEventListener('click', () => {
     renderModal(role, profile, 'view', { onUpdated });
@@ -338,11 +354,17 @@ function bindEditForm(role, profile, { onUpdated }) {
         if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errLocation'); }
         return;
       }
+      const district = String(fd.get('district') || '').trim();
+      if (!isDistrictInRegion(location, district)) {
+        if (errEl) { errEl.hidden = false; errEl.textContent = t('auth.errDistrict'); }
+        return;
+      }
       data = {
         full_name: fd.get('full_name'),
         phone,
         email: email || undefined,
         location,
+        district,
         business_type: fd.get('business_type'),
         gender: fd.get('gender'),
       };

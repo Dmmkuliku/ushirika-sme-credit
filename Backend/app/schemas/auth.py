@@ -3,6 +3,8 @@ from datetime import datetime, date
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.tanzania_geo import require_district_in_region, require_tanzania_region
+
 
 _PIN_RE = re.compile(r"^\d{4}$")
 _NIDA_RE = re.compile(r"^\d{20}$")
@@ -10,48 +12,9 @@ _TIN_RE = re.compile(r"^\d{9}$")
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _TZ_PHONE_RE = re.compile(r"^\+255[67]\d{8}$")
 
-TANZANIA_REGIONS = {
-    "Arusha",
-    "Dar es Salaam",
-    "Dodoma",
-    "Geita",
-    "Iringa",
-    "Kagera",
-    "Katavi",
-    "Kigoma",
-    "Kilimanjaro",
-    "Lindi",
-    "Manyara",
-    "Mara",
-    "Mbeya",
-    "Morogoro",
-    "Mtwara",
-    "Mwanza",
-    "Njombe",
-    "Pwani",
-    "Rukwa",
-    "Ruvuma",
-    "Shinyanga",
-    "Simiyu",
-    "Singida",
-    "Songwe",
-    "Tabora",
-    "Tanga",
-    "Kaskazini Unguja",
-    "Kusini Unguja",
-    "Mjini Magharibi",
-    "Kaskazini Pemba",
-    "Kusini Pemba",
-}
-
 
 def _require_tanzania_region(v: str | None) -> str | None:
-    if v is None:
-        return None
-    cleaned = str(v).strip()
-    if cleaned not in TANZANIA_REGIONS:
-        raise ValueError("location must be a Tanzania region")
-    return cleaned
+    return require_tanzania_region(v)
 
 
 def _require_valid_dob(v: str) -> str:
@@ -94,6 +57,7 @@ class SMERegisterRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=200)
     email: str | None = Field(default=None, max_length=254)
     location: str = Field(min_length=2, max_length=200)
+    district: str = Field(min_length=2, max_length=100)
     business_type: str = Field(min_length=2, max_length=100)
     gender: str
     nationality: str = Field(default="Tanzanian", max_length=50)
@@ -165,6 +129,7 @@ class SMERegisterRequest(BaseModel):
             raise ValueError(
                 "Date of birth must match the first 8 NIDA digits (YYYYMMDD)"
             )
+        require_district_in_region(self.location, self.district)
         return self
 
 
@@ -274,6 +239,7 @@ class SMEProfileResponse(BaseModel):
     phone: str
     email: str | None
     location: str
+    district: str | None = None
     business_type: str
     nationality: str
     date_of_birth: date
@@ -347,6 +313,7 @@ class SMEProfileUpdateRequest(BaseModel):
     phone: str | None = Field(default=None, min_length=9, max_length=20)
     email: str | None = Field(default=None, max_length=254)
     location: str | None = Field(default=None, min_length=2, max_length=200)
+    district: str | None = Field(default=None, min_length=2, max_length=100)
     business_type: str | None = Field(default=None, min_length=2, max_length=100)
     gender: str | None = None
 
@@ -371,6 +338,14 @@ class SMEProfileUpdateRequest(BaseModel):
     @classmethod
     def validate_email(cls, v: str | None) -> str | None:
         return _require_valid_email(v)
+
+    @model_validator(mode="after")
+    def validate_district_matches_region(self):
+        if self.district is not None:
+            if self.location is None:
+                raise ValueError("region is required when updating district")
+            require_district_in_region(self.location, self.district)
+        return self
 
 
 class LenderProfileUpdateRequest(BaseModel):
