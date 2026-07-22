@@ -10,5 +10,5 @@ limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[],
     enabled=_settings.rate_limit_enabled and _settings.app_env == "production",
-    headers_enabled=True,
+    headers_enabled=False,
 )

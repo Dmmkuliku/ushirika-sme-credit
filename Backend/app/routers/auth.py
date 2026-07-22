@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -20,20 +20,35 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 @limiter.limit("5/minute")
-def register(request: Request, payload: SMERegisterRequest, db: Session = Depends(get_db)):
+def register(
+    request: Request,
+    response: Response,
+    payload: SMERegisterRequest,
+    db: Session = Depends(get_db),
+):
     user = register_sme(db, payload)
     return user
 
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")
-def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
+def login(
+    request: Request,
+    response: Response,
+    payload: LoginRequest,
+    db: Session = Depends(get_db),
+):
     return login_user(db, payload.login_id, payload.pin)
 
 
 @router.post("/forgot-pin")
 @limiter.limit("5/minute")
-def forgot_pin(request: Request, payload: ForgotPinRequest, db: Session = Depends(get_db)):
+def forgot_pin(
+    request: Request,
+    response: Response,
+    payload: ForgotPinRequest,
+    db: Session = Depends(get_db),
+):
     reset_pin_with_birthdate(
         db, payload.login_id, payload.date_of_birth, payload.phone, payload.new_pin
     )
@@ -49,6 +64,7 @@ def me(current_user: User = Depends(get_current_user)):
 @limiter.limit("10/minute")
 def change_own_pin(
     request: Request,
+    response: Response,
     payload: ChangePinRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

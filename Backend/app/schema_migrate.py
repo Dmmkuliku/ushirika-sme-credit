@@ -18,26 +18,31 @@ def _existing_columns(table: str) -> set[str]:
     return {c["name"] for c in insp.get_columns(table)}
 
 
+def _add_column_if_missing(conn, table: str, column: str, coltype: str) -> None:
+    cols = _existing_columns(table)
+    if not cols or column in cols:
+        return
+    logger.info("Adding %s.%s", table, column)
+    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}"))
+
+
 def migrate_schema() -> None:
     """Add new columns when upgrading an existing database."""
     dialect = engine.dialect.name
-    with engine.begin() as conn:
-        sme_cols = _existing_columns("sme_profiles")
-        if sme_cols and "tin" not in sme_cols:
-            logger.info("Adding sme_profiles.tin")
-            conn.execute(text("ALTER TABLE sme_profiles ADD COLUMN tin VARCHAR(20)"))
-        if sme_cols and "district" not in sme_cols:
-            logger.info("Adding sme_profiles.district")
-            conn.execute(text("ALTER TABLE sme_profiles ADD COLUMN district VARCHAR(100)"))
+    bool_default = "BOOLEAN DEFAULT 0" if dialect == "sqlite" else "BOOLEAN DEFAULT FALSE"
 
-        tx_cols = _existing_columns("transactions")
-        if tx_cols:
-            additions = [
-                ("counterparty_tin", "VARCHAR(20)"),
-                ("counterparty_name", "VARCHAR(200)"),
-                ("is_outlier", "BOOLEAN DEFAULT 0" if dialect == "sqlite" else "BOOLEAN DEFAULT FALSE"),
-            ]
-            for name, coltype in additions:
-                if name not in tx_cols:
-                    logger.info("Adding transactions.%s", name)
-                    conn.execute(text(f"ALTER TABLE transactions ADD COLUMN {name} {coltype}"))
+    # Use separate transactions so each ALTER is applied even if a later one fails.
+    with engine.begin() as conn:
+        _add_column_if_missing(conn, "sme_profiles", "tin", "VARCHAR(20)")
+    with engine.begin() as conn:
+        _add_column_if_missing(conn, "sme_profiles", "district", "VARCHAR(100)")
+
+    tx_cols = _existing_columns("transactions")
+    if tx_cols:
+        for name, coltype in (
+            ("counterparty_tin", "VARCHAR(20)"),
+            ("counterparty_name", "VARCHAR(200)"),
+            ("is_outlier", bool_default),
+        ):
+            with engine.begin() as conn:
+                _add_column_if_missing(conn, "transactions", name, coltype)

@@ -295,9 +295,13 @@ export async function request(path, options = {}) {
       window.location.hash = '#/login';
       window.location.reload();
     }
-    const message =
+    const rawMessage =
       formatDetail(detail) ||
       `Request failed (${response.status}${response.statusText ? ` ${response.statusText}` : ''})`;
+    const message =
+      response.status >= 500 && (!detail || rawMessage === 'Internal Server Error')
+        ? 'The server had a problem. Please try again in a moment.'
+        : rawMessage;
     throw new ApiError(message, { status: response.status, detail, body });
   }
 
