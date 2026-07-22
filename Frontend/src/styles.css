@@ -39,11 +39,14 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   font-family: var(--font-sans);
   color: var(--ink);
   background:
@@ -53,6 +56,7 @@ body {
   background-attachment: fixed;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 img,
@@ -735,7 +739,7 @@ body.nav-lock {
     max(clamp(0.85rem, 3vw, 2rem), env(safe-area-inset-right))
     max(clamp(1.5rem, 4vw, 2.5rem), env(safe-area-inset-bottom))
     max(clamp(0.85rem, 3vw, 2rem), env(safe-area-inset-left));
-  width: min(1200px, 100%);
+  width: min(1280px, 100%);
   margin: 0 auto;
   animation: riseIn 0.45s var(--ease) both;
 }
@@ -1492,6 +1496,14 @@ body.nav-lock {
   border-bottom: 1px solid var(--line, #c5d2d5);
 }
 
+.sme-list-item,
+.portfolio-row,
+.detail-tab,
+.nav-link,
+.btn {
+  touch-action: manipulation;
+}
+
 .detail-tab {
   appearance: none;
   border: 1px solid transparent;
@@ -1980,6 +1992,14 @@ input[pattern="[0-9]{4}"] {
   .profile-dl dt {
     margin-top: 0.55rem;
   }
+
+  .sme-list {
+    max-height: none;
+  }
+
+  .admin-form-wrap {
+    max-width: none;
+  }
 }
 
 @media (max-width: 860px) {
@@ -2186,6 +2206,50 @@ input[pattern="[0-9]{4}"] {
     grid-template-columns: 1fr;
     justify-items: start;
   }
+
+  .detail-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    gap: 0.25rem;
+    margin-inline: -0.25rem;
+    padding-inline: 0.25rem;
+  }
+
+  .detail-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 2.75rem;
+    padding: 0.65rem 0.9rem;
+  }
+
+  .sme-list-item {
+    min-height: 3.25rem;
+    padding: 0.95rem 1rem;
+  }
+
+  .phone-input-group {
+    width: 100%;
+  }
+
+  .phone-input-group input {
+    flex: 1 1 auto;
+    font-size: 16px;
+  }
+
+  .panel {
+    padding: 1rem;
+  }
+
+  .file-drop {
+    min-height: 140px;
+  }
+
+  .ml-metrics-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 560px) {
@@ -2251,12 +2315,53 @@ input[pattern="[0-9]{4}"] {
     font-size: 1.25rem;
     letter-spacing: 0.35em;
   }
+
+  .brand-name {
+    font-size: 1.05rem;
+  }
+
+  .chart-wrap {
+    height: 180px;
+  }
+
+  .data-table {
+    min-width: 30rem;
+  }
 }
 
 @media (max-width: 380px) {
   .metric-grid,
   .metric-grid-compact {
     grid-template-columns: 1fr;
+  }
+
+  .filter-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Phone landscape: keep content usable without oversized hero chrome */
+@media (max-height: 480px) and (orientation: landscape) {
+  .auth-visual {
+    min-height: 0;
+    padding: 0.85rem 1rem;
+  }
+
+  .auth-brand {
+    font-size: 1.8rem;
+  }
+
+  .auth-tagline,
+  .auth-eyebrow {
+    display: none;
+  }
+
+  .auth-panel {
+    padding: 2.5rem 1rem 1.25rem;
+  }
+
+  .topbar-nav {
+    width: min(18rem, 70vw);
   }
 }
 
@@ -2267,6 +2372,30 @@ input[pattern="[0-9]{4}"] {
 
   .topbar-nav {
     order: 2;
+  }
+}
+
+/* Large desktop: roomier composition without stretching forms endlessly */
+@media (min-width: 1280px) {
+  .main-content {
+    width: min(1320px, 100%);
+  }
+
+  .page-header h1 {
+    font-size: clamp(1.85rem, 2.2vw, 2.25rem);
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .lender-layout {
+    grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.3fr);
+  }
+
+  .admin-form-wrap,
+  .auth-main {
+    max-width: 640px;
   }
 }
 
