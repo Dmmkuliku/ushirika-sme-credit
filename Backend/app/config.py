@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-key-change-in-production"
     pseudonymization_key: str = "dev-pseudonymization-key-change-in-production"
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 240
+    access_token_expire_minutes: int = 60
+    rate_limit_enabled: bool = True
 
     cors_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"

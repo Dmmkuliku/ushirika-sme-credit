@@ -1,9 +1,19 @@
 import { defineConfig, loadEnv } from 'vite';
+import { ensureBackendRunning } from './scripts/ensure-backend.mjs';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(async ({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const backend =
-    (env.VITE_BACKEND_PROXY || 'http://127.0.0.1:8001').replace(/\/$/, '');
+
+  // Auto-start local backend in dev so you never switch terminals manually.
+  let backend = (env.VITE_BACKEND_PROXY || 'http://127.0.0.1:8000').replace(/\/$/, '');
+  if (mode === 'development') {
+    try {
+      const port = await ensureBackendRunning();
+      backend = `http://127.0.0.1:${port}`;
+    } catch (err) {
+      console.warn('[ushirika]', err?.message || err);
+    }
+  }
 
   return {
     server: {
@@ -13,6 +23,7 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: backend,
           changeOrigin: true,
+          timeout: 120000,
         },
       },
     },
@@ -22,12 +33,14 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: backend,
           changeOrigin: true,
+          timeout: 120000,
         },
       },
     },
     build: {
       outDir: 'dist',
-      sourcemap: true,
+      // Do not ship source maps in production (harder to reverse-engineer).
+      sourcemap: mode === 'development',
       assetsDir: 'assets',
     },
   };

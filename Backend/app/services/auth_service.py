@@ -142,36 +142,30 @@ def reset_pin_with_birthdate(
     db: Session, login_id: str, date_of_birth: str, phone: str, new_pin: str
 ) -> None:
     """Allow PIN reset when both birthdate and phone match the SME registration record."""
-    user = db.query(User).filter(User.login_id == login_id).first()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+    # Uniform client message — avoid revealing whether the account or fields matched.
+    fail = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Could not reset PIN. Check your details or contact an administrator.",
+    )
 
-    if user.role != UserRole.SME:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="PIN recovery with birthdate is available for SME accounts. Contact your administrator for other roles.",
-        )
+    user = db.query(User).filter(User.login_id == login_id).first()
+    if not user or not user.is_active or user.role != UserRole.SME:
+        raise fail
 
     profile = db.query(SMEProfile).filter(SMEProfile.user_id == user.id).first()
     if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SME profile not found")
+        raise fail
 
     try:
         dob = date.fromisoformat(date_of_birth)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date of birth")
+        raise fail
 
     if profile.date_of_birth != dob:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Date of birth does not match our records",
-        )
+        raise fail
 
     if (profile.phone or "") != (phone or ""):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Phone number does not match our records",
-        )
+        raise fail
 
     user.hashed_pin = hash_pin(new_pin)
     db.commit()

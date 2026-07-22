@@ -190,7 +190,7 @@ def build():
     section_header(s, "WHAT WAS BUILT", "Ushirika — a working credit platform for SMEs and lenders", "Deliverables match proposal Section 3.10")
     layers = [
         ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nCloud API wake-up\nSimple EN / Kiswahili UI", LAGOON),
-        ("API", "FastAPI + JWT\nNIDA-DOB, phone, email\nNo future transactions", FOREST),
+        ("API", "FastAPI + JWT\nRate limits + hardened headers\nNo public API docs in prod", FOREST),
         ("ML Core", "Feature engineering\nRF (primary) + LR\nUpload scores immediately", LAGOON_BRIGHT),
         ("Data & Ethics", "SQL storage\nHMAC PII hashes\n25% outlier rule\nConservative loans", FOREST_DEEP),
     ]
@@ -206,6 +206,7 @@ def build():
             "Proposal fulfilment: operational ML backend · Vite interactive portal · technical performance report.\n"
             "Lender workflow: progressive NIDA search → SME profile (incl. TIN) → tabs for ML metrics, signals, txs, history.\n"
             "Inclusive controls: NIDA-DOB matching, +255 phone entry, cascading Tanzania region→district dropdowns, bilingual labels, live email checks, and clear forms.\n"
+            "Security: production API docs disabled, auth rate limits, short-lived JWTs, strict CORS, security headers, no production source maps, and no boot-time PIN resets.\n"
             "Responsive UI: the same portal is usable on desktop computers and mobile phones.",
             size=13, color=MUTED)
     footer(s, 4)

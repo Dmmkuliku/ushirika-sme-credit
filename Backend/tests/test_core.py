@@ -193,7 +193,7 @@ def test_forgot_pin_requires_matching_dob_and_phone(client):
         },
     )
     assert resp.status_code == 400
-    assert "Phone" in resp.json()["detail"]
+    assert "Could not reset PIN" in resp.json()["detail"]
 
     # Wrong birthdate is rejected even with correct phone.
     resp = client.post(

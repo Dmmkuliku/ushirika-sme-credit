@@ -10,6 +10,7 @@ from app import __version__
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.routers import admin, auth, credit, dashboard, lender, sme, transactions
+from app.security_hardening import attach_security
 from app.services.ml_predictor import get_predictor, reload_predictor
 from app.services.ml_training import train_models
 
@@ -51,25 +52,30 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    is_prod = settings.app_env == "production"
     application = FastAPI(
         title=settings.app_name,
         version=__version__,
         description="Supply-chain credit risk API for SME and Lender roles",
         lifespan=lifespan,
-        openapi_url="/api/openapi.json",
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
+        openapi_url=None if is_prod else "/api/openapi.json",
+        docs_url=None if is_prod else "/api/docs",
+        redoc_url=None if is_prod else "/api/redoc",
     )
 
-    application.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origin_list,
-        allow_origin_regex=r"https://.*\.vercel\.app",
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"],
-    )
+    attach_security(application, settings)
+
+    cors_kwargs = {
+        "allow_origins": settings.cors_origin_list,
+        "allow_credentials": True,
+        "allow_methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        "allow_headers": ["Authorization", "Content-Type", "Accept", "Accept-Language"],
+        "expose_headers": ["Content-Disposition"],
+    }
+    # Preview Vercel URLs only in non-production (keeps prod CORS exact-list only).
+    if not is_prod:
+        cors_kwargs["allow_origin_regex"] = r"https://.*\.vercel\.app"
+    application.add_middleware(CORSMiddleware, **cors_kwargs)
 
     api_prefix = "/api"
     application.include_router(admin.router, prefix=api_prefix)

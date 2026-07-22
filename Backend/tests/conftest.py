@@ -8,8 +8,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 os.environ["DATABASE_URL"] = "sqlite://"
-os.environ["SECRET_KEY"] = "test-secret-key"
-os.environ["PSEUDONYMIZATION_KEY"] = "test-pseudo-key"
+os.environ["SECRET_KEY"] = "test-secret-key-for-unit-tests-32chars"
+os.environ["PSEUDONYMIZATION_KEY"] = "test-pseudo-key-for-unit-tests-32"
+os.environ["APP_ENV"] = "test"
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 os.environ["MODEL_DIR"] = tempfile.mkdtemp()
 
 from app.database import Base, get_db

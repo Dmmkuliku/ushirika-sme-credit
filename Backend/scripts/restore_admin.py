@@ -1,5 +1,9 @@
-"""Restore admin and backfill missing SME TIN values on existing DBs."""
+"""Restore admin and backfill missing SME TIN values on existing DBs.
 
+In production this never resets existing PINs (creates admin only if missing).
+"""
+
+import os
 import sys
 from pathlib import Path
 
@@ -27,20 +31,29 @@ DEMO_TINS = {
 }
 
 
+def _is_production() -> bool:
+    return os.getenv("APP_ENV", "development").lower() == "production"
+
+
 def restore_admin() -> None:
     Base.metadata.create_all(bind=engine)
     migrate_schema()
     db = SessionLocal()
+    production = _is_production()
     try:
         admin = db.query(User).filter(User.login_id == ADMIN_LOGIN_ID).first()
         if admin:
             admin.is_active = True
-            admin.hashed_pin = hash_pin(ADMIN_PIN)
             admin.full_name = ADMIN_NAME
             admin.gender = "Male"
             admin.role = UserRole.ADMIN
+            # Never force-reset production PINs on every boot.
+            if not production:
+                admin.hashed_pin = hash_pin(ADMIN_PIN)
+                print(f"Administrator restored: ID {ADMIN_LOGIN_ID}, PIN {ADMIN_PIN}")
+            else:
+                print(f"Administrator present: ID {ADMIN_LOGIN_ID} (PIN unchanged)")
             db.commit()
-            print(f"Administrator restored: ID {ADMIN_LOGIN_ID}, PIN {ADMIN_PIN}")
         else:
             admin = User(
                 login_id=ADMIN_LOGIN_ID,
@@ -65,7 +78,7 @@ def restore_admin() -> None:
             db.commit()
             print(f"Backfilled TIN for {updated} SME profile(s)")
 
-        # Ensure fixed initial sub-admin accounts exist and can sign in with PIN 1234.
+        # Sub-admins: create if missing; reset PIN only outside production.
         created_subadmins = 0
         reset_subadmins = 0
         for idx, login_id in enumerate(SUBADMIN_INITIAL_IDS, start=1):
@@ -73,12 +86,13 @@ def restore_admin() -> None:
             if sub:
                 sub.role = UserRole.SUBADMIN
                 sub.is_active = True
-                sub.hashed_pin = hash_pin(ADMIN_PIN)
                 if not sub.full_name:
                     sub.full_name = f"Sub Admin {idx}"
                 if not sub.gender or sub.gender == "Other":
                     sub.gender = "Female" if idx % 2 else "Male"
-                reset_subadmins += 1
+                if not production:
+                    sub.hashed_pin = hash_pin(ADMIN_PIN)
+                    reset_subadmins += 1
             else:
                 db.add(
                     User(
@@ -94,8 +108,9 @@ def restore_admin() -> None:
         if created_subadmins or reset_subadmins:
             db.commit()
             print(
-                f"Sub-admin accounts ready: created {created_subadmins}, reset/updated {reset_subadmins} "
-                f"(PIN {ADMIN_PIN})"
+                f"Sub-admin accounts ready: created {created_subadmins}, "
+                f"reset/updated {reset_subadmins}"
+                + (f" (PIN {ADMIN_PIN})" if not production else " (PINs unchanged in production)")
             )
     finally:
         db.close()
