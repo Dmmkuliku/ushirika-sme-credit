@@ -1,5 +1,9 @@
 # Render Blueprint — Backend API
 # https://render.com/docs/blueprint-spec
+#
+# Data persistence: free Render disks are ephemeral (SQLite is wiped when the
+# service sleeps/redeploys). Set DATABASE_URL in the Render dashboard to a free
+# Neon Postgres connection string so SME/lender accounts and transactions survive.
 
 services:
   - type: web
@@ -20,11 +24,11 @@ services:
       - key: PSEUDONYMIZATION_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///./data/sme_credit.db
+        sync: false
       - key: CORS_ORIGINS
         value: "https://ushirika-sme-portal.vercel.app,https://ushirika-sme-portal-dmmkuliku.vercel.app"
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
-        value: "60"
+        value: "480"
       - key: RATE_LIMIT_ENABLED
         value: "true"
       - key: MODEL_DIR

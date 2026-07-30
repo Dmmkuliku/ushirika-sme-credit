@@ -1,5 +1,17 @@
 # Deploy Ushirika to Render (API) + Vercel (Frontend)
 
+## Data persistence (important)
+
+Render **free** SQLite storage is wiped when the API sleeps or redeploys. To keep SME accounts and transactions permanently:
+
+1. Create a free Postgres database at https://neon.tech (or any Postgres host).
+2. In Render → `ushirika-api` → Environment, set:
+   - `DATABASE_URL` = your Neon connection string (starts with `postgresql://` or `postgres://`)
+3. Redeploy the API. Tables are created automatically on boot.
+4. Run once in the Render shell if needed: `python scripts/restore_admin.py`
+
+The portal now keeps your **login session** in the browser across refresh (and only signs out after 30 minutes of no activity).
+
 ## Deploy checklist (after every product update)
 
 1. **GitHub** — commit + push to `main`

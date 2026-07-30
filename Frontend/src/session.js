@@ -1,6 +1,6 @@
 /**
  * Session & central app state.
- * Token and user live in sessionStorage; UI state is in-memory.
+ * Token and user persist in localStorage so refresh / new tabs keep you signed in.
  */
 
 const TOKEN_KEY = 'ushirika_token';
@@ -12,6 +12,14 @@ const state = {
   listeners: new Set(),
 };
 
+function storage() {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 function safeParse(json) {
   try {
     return JSON.parse(json);
@@ -20,10 +28,33 @@ function safeParse(json) {
   }
 }
 
+function readStored() {
+  const store = storage();
+  if (!store) return { token: null, user: null };
+  // Migrate older sessionStorage sessions once.
+  try {
+    const legacyToken = sessionStorage.getItem(TOKEN_KEY);
+    const legacyUser = sessionStorage.getItem(USER_KEY);
+    if (legacyToken && !store.getItem(TOKEN_KEY)) {
+      store.setItem(TOKEN_KEY, legacyToken);
+      if (legacyUser) store.setItem(USER_KEY, legacyUser);
+    }
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+  } catch {
+    /* ignore */
+  }
+  return {
+    token: store.getItem(TOKEN_KEY),
+    user: safeParse(store.getItem(USER_KEY)),
+  };
+}
+
 export function hydrateSession() {
   try {
-    state.token = sessionStorage.getItem(TOKEN_KEY);
-    state.user = safeParse(sessionStorage.getItem(USER_KEY));
+    const stored = readStored();
+    state.token = stored.token;
+    state.user = stored.user;
   } catch {
     state.token = null;
     state.user = null;
@@ -49,8 +80,9 @@ export function setSession(payload) {
   state.token = token;
   state.user = user;
   try {
-    sessionStorage.setItem(TOKEN_KEY, token);
-    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+    const store = storage();
+    store?.setItem(TOKEN_KEY, token);
+    store?.setItem(USER_KEY, JSON.stringify(user));
   } catch {
     /* private mode / quota */
   }
@@ -62,7 +94,7 @@ export function updateUser(partial) {
   if (!state.user) return getSession();
   state.user = normalizeUser({ ...state.user, ...partial });
   try {
-    sessionStorage.setItem(USER_KEY, JSON.stringify(state.user));
+    storage()?.setItem(USER_KEY, JSON.stringify(state.user));
   } catch {
     /* ignore */
   }
@@ -74,6 +106,9 @@ export function clearSession() {
   state.token = null;
   state.user = null;
   try {
+    const store = storage();
+    store?.removeItem(TOKEN_KEY);
+    store?.removeItem(USER_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
   } catch {

@@ -183,7 +183,7 @@ export class ApiError extends Error {
 
 function getToken() {
   try {
-    return sessionStorage.getItem('ushirika_token');
+    return localStorage.getItem('ushirika_token') || sessionStorage.getItem('ushirika_token');
   } catch {
     return null;
   }
@@ -360,15 +360,21 @@ export async function request(path, options = {}) {
     }
     const detail = body && typeof body === 'object' ? body.detail ?? body.message ?? body : body;
     // Expired/invalid token on an authenticated call: clean sign-out instead of broken page.
+    // Only trust JSON 401s from our API (avoid wiping session on proxy HTML errors).
     if (response.status === 401 && auth && getToken() && !path.startsWith('/auth/')) {
-      try {
-        sessionStorage.removeItem('ushirika_token');
-        sessionStorage.removeItem('ushirika_user');
-      } catch {
-        /* ignore */
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        try {
+          localStorage.removeItem('ushirika_token');
+          localStorage.removeItem('ushirika_user');
+          sessionStorage.removeItem('ushirika_token');
+          sessionStorage.removeItem('ushirika_user');
+        } catch {
+          /* ignore */
+        }
+        window.location.hash = '#/login';
+        window.location.reload();
       }
-      window.location.hash = '#/login';
-      window.location.reload();
     }
     const rawMessage =
       formatDetail(detail) ||

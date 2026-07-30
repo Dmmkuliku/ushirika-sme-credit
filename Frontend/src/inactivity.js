@@ -1,13 +1,13 @@
 /**
- * Auto-logout after 90 seconds without mouse/keyboard/touch/scroll activity.
+ * Auto-logout after 30 minutes without mouse/keyboard/touch/scroll activity.
  * Uses a wall-clock deadline so browser throttling or device sleep cannot
  * preserve an expired session.
  */
 
 import { t } from './i18n.js';
 
-const IDLE_LIMIT_MS = 90_000;
-const WARNING_AT_MS = 75_000;
+const IDLE_LIMIT_MS = 30 * 60_000;
+const WARNING_AT_MS = 28 * 60_000;
 
 const ACTIVITY_EVENTS = [
   'mousemove',

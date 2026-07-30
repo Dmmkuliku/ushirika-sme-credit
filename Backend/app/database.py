@@ -9,15 +9,29 @@ settings = get_settings()
 
 
 def _normalize_database_url(url: str) -> str:
-    # Render / Heroku often provide postgres:// which SQLAlchemy 2 rejects.
+    # Render / Heroku / Neon often provide postgres:// which SQLAlchemy 2 rejects.
     if url.startswith("postgres://"):
         return "postgresql://" + url[len("postgres://") :]
     return url
 
 
 DATABASE_URL = _normalize_database_url(settings.database_url)
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+IS_SQLITE = DATABASE_URL.startswith("sqlite")
+connect_args = {"check_same_thread": False} if IS_SQLITE else {}
+
+# pool_pre_ping keeps Postgres connections alive across free-tier pauses.
+engine_kwargs: dict = {"connect_args": connect_args}
+if not IS_SQLITE:
+    engine_kwargs.update(
+        {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "pool_size": 5,
+            "max_overflow": 5,
+        }
+    )
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -27,7 +41,7 @@ class Base(DeclarativeBase):
 
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    if DATABASE_URL.startswith("sqlite"):
+    if IS_SQLITE:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
