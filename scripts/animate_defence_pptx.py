@@ -166,19 +166,24 @@ def process_slide(slide, index: int) -> None:
 
 
 def main() -> None:
-    if not SRC.exists():
+    candidates = [p for p in (SRC, SRC_ALT, SEM2) if p.exists()]
+    if not candidates:
         raise FileNotFoundError(SRC)
+    # Prefer the newest built deck so a locked older file is not re-animated over a fresh build
+    target = max(candidates, key=lambda p: p.stat().st_mtime)
+    print(f"Animating: {target}")
 
     try:
-        shutil.copy2(SRC, SAFETY_BACKUP)
+        shutil.copy2(target, SAFETY_BACKUP)
         print(f"Safety backup: {SAFETY_BACKUP}")
     except Exception as exc:
         print(f"Backup skipped: {exc}")
 
     app = win32.Dispatch("PowerPoint.Application")
     app.Visible = 1
-    presentation = app.Presentations.Open(str(SRC), WithWindow=True)
+    presentation = app.Presentations.Open(str(target), WithWindow=True)
 
+    saved_path = target
     try:
         count = presentation.Slides.Count
         print(f"Animating {count} slides…")
@@ -187,28 +192,21 @@ def main() -> None:
             print(f"  slide {i}: transition + {'entrance' if i in ANIMATED_SLIDES else 'no entrance'}")
         try:
             presentation.Save()
-            print(f"Saved: {SRC}")
+            print(f"Saved: {target}")
         except Exception:
             presentation.SaveAs(str(SRC_ALT))
+            saved_path = SRC_ALT
             print(f"Primary locked; saved: {SRC_ALT}")
     finally:
         presentation.Close()
         app.Quit()
 
-    # Prefer animated primary; fall back to alt
-    animated = SRC if SRC.exists() else SRC_ALT
-    if SRC_ALT.exists() and SRC_ALT.stat().st_mtime > SRC.stat().st_mtime:
-        animated = SRC_ALT
+    for dest in (SRC, SRC_ALT, SEM2):
+        if dest == saved_path:
+            continue
         try:
-            shutil.copy2(SRC_ALT, SRC)
-        except Exception:
-            pass
-
-    for dest in (SRC_ALT, SEM2):
-        try:
-            if dest != animated:
-                shutil.copy2(animated, dest)
-                print(f"Synced: {dest}")
+            shutil.copy2(saved_path, dest)
+            print(f"Synced: {dest}")
         except Exception as exc:
             print(f"Could not sync {dest}: {exc}")
 
