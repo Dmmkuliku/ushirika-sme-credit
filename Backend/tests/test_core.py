@@ -13,7 +13,8 @@ def test_health(client):
 def test_ping(client):
     resp = client.get("/api/ping")
     assert resp.status_code == 200
-    assert resp.json().get("ok") is True
+    data = resp.json()
+    assert data.get("ok") is True
     assert "version" in data
 
 
