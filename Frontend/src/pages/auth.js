@@ -279,6 +279,9 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     // Wake the cloud API quietly in the background — do not show progress to the user.
     api.ensureApiReady().catch(() => {});
   }
+  if ((mode === 'register' || mode === 'forgot-pin') && api.isCloudDeployment()) {
+    api.ensureApiReady().catch(() => {});
+  }
 
   function showError(msg) {
     if (!errorEl) return;
@@ -362,11 +365,14 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
       submitBtn.disabled = true;
       submitBtn.textContent = t('auth.resetting');
       try {
+        await api.ensureApiReady();
         await api.forgotPin({ login_id, date_of_birth, phone, new_pin });
         showToast(t('auth.pinReset'), 'success');
         window.location.hash = '#/login';
       } catch (err) {
-        const msg = getErrorMessage(err, t('auth.errForgot'));
+        const msg = err?.detail === 'render_cold_start'
+          ? t('auth.errServerWake')
+          : getErrorMessage(err, t('auth.errForgot'));
         showError(msg);
         showToast(msg, 'error');
       } finally {
@@ -414,6 +420,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     submitBtn.disabled = true;
     submitBtn.textContent = t('auth.creating');
     try {
+      await api.ensureApiReady();
       await api.registerSme({
         nida, phone: normalizedPhone, full_name, email, location, district, business_type, gender,
         nationality: 'Tanzanian', date_of_birth, tin: tinClean, pin,
@@ -435,7 +442,9 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
       showToast(t('auth.accountCreated'), 'success');
       onSuccess();
     } catch (err) {
-      const msg = getErrorMessage(err, t('auth.errRegister'));
+      const msg = err?.detail === 'render_cold_start'
+        ? t('auth.errServerWake')
+        : getErrorMessage(err, t('auth.errRegister'));
       showError(msg);
       showToast(msg, 'error');
     } finally {

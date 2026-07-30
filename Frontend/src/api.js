@@ -2,19 +2,27 @@
  * FastAPI-aligned API client for the Tanzania SME / Lender portal.
  *
  * API base resolution:
- * 1. Same-origin `/api` on Vercel (rewritten to Render — avoids CORS/cold-start flakes)
+ * 1. Live Vercel portal → Render API directly (avoids Vercel rewrite timeouts /
+ *    ROUTER_EXTERNAL_TARGET_ERROR while Render cold-starts)
  * 2. VITE_API_URL at build time
  * 3. Vite DEV → `/api` proxy
  * 4. Hard fallback to the live Render API
  */
 
 const RENDER_API = 'https://ushirika-api.onrender.com/api';
+const RENDER_HEALTH = 'https://ushirika-api.onrender.com/api/health';
+
+function isVercelHost(host = '') {
+  return host.endsWith('.vercel.app') || host.includes('ushirika-sme-portal');
+}
 
 function resolveApiBase() {
   try {
     const host = typeof window !== 'undefined' ? window.location.hostname : '';
-    if (host && (host.endsWith('.vercel.app') || host.includes('ushirika-sme-portal'))) {
-      return '/api';
+    // Call Render directly from the browser. Same-origin Vercel rewrites to a
+    // sleeping Render free-tier often return ROUTER_EXTERNAL_TARGET_ERROR.
+    if (host && isVercelHost(host)) {
+      return RENDER_API;
     }
   } catch {
     /* ignore */
@@ -45,24 +53,24 @@ export function isCloudDeployment() {
   if (isLocalDev()) return false;
   try {
     const host = window.location.hostname || '';
-    return host.endsWith('.vercel.app') || host.includes('ushirika-sme-portal');
+    return isVercelHost(host);
   } catch {
     return !import.meta.env.DEV;
   }
 }
 
 function getHealthUrl() {
-  if (API_BASE.startsWith('http')) {
-    return `${API_BASE.replace(/\/$/, '')}/health`;
+  // Always wake Render directly in cloud — do not go through Vercel rewrite.
+  if (isCloudDeployment() || API_BASE.startsWith('http')) {
+    return RENDER_HEALTH;
   }
-  // Same-origin /api → Vercel rewrite or Vite proxy (avoids CORS to Render).
   return '/api/health';
 }
 
 const CLOUD_WAKE = {
-  maxAttempts: 25,
-  delayMs: 3000,
-  requestTimeoutMs: 55000,
+  maxAttempts: 30,
+  delayMs: 2500,
+  requestTimeoutMs: 60000,
 };
 
 let cloudBackendReady = false;
@@ -185,6 +193,24 @@ function formatDetail(detail) {
   return String(detail);
 }
 
+function looksLikeProxyOrHtmlError(text) {
+  if (!text || typeof text !== 'string') return false;
+  const sample = text.slice(0, 800).toLowerCase();
+  return (
+    sample.includes('router_external_target_error') ||
+    sample.includes('an error occurred with this application') ||
+    sample.includes('<!doctype html') ||
+    sample.includes('<html')
+  );
+}
+
+function friendlyTransportMessage(text, status = 0) {
+  if (looksLikeProxyOrHtmlError(text) || [502, 503, 504].includes(status)) {
+    return 'Cloud server is still starting. Please wait a moment and try again.';
+  }
+  return null;
+}
+
 async function parseBody(response) {
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
@@ -212,7 +238,7 @@ async function parseBody(response) {
  * @param {RequestInit & { auth?: boolean, raw?: boolean }} options
  */
 export async function request(path, options = {}) {
-  const defaultRetries = isCloudDeployment() ? 4 : 2;
+  const defaultRetries = isCloudDeployment() ? 5 : 2;
   const {
     auth = true,
     raw = false,
@@ -234,7 +260,11 @@ export async function request(path, options = {}) {
 
   if (!didWake && !cloudBackendReady) {
     didWake = true;
-    await wakeApiIfNeeded();
+    try {
+      await wakeApiIfNeeded();
+    } catch {
+      // Still attempt the real call; wake may finish mid-request.
+    }
   }
 
   let response;
@@ -244,15 +274,36 @@ export async function request(path, options = {}) {
       const fetchInit = { ...init, headers };
       if (timeoutMs > 0) {
         fetchInit.signal = AbortSignal.timeout(timeoutMs);
+      } else if (isCloudDeployment()) {
+        // Login/register must wait for cold starts; Vercel proxy used to fail earlier.
+        fetchInit.signal = AbortSignal.timeout(90000);
       }
       response = await fetch(`${API_BASE}${path}`, fetchInit);
+
+      // Retry transient gateway / cold-start failures.
+      if (response && [502, 503, 504].includes(response.status) && attempt < retries) {
+        cloudBackendReady = false;
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        try {
+          await ensureApiReady({ force: true });
+        } catch {
+          /* continue retrying */
+        }
+        continue;
+      }
+
       lastErr = null;
       break;
     } catch (err) {
       lastErr = err;
       if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
-        await wakeApiIfNeeded();
+        cloudBackendReady = false;
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        try {
+          await ensureApiReady({ force: true });
+        } catch {
+          /* continue */
+        }
         continue;
       }
     }
@@ -262,7 +313,7 @@ export async function request(path, options = {}) {
     throw new ApiError(
       timedOut
         ? 'The server took too long to respond. If the cloud API was sleeping, try again in a moment.'
-        : 'Unable to reach the server. Check your connection and API URL.',
+        : 'Unable to reach the server. Check your connection and try again.',
       {
         status: 0,
         detail: timedOut ? 'request_timeout' : (lastErr?.message || String(lastErr || 'No response')),
@@ -283,6 +334,13 @@ export async function request(path, options = {}) {
   const body = await parseBody(response);
 
   if (!response.ok) {
+    if (typeof body === 'string' && looksLikeProxyOrHtmlError(body)) {
+      cloudBackendReady = false;
+      throw new ApiError(
+        'Cloud server is still starting. Please wait a moment and try again.',
+        { status: response.status, detail: 'render_cold_start', body },
+      );
+    }
     const detail = body && typeof body === 'object' ? body.detail ?? body.message ?? body : body;
     // Expired/invalid token on an authenticated call: clean sign-out instead of broken page.
     if (response.status === 401 && auth && getToken() && !path.startsWith('/auth/')) {
@@ -298,11 +356,22 @@ export async function request(path, options = {}) {
     const rawMessage =
       formatDetail(detail) ||
       `Request failed (${response.status}${response.statusText ? ` ${response.statusText}` : ''})`;
+    const friendly = friendlyTransportMessage(rawMessage, response.status);
     const message =
-      response.status >= 500 && (!detail || rawMessage === 'Internal Server Error')
+      friendly ||
+      (response.status >= 500 && (!detail || rawMessage === 'Internal Server Error')
         ? 'The server had a problem. Please try again in a moment.'
-        : rawMessage;
+        : rawMessage);
     throw new ApiError(message, { status: response.status, detail, body });
+  }
+
+  // Successful JSON may still be wrong if a proxy returned HTML with 200 (rare).
+  if (typeof body === 'string' && looksLikeProxyOrHtmlError(body)) {
+    cloudBackendReady = false;
+    throw new ApiError(
+      'Cloud server is still starting. Please wait a moment and try again.',
+      { status: response.status, detail: 'render_cold_start', body },
+    );
   }
 
   return body;

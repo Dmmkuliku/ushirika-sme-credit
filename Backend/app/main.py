@@ -88,9 +88,9 @@ def create_app() -> FastAPI:
         "allow_headers": ["Authorization", "Content-Type", "Accept", "Accept-Language"],
         "expose_headers": ["Content-Disposition"],
     }
-    # Preview Vercel URLs only in non-production (keeps prod CORS exact-list only).
-    if not is_prod:
-        cors_kwargs["allow_origin_regex"] = r"https://.*\.vercel\.app"
+    # Allow all Vercel preview/production hosts so the portal can call the API
+    # directly (avoids Vercel rewrite timeouts / ROUTER_EXTERNAL_TARGET_ERROR).
+    cors_kwargs["allow_origin_regex"] = r"https://.*\.vercel\.app"
     application.add_middleware(CORSMiddleware, **cors_kwargs)
 
     api_prefix = "/api"

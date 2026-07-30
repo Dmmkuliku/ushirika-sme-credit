@@ -119,6 +119,27 @@ export function normalizeListPayload(payload, keys = ['items', 'data', 'results'
 
 export function getErrorMessage(err, fallback = t('common.unknownError')) {
   if (!err) return fallback;
-  if (typeof err === 'string') return err;
-  return err.message || fallback;
+  if (typeof err === 'string') {
+    const s = err.toLowerCase();
+    if (
+      s.includes('router_external_target_error') ||
+      s.includes('an error occurred with this application') ||
+      s.includes('<!doctype') ||
+      s.includes('<html')
+    ) {
+      return t('auth.errServerWake');
+    }
+    return err;
+  }
+  const msg = err.message || fallback;
+  const detail = typeof err.detail === 'string' ? err.detail : '';
+  if (
+    err.detail === 'render_cold_start' ||
+    /router_external_target_error|an error occurred with this application|<!doctype|<html/i.test(
+      `${msg}\n${detail}`,
+    )
+  ) {
+    return t('auth.errServerWake');
+  }
+  return msg || fallback;
 }
