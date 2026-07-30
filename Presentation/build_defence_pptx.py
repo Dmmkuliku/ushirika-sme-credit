@@ -405,30 +405,85 @@ def build():
     )
     footer(s, 6)
 
-    # —— 7 Findings ——
+    # —— 7 Findings (with evaluation proof) ——
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "FINDINGS", "Random Forest beat Logistic Regression on unseen test data")
-    metric(s, Inches(0.45), Inches(1.55), Inches(3.05), Inches(1.4), "95.8%", "RF ROC-AUC", SUCCESS)
-    metric(s, Inches(3.7), Inches(1.55), Inches(3.05), Inches(1.4), "88.6%", "RF Accuracy", LAGOON)
-    metric(s, Inches(6.95), Inches(1.55), Inches(3.05), Inches(1.4), "87.5%", "LR ROC-AUC", RGBColor(0x8A, 0x5A, 0x00))
-    metric(s, Inches(10.2), Inches(1.55), Inches(2.7), Inches(1.4), "RF wins", "Primary model", FOREST)
-    round_rect(s, Inches(0.45), Inches(3.2), Inches(12.4), Inches(3.35), WHITE)
-    textbox(s, Inches(0.8), Inches(3.4), Inches(11.8), Inches(0.4), "What the numbers mean", size=18, bold=True, color=FOREST)
-    bullets(
+    section_header(
         s,
-        Inches(0.8),
-        Inches(3.95),
-        Inches(11.8),
-        Inches(2.3),
-        [
-            "RF: Precision 93.0% · Recall 85.7% · F1 89.2%.",
-            "LR: Precision 75.8% · Recall 87.7% · F1 81.3%.",
-            "Strong predictors: payment reliability, delay, trading volume, partner mix and sales trend.",
-            "That is why Random Forest is the scoring model in the live prototype.",
-        ],
-        size=17,
+        "FINDINGS  ·  HOLD-OUT PROOF",
+        "Random Forest beat Logistic Regression on unseen test data",
+        "From the project hold-out evaluation  ·  80/20 stratified split  ·  test n = 280 SMEs",
     )
+
+    # Comparison table header + two model rows
+    round_rect(s, Inches(0.45), Inches(1.55), Inches(8.35), Inches(3.35), WHITE)
+    textbox(s, Inches(0.7), Inches(1.68), Inches(7.9), Inches(0.35), "Side-by-side hold-out metrics (creditworthy = positive class)", size=14, bold=True, color=FOREST)
+
+    headers = ["Model", "Accuracy", "Precision", "Recall", "F1", "ROC-AUC"]
+    rf_row = ["Random Forest", "88.6%", "93.0%", "85.7%", "89.2%", "95.8%"]
+    lr_row = ["Logistic Reg.", "77.9%", "75.8%", "87.7%", "81.3%", "87.5%"]
+    col_w = [1.7, 1.2, 1.25, 1.15, 1.1, 1.25]
+    x0 = 0.7
+    # header strip
+    rect(s, Inches(0.65), Inches(2.15), Inches(7.95), Inches(0.42), FOREST)
+    x = x0
+    for h, w in zip(headers, col_w):
+        textbox(s, Inches(x), Inches(2.2), Inches(w), Inches(0.35), h, size=13, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+        x += w
+    # RF row
+    rect(s, Inches(0.65), Inches(2.57), Inches(7.95), Inches(0.55), SOFT)
+    x = x0
+    for val, w in zip(rf_row, col_w):
+        textbox(s, Inches(x), Inches(2.68), Inches(w), Inches(0.35), val, size=14, bold=True, color=FOREST, align=PP_ALIGN.CENTER)
+        x += w
+    # LR row
+    x = x0
+    for val, w in zip(lr_row, col_w):
+        textbox(s, Inches(x), Inches(3.25), Inches(w), Inches(0.35), val, size=14, color=MUTED, align=PP_ALIGN.CENTER)
+        x += w
+    textbox(
+        s,
+        Inches(0.7),
+        Inches(3.85),
+        Inches(7.9),
+        Inches(0.85),
+        "Proof of choice: RF ROC-AUC is 8.3 points higher than LR (95.8% vs 87.5%).\n"
+        "RF also has higher accuracy (+10.7 pts) and precision (+17.2 pts) — fewer false “creditworthy” labels.",
+        size=14,
+        color=INK,
+    )
+
+    # Right: confusion matrix proof for RF
+    round_rect(s, Inches(9.0), Inches(1.55), Inches(3.85), Inches(3.35), FOREST)
+    textbox(s, Inches(9.2), Inches(1.7), Inches(3.5), Inches(0.35), "RF confusion matrix", size=14, bold=True, color=LAGOON_BRIGHT)
+    textbox(s, Inches(9.2), Inches(2.1), Inches(3.5), Inches(0.35), "Test set: 280 SMEs", size=13, color=SOFT)
+    cm = [
+        ("True Negative", "116", "Correct higher-risk"),
+        ("False Positive", "10", "Wrongly called safe"),
+        ("False Negative", "22", "Missed creditworthy"),
+        ("True Positive", "132", "Correct creditworthy"),
+    ]
+    for i, (lab, n, tip) in enumerate(cm):
+        top = Inches(2.55 + i * 0.52)
+        textbox(s, Inches(9.2), top, Inches(2.2), Inches(0.25), lab, size=12, color=SOFT)
+        textbox(s, Inches(11.4), top, Inches(1.2), Inches(0.25), n, size=14, bold=True, color=WHITE, align=PP_ALIGN.RIGHT)
+        textbox(s, Inches(9.2), top + Inches(0.22), Inches(3.4), Inches(0.25), tip, size=11, color=RGBColor(0x9B, 0xC4, 0xBA))
+
+    # Bottom: feature importance proof
+    round_rect(s, Inches(0.45), Inches(5.1), Inches(12.4), Inches(1.65), WHITE)
+    textbox(s, Inches(0.7), Inches(5.2), Inches(12.0), Inches(0.3), "What drove the RF decisions (feature importance from the same training run)", size=14, bold=True, color=FOREST)
+    feats = [
+        ("On-time rate", "19.8%"),
+        ("Default rate", "18.7%"),
+        ("Order-type mix", "8.3%"),
+        ("Account age", "5.5%"),
+        ("Buyer share", "4.6%"),
+        ("Tx frequency", "4.4%"),
+    ]
+    for i, (name, pct) in enumerate(feats):
+        left = Inches(0.7 + i * 2.05)
+        textbox(s, left, Inches(5.6), Inches(1.95), Inches(0.3), pct, size=18, bold=True, color=LAGOON, align=PP_ALIGN.CENTER)
+        textbox(s, left, Inches(6.0), Inches(1.95), Inches(0.45), name, size=13, color=MUTED, align=PP_ALIGN.CENTER)
     footer(s, 7)
 
     # —— 8 Results + limits / next steps (TRA + NIDA) ——
