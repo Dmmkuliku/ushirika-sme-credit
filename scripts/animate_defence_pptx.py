@@ -15,9 +15,12 @@ from pathlib import Path
 
 import win32com.client as win32
 
-SRC = Path(r"C:\Users\USER\OneDrive\Desktop\SEM 2\Data Science Project\Ushirika_Group15.pptx")
+SRC = Path(__file__).resolve().parents[1] / "Presentation" / "Ushirika_Group15_Defence_Presentation.pptx"
+SRC_ALT = Path(__file__).resolve().parents[1] / "Presentation" / "Ushirika_Group15_Defence_v13.pptx"
+SEM2 = Path(r"C:\Users\USER\OneDrive\Desktop\SEM 2\Data Science Project\Ushirika_Group15.pptx")
 SAFETY_BACKUP = SRC.with_name("Ushirika_Group15_BACKUP_before_professional_pass.pptx")
-REPO_COPY = Path(__file__).resolve().parents[1] / "Presentation" / "Ushirika_Group15_Defence_Presentation.pptx"
+REPO_COPY = SRC  # already the primary target
+
 
 # Slide transitions (PpEntryEffect)
 ppEffectFadeSmoothly = 3845
@@ -56,8 +59,8 @@ TRANSITIONS = {
     9: (ppEffectFadeSmoothly, ppTransitionSpeedSlow),
 }
 
-# Key moments only
-ANIMATED_SLIDES = {1, 7, 8, 9}
+# Key moments only — light fades, not busy
+ANIMATED_SLIDES = {1, 2, 7, 8, 9}
 
 
 def clear_animations(slide) -> None:
@@ -129,20 +132,27 @@ def animate_key_slide(slide, index: int) -> None:
         return
 
     if index == 1:
-        add_effect(slide, shapes[0], msoAnimEffectFade, msoAnimTriggerOnPageClick, duration=0.55)
-        for shape in shapes[1:3]:
-            add_effect(slide, shape, msoAnimEffectFade, msoAnimTriggerAfterPrevious, duration=0.4, delay=0.08)
+        add_effect(slide, shapes[0], msoAnimEffectFade, msoAnimTriggerOnPageClick, duration=0.5)
+        for shape in shapes[1:4]:
+            add_effect(slide, shape, msoAnimEffectFade, msoAnimTriggerAfterPrevious, duration=0.35, delay=0.06)
+        return
+
+    if index == 2:
+        add_effect(slide, shapes[0], msoAnimEffectFade, msoAnimTriggerOnPageClick, duration=0.35)
+        for i, shape in enumerate(shapes[1:5]):
+            trigger = msoAnimTriggerWithPrevious if i % 2 else msoAnimTriggerAfterPrevious
+            add_effect(slide, shape, msoAnimEffectFade, trigger, duration=0.35, delay=0.05)
         return
 
     if index in (7, 8):
         add_effect(slide, shapes[0], msoAnimEffectFade, msoAnimTriggerOnPageClick, duration=0.4)
-        for i, shape in enumerate(shapes[1:4]):
+        for i, shape in enumerate(shapes[1:5]):
             trigger = msoAnimTriggerWithPrevious if i > 0 else msoAnimTriggerAfterPrevious
-            add_effect(slide, shape, msoAnimEffectFade, trigger, duration=0.4, delay=0.1 if i else 0.05)
+            add_effect(slide, shape, msoAnimEffectFade, trigger, duration=0.35, delay=0.08 if i else 0.05)
         return
 
     if index == 9:
-        add_effect(slide, shapes[0], msoAnimEffectFade, msoAnimTriggerOnPageClick, duration=0.5)
+        add_effect(slide, shapes[0], msoAnimEffectFade, msoAnimTriggerOnPageClick, duration=0.45)
         for shape in shapes[1:4]:
             add_effect(slide, shape, msoAnimEffectFade, msoAnimTriggerAfterPrevious, duration=0.35, delay=0.06)
 
@@ -159,8 +169,11 @@ def main() -> None:
     if not SRC.exists():
         raise FileNotFoundError(SRC)
 
-    shutil.copy2(SRC, SAFETY_BACKUP)
-    print(f"Safety backup: {SAFETY_BACKUP}")
+    try:
+        shutil.copy2(SRC, SAFETY_BACKUP)
+        print(f"Safety backup: {SAFETY_BACKUP}")
+    except Exception as exc:
+        print(f"Backup skipped: {exc}")
 
     app = win32.Dispatch("PowerPoint.Application")
     app.Visible = 1
@@ -172,15 +185,32 @@ def main() -> None:
         for i in range(1, count + 1):
             process_slide(presentation.Slides.Item(i), i)
             print(f"  slide {i}: transition + {'entrance' if i in ANIMATED_SLIDES else 'no entrance'}")
-        presentation.Save()
-        print(f"Saved: {SRC}")
+        try:
+            presentation.Save()
+            print(f"Saved: {SRC}")
+        except Exception:
+            presentation.SaveAs(str(SRC_ALT))
+            print(f"Primary locked; saved: {SRC_ALT}")
     finally:
         presentation.Close()
         app.Quit()
 
-    if REPO_COPY.parent.exists():
-        shutil.copy2(SRC, REPO_COPY)
-        print(f"Synced repo copy: {REPO_COPY}")
+    # Prefer animated primary; fall back to alt
+    animated = SRC if SRC.exists() else SRC_ALT
+    if SRC_ALT.exists() and SRC_ALT.stat().st_mtime > SRC.stat().st_mtime:
+        animated = SRC_ALT
+        try:
+            shutil.copy2(SRC_ALT, SRC)
+        except Exception:
+            pass
+
+    for dest in (SRC_ALT, SEM2):
+        try:
+            if dest != animated:
+                shutil.copy2(animated, dest)
+                print(f"Synced: {dest}")
+        except Exception as exc:
+            print(f"Could not sync {dest}: {exc}")
 
 
 if __name__ == "__main__":
