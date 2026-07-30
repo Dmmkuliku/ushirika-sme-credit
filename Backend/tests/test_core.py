@@ -8,6 +8,12 @@ def test_health(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] in ("healthy", "degraded")
+
+
+def test_ping(client):
+    resp = client.get("/api/ping")
+    assert resp.status_code == 200
+    assert resp.json().get("ok") is True
     assert "version" in data
 
 
@@ -276,7 +282,7 @@ def test_future_transaction_date_is_rejected(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 422
-    assert "cannot be in the future" in resp.text
+    assert "cannot be after today" in resp.text
 
 
 def test_admin_account_management(client, db):

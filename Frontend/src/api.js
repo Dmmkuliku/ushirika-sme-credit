@@ -11,6 +11,7 @@
 
 const RENDER_API = 'https://ushirika-api.onrender.com/api';
 const RENDER_HEALTH = 'https://ushirika-api.onrender.com/api/health';
+const RENDER_PING = 'https://ushirika-api.onrender.com/api/ping';
 
 function isVercelHost(host = '') {
   return host.endsWith('.vercel.app') || host.includes('ushirika-sme-portal');
@@ -60,34 +61,40 @@ export function isCloudDeployment() {
 }
 
 function getHealthUrl() {
-  // Always wake Render directly in cloud — do not go through Vercel rewrite.
   if (isCloudDeployment() || API_BASE.startsWith('http')) {
     return RENDER_HEALTH;
   }
   return '/api/health';
 }
 
+function getPingUrl() {
+  if (isCloudDeployment() || API_BASE.startsWith('http')) {
+    return RENDER_PING;
+  }
+  return '/api/ping';
+}
+
 const CLOUD_WAKE = {
-  maxAttempts: 30,
-  delayMs: 2500,
-  requestTimeoutMs: 60000,
+  maxAttempts: 20,
+  delayMs: 1500,
+  requestTimeoutMs: 20000,
 };
 
 let cloudBackendReady = false;
 let wakePromise = null;
 
-async function pingHealth(timeoutMs = 8000) {
+async function pingEndpoint(url, timeoutMs = 4000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(getHealthUrl(), {
+    const res = await fetch(url, {
       method: 'GET',
       cache: 'no-store',
       signal: controller.signal,
     });
     if (!res.ok) return false;
     const data = await res.json().catch(() => ({}));
-    return data.status === 'healthy' || data.status === 'degraded' || !!data.version;
+    return data.ok === true || data.status === 'healthy' || data.status === 'degraded' || !!data.version;
   } catch {
     return false;
   } finally {
@@ -95,7 +102,13 @@ async function pingHealth(timeoutMs = 8000) {
   }
 }
 
-/** Poll Render via /api/health until the free-tier instance is awake (~30–90s). */
+async function pingHealth(timeoutMs = 4000) {
+  // Prefer lightweight ping when available; fall back to health.
+  if (await pingEndpoint(getPingUrl(), timeoutMs)) return true;
+  return pingEndpoint(getHealthUrl(), timeoutMs);
+}
+
+/** Poll Render until the free-tier instance is awake. */
 async function wakeCloudBackend({ onProgress } = {}) {
   if (cloudBackendReady) return;
 
@@ -120,33 +133,37 @@ async function wakeCloudBackend({ onProgress } = {}) {
   );
 }
 
-async function wakeApiIfNeeded() {
-  if (isLocalDev()) {
-    await pingHealth(5000);
-    return;
-  }
-  if (!cloudBackendReady) {
-    await wakeCloudBackend();
-  }
-}
-
 /**
  * Ensure the API is reachable before login.
- * On Vercel: polls until Render responds (cold-start wake).
- * Locally: quick ping to the dev proxy only.
+ * soft=true (default for auth): one quick ping, short wait, then let the
+ * real request proceed — do not block for a full cold-start cycle.
  */
-export async function ensureApiReady({ onProgress, force = false } = {}) {
+export async function ensureApiReady({ onProgress, force = false, soft = true } = {}) {
   if (isLocalDev()) {
-    await pingHealth(5000);
+    await pingHealth(3000);
     return;
   }
 
   if (cloudBackendReady && !force) return;
 
+  if (await pingHealth(2500)) {
+    cloudBackendReady = true;
+    return;
+  }
+
   if (!wakePromise || force) {
     wakePromise = wakeCloudBackend({ onProgress }).finally(() => {
       if (!cloudBackendReady) wakePromise = null;
     });
+  }
+
+  if (soft) {
+    // Cap wait so Sign in / Create account feel responsive.
+    await Promise.race([
+      wakePromise,
+      new Promise((resolve) => setTimeout(resolve, 8000)),
+    ]);
+    return;
   }
 
   return wakePromise;
@@ -261,7 +278,7 @@ export async function request(path, options = {}) {
   if (!didWake && !cloudBackendReady) {
     didWake = true;
     try {
-      await wakeApiIfNeeded();
+      await ensureApiReady({ soft: true });
     } catch {
       // Still attempt the real call; wake may finish mid-request.
     }
@@ -275,17 +292,17 @@ export async function request(path, options = {}) {
       if (timeoutMs > 0) {
         fetchInit.signal = AbortSignal.timeout(timeoutMs);
       } else if (isCloudDeployment()) {
-        // Login/register must wait for cold starts; Vercel proxy used to fail earlier.
-        fetchInit.signal = AbortSignal.timeout(90000);
+        // Warm API should answer quickly; keep a longer cap only for rare cold starts.
+        fetchInit.signal = AbortSignal.timeout(cloudBackendReady ? 20000 : 45000);
       }
       response = await fetch(`${API_BASE}${path}`, fetchInit);
 
       // Retry transient gateway / cold-start failures.
       if (response && [502, 503, 504].includes(response.status) && attempt < retries) {
         cloudBackendReady = false;
-        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
         try {
-          await ensureApiReady({ force: true });
+          await ensureApiReady({ soft: true, force: attempt === 0 });
         } catch {
           /* continue retrying */
         }
@@ -298,9 +315,9 @@ export async function request(path, options = {}) {
       lastErr = err;
       if (attempt < retries) {
         cloudBackendReady = false;
-        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
         try {
-          await ensureApiReady({ force: true });
+          await ensureApiReady({ soft: true, force: attempt === 0 });
         } catch {
           /* continue */
         }

@@ -10,10 +10,15 @@ import { renderAuthPage, bindAuthPage } from './pages/auth.js';
 import { loadSmeOverview, loadSmeTransactions, loadSmeUpload } from './pages/sme.js';
 import { loadLenderPortfolio } from './pages/lender.js';
 import { loadAdminPage } from './pages/admin.js';
-import { API_BASE } from './api.js';
+import { API_BASE, ensureApiReady, isCloudDeployment } from './api.js';
 import { t, onLangChange } from './i18n.js';
 
 hydrateSession();
+
+// Wake the cloud API as soon as the portal opens (login feels instant when warm).
+if (isCloudDeployment()) {
+  ensureApiReady({ soft: true }).catch(() => {});
+}
 
 const inactivity = createInactivityMonitor({
   isActive: () => getSession().isAuthenticated,

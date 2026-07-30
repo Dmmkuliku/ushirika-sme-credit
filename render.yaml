@@ -30,6 +30,6 @@ services:
       - key: MODEL_DIR
         value: ./models
       - key: MIN_TRANSACTIONS_FOR_SCORE
-        value: "5"
+        value: "12"
       - key: PYTHON_VERSION
         value: "3.12.8"

@@ -156,14 +156,26 @@ def health_check(db: Session = Depends(get_db)):
     except Exception:
         db_status = "error"
 
-    predictor = get_predictor()
+    # Do not block health on a cold model load — auth must stay fast.
+    model_loaded = False
+    try:
+        model_loaded = get_predictor().is_loaded
+    except Exception:
+        model_loaded = False
+
     return HealthResponse(
         status="healthy" if db_status == "ok" else "degraded",
         version=__version__,
         timestamp=datetime.now(timezone.utc),
         database=db_status,
-        model_loaded=predictor.is_loaded,
+        model_loaded=model_loaded,
     )
+
+
+@router.get("/ping", tags=["Health"])
+def ping():
+    """Ultra-light keep-alive probe (no DB)."""
+    return {"ok": True, "version": __version__}
 
 
 @router.post("/admin/train-model", response_model=TrainingResultResponse, tags=["Admin"])

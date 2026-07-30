@@ -316,7 +316,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
       submitBtn.textContent = t('auth.signingIn');
       try {
         // Keep the button on "Signing in…" — server wake-up stays invisible.
-        await api.ensureApiReady();
+        await api.ensureApiReady({ soft: true });
         const payload = await api.login({ login_id, pin });
         if (!payload?.access_token && !payload?.token) {
           throw new Error(t('auth.errNoToken'));
@@ -365,7 +365,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
       submitBtn.disabled = true;
       submitBtn.textContent = t('auth.resetting');
       try {
-        await api.ensureApiReady();
+        await api.ensureApiReady({ soft: true });
         await api.forgotPin({ login_id, date_of_birth, phone, new_pin });
         showToast(t('auth.pinReset'), 'success');
         window.location.hash = '#/login';
@@ -420,7 +420,7 @@ export function bindAuthPage(mode, { onSuccess, onLangChange }) {
     submitBtn.disabled = true;
     submitBtn.textContent = t('auth.creating');
     try {
-      await api.ensureApiReady();
+      await api.ensureApiReady({ soft: true });
       await api.registerSme({
         nida, phone: normalizedPhone, full_name, email, location, district, business_type, gender,
         nationality: 'Tanzanian', date_of_birth, tin: tinClean, pin,

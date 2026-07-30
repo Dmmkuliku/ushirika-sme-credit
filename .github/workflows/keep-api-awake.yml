@@ -1,0 +1,25 @@
+# Keep the free-tier Render API from sleeping so login/register stay fast.
+name: Keep API awake
+
+on:
+  schedule:
+    # Every 10 minutes (GitHub may delay a few minutes on free plans).
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Wake Render API
+        run: |
+          set -e
+          for url in \
+            "https://ushirika-api.onrender.com/api/ping" \
+            "https://ushirika-api.onrender.com/api/health"
+          do
+            echo "Pinging $url"
+            curl -fsS --max-time 90 "$url" || true
+            echo
+          done

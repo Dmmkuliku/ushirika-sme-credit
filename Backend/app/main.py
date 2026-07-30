@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -29,6 +30,7 @@ def init_db() -> None:
 
 
 def ensure_model() -> None:
+    """Load or train the credit model. Safe to run after the API is already serving."""
     settings = get_settings()
     meta_path = Path(settings.model_dir) / "model_meta.json"
     needs_train = not meta_path.exists()
@@ -57,12 +59,14 @@ def ensure_model() -> None:
         reload_predictor()
     else:
         get_predictor()
+    logger.info("Credit model ready")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # DB only — login/register must not wait for ML training on cold start.
     init_db()
-    ensure_model()
+    threading.Thread(target=ensure_model, name="ml-warmup", daemon=True).start()
     yield
 
 
