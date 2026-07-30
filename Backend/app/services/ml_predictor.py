@@ -44,7 +44,7 @@ class CreditPredictor:
             return {
                 "score": score,
                 "model_version": "heuristic-v1",
-                "probability_creditworthy": round(max(0.0, min(1.0, (score - 300) / 500)), 4),
+                "probability_creditworthy": round(max(0.0, min(1.0, (score - 300) / 550)), 4),
                 "primary_model": "heuristic",
                 "model_loaded": False,
             }
@@ -72,7 +72,7 @@ class CreditPredictor:
             - 0.05 * min(features.get("payment_delay_avg", 0) / 60, 1)
             - 0.05 * min(features.get("avg_transaction_interval_days", 0) / 90, 1)
         )
-        return round(300 + max(0, min(1, raw)) * 500, 2)
+        return round(300 + max(0, min(1, raw)) * 550, 2)
 
 
 _predictor: CreditPredictor | None = None

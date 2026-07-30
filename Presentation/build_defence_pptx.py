@@ -1,7 +1,6 @@
 """
-Ushirika / Group 15 defence presentation (max 12 slides).
-Structure mirrors BOT-final presentation (Findings): title → background → aim →
-what was built → literature gap → method → findings → results vs aim → discussion → close.
+Ushirika / Group 15 defence presentation — tuned for a 5-minute talk by 5 speakers.
+~7 slides. Each speaker owns ~1 minute. Keep wording short so slides support speech.
 """
 from pathlib import Path
 
@@ -13,6 +12,7 @@ from pptx.util import Inches, Pt
 
 OUT = Path(__file__).resolve().parent / "Ushirika_Group15_Defence_Presentation.pptx"
 OUT_ALT = Path(__file__).resolve().parent / "Ushirika_Group15_Defence_v13.pptx"
+OUT_SEM2 = Path(r"C:\Users\USER\OneDrive\Desktop\SEM 2\Data Science Project\Ushirika_Group15.pptx")
 
 FOREST = RGBColor(0x0B, 0x3D, 0x2E)
 FOREST_DEEP = RGBColor(0x06, 0x28, 0x20)
@@ -24,11 +24,19 @@ INK = RGBColor(0x0F, 0x28, 0x30)
 MUTED = RGBColor(0x4A, 0x5E, 0x66)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 SUCCESS = RGBColor(0x1A, 0x6B, 0x45)
-LINE = RGBColor(0xC5, 0xD2, 0xD5)
 
 SLIDE_W = Inches(13.333)
 SLIDE_H = Inches(7.5)
-TOTAL = 12
+TOTAL = 7
+
+# Speaking order (~60s each after a short group open)
+SPEAKERS = [
+    "Herman Edward Mkumbwa",
+    "Raymond Elphance Tungaraza",
+    "Edwin Celestin Silayo",
+    "Grace Joachim Mohammed",
+    "Priscila Nestor Mpembela",
+]
 
 
 def fill(shape, color):
@@ -89,10 +97,29 @@ def bullets(slide, left, top, width, height, items, size=14, color=INK):
     return box
 
 
-def footer(slide, page, title="USHIRIKA — SME VALUE CHAIN CREDIT RISK"):
+def footer(slide, page):
     rect(slide, Inches(0), Inches(7.15), SLIDE_W, Inches(0.35), FOREST_DEEP)
-    textbox(slide, Inches(0.45), Inches(7.18), Inches(10), Inches(0.28), title, size=10, color=RGBColor(0xB8, 0xD0, 0xC8))
-    textbox(slide, Inches(11.4), Inches(7.18), Inches(1.5), Inches(0.28), f"{page}  /  {TOTAL}", size=10, color=RGBColor(0xB8, 0xD0, 0xC8), align=PP_ALIGN.RIGHT)
+    textbox(
+        slide,
+        Inches(0.45),
+        Inches(7.18),
+        Inches(10),
+        Inches(0.28),
+        "USHIRIKA — 5-MINUTE DEFENCE  ·  GROUP 15",
+        size=10,
+        color=RGBColor(0xB8, 0xD0, 0xC8),
+    )
+    textbox(
+        slide,
+        Inches(11.4),
+        Inches(7.18),
+        Inches(1.5),
+        Inches(0.28),
+        f"{page}  /  {TOTAL}",
+        size=10,
+        color=RGBColor(0xB8, 0xD0, 0xC8),
+        align=PP_ALIGN.RIGHT,
+    )
 
 
 def bg(slide, color=PAPER):
@@ -102,7 +129,18 @@ def bg(slide, color=PAPER):
 def section_header(slide, kicker, title, subtitle=None):
     textbox(slide, Inches(0.55), Inches(0.28), Inches(12), Inches(0.28), kicker, size=12, bold=True, color=LAGOON)
     rect(slide, Inches(0.55), Inches(0.62), Inches(0.1), Inches(0.48), LAGOON_BRIGHT)
-    textbox(slide, Inches(0.8), Inches(0.55), Inches(11.8), Inches(0.5), title, size=26, bold=True, color=FOREST, font="Georgia")
+    textbox(
+        slide,
+        Inches(0.8),
+        Inches(0.55),
+        Inches(11.8),
+        Inches(0.5),
+        title,
+        size=24,
+        bold=True,
+        color=FOREST,
+        font="Georgia",
+    )
     if subtitle:
         textbox(slide, Inches(0.55), Inches(1.15), Inches(12.2), Inches(0.35), subtitle, size=13, color=MUTED)
 
@@ -114,9 +152,20 @@ def metric(slide, left, top, w, h, value, label, accent=LAGOON):
     textbox(slide, left + Inches(0.25), top + Inches(0.7), w - Inches(0.35), Inches(0.45), label, size=11, color=MUTED)
 
 
-def met_badge(slide, left, top):
-    round_rect(slide, left, top, Inches(0.85), Inches(0.32), SUCCESS)
-    textbox(slide, left, top + Inches(0.02), Inches(0.85), Inches(0.28), "MET", size=11, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+def speaker_chip(slide, speaker_no, name, timing):
+    """Visible cue so each person knows when they speak."""
+    round_rect(slide, Inches(0.55), Inches(6.55), Inches(12.2), Inches(0.45), FOREST)
+    textbox(
+        slide,
+        Inches(0.7),
+        Inches(6.6),
+        Inches(11.9),
+        Inches(0.35),
+        f"SPEAKER {speaker_no}: {name}   ·   ~{timing}",
+        size=12,
+        bold=True,
+        color=WHITE,
+    )
 
 
 def build():
@@ -125,278 +174,290 @@ def build():
     prs.slide_height = SLIDE_H
     blank = prs.slide_layouts[6]
 
-    # 1 Title
+    # 1 Title + speaking plan (~40s open)
     s = prs.slides.add_slide(blank)
     bg(s, FOREST_DEEP)
     rect(s, Inches(0), Inches(0), Inches(0.35), SLIDE_H, LAGOON)
-    textbox(s, Inches(0.8), Inches(0.7), Inches(11.5), Inches(0.35), "EASTERN AFRICA STATISTICAL TRAINING CENTRE  ·  CAPSTONE PROJECT DEFENCE", size=12, bold=True, color=LAGOON_BRIGHT)
-    textbox(s, Inches(0.8), Inches(1.25), Inches(11.5), Inches(1.3), "Development of a Machine Learning-Based\nCredit Risk Assessment Model for SME\nValue Chain Financing", size=28, bold=True, color=WHITE, font="Georgia")
-    textbox(s, Inches(0.8), Inches(2.75), Inches(11.5), Inches(0.4), "A Case Study of Tanzania’s Supply Chains  ·  Platform: Ushirika", size=16, color=MIST)
-    textbox(s, Inches(0.8), Inches(3.4), Inches(11.5), Inches(1.6),
-            "PRESENTED BY — GROUP 15\n"
-            "Herman Edward Mkumbwa  ·  Raymond Elphance Tungaraza  ·  Edwin Celestin Silayo\n"
-            "Grace Joachim Mohammed  ·  Priscila Nestor Mpembela\n\n"
-            "SUPERVISOR: Mr. Rajabu Msangi\n"
-            "Bachelor of Data Science (Year III)  ·  Academic Year 2025/2026",
-            size=13, color=RGBColor(0xB8, 0xD0, 0xC8))
-    textbox(s, Inches(0.8), Inches(6.7), Inches(10), Inches(0.3), "Live portal: ushirika-sme-portal.vercel.app   ·   API: ushirika-api.onrender.com", size=11, color=RGBColor(0x9B, 0xC4, 0xBA))
-    textbox(s, Inches(11.4), Inches(6.7), Inches(1.5), Inches(0.3), "1  /  12", size=11, color=RGBColor(0xB8, 0xD0, 0xC8), align=PP_ALIGN.RIGHT)
+    textbox(
+        s,
+        Inches(0.8),
+        Inches(0.45),
+        Inches(11.5),
+        Inches(0.3),
+        "EASTERN AFRICA STATISTICAL TRAINING CENTRE  ·  5-MINUTE DEFENCE",
+        size=12,
+        bold=True,
+        color=LAGOON_BRIGHT,
+    )
+    textbox(
+        s,
+        Inches(0.8),
+        Inches(0.95),
+        Inches(11.5),
+        Inches(1.15),
+        "ML Credit Risk Assessment for\nSME Value Chain Financing — Tanzania",
+        size=28,
+        bold=True,
+        color=WHITE,
+        font="Georgia",
+    )
+    textbox(
+        s,
+        Inches(0.8),
+        Inches(2.25),
+        Inches(11.5),
+        Inches(0.35),
+        "Platform: Ushirika  ·  Supervisor: Mr. Rajabu Msangi  ·  BSc Data Science III · 2025/2026",
+        size=14,
+        color=MIST,
+    )
+    textbox(s, Inches(0.8), Inches(2.85), Inches(11.5), Inches(0.3), "SPEAKING ORDER (≈1 minute each)", size=13, bold=True, color=LAGOON_BRIGHT)
+    for i, name in enumerate(SPEAKERS):
+        top = Inches(3.25 + i * 0.48)
+        round_rect(s, Inches(0.8), top, Inches(11.5), Inches(0.42), RGBColor(0x0D, 0x45, 0x36))
+        textbox(s, Inches(1.0), top + Inches(0.05), Inches(1.2), Inches(0.3), f"S{i + 1}", size=14, bold=True, color=LAGOON_BRIGHT)
+        textbox(s, Inches(2.2), top + Inches(0.05), Inches(9.8), Inches(0.3), name, size=14, color=WHITE)
+    textbox(
+        s,
+        Inches(0.8),
+        Inches(6.7),
+        Inches(11.5),
+        Inches(0.3),
+        "Live: ushirika-sme-portal.vercel.app",
+        size=12,
+        color=RGBColor(0x9B, 0xC4, 0xBA),
+    )
+    textbox(s, Inches(11.4), Inches(6.7), Inches(1.5), Inches(0.3), "1  /  7", size=11, color=RGBColor(0xB8, 0xD0, 0xC8), align=PP_ALIGN.RIGHT)
 
-    # 2 Background
+    # 2 Speaker 1 — Problem
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "BACKGROUND", "Why Tanzanian SMEs still struggle to get fair credit", "Grounded in the Group 15 problem statement (Section 1.2)")
+    section_header(
+        s,
+        "SPEAKER 1 · PROBLEM  ·  ~55s",
+        "Why fair SME credit is still hard in Tanzania",
+        "Say the problem in one clear minute — then hand over.",
+    )
     cards = [
-        ("01", "Collateral-heavy credit", "Banks still rely on collateral and formal statements that most Tanzanian SMEs do not have."),
-        ("02", "Static risk metrics", "Backward-looking ratios misclassify viable businesses operating in informal or semi-formal supply chains."),
-        ("03", "Unused transaction signals", "Buyer–supplier payment behaviour is rich risk data, but no integrated platform captures and scores it."),
-        ("04", "Missing-middle gap", "Without alternative scoring, creditworthy SMEs stay outside formal finance — the financing gap persists."),
+        ("01", "Collateral barrier", "Banks ask for collateral and formal books most SMEs do not have."),
+        ("02", "Old risk tools", "Static ratios miss viable traders in informal supply chains."),
+        ("03", "Unused payment data", "Buyer–supplier payment behaviour is rich risk data, unused today."),
+        ("04", "Our answer", "Ushirika scores SMEs from real transactions — not collateral alone."),
     ]
     for i, (num, title, body) in enumerate(cards):
         left = Inches(0.5 + (i % 2) * 6.35)
-        top = Inches(1.7 + (i // 2) * 2.4)
-        round_rect(s, left, top, Inches(6.05), Inches(2.15), WHITE)
-        rect(s, left, top, Inches(0.12), Inches(2.15), LAGOON if i % 2 == 0 else FOREST)
-        textbox(s, left + Inches(0.4), top + Inches(0.3), Inches(1), Inches(0.35), num, size=18, bold=True, color=LAGOON)
-        textbox(s, left + Inches(1.2), top + Inches(0.3), Inches(4.5), Inches(0.35), title, size=16, bold=True, color=FOREST)
-        textbox(s, left + Inches(0.4), top + Inches(0.85), Inches(5.3), Inches(1.0), body, size=13, color=MUTED)
+        top = Inches(1.7 + (i // 2) * 2.15)
+        round_rect(s, left, top, Inches(6.05), Inches(1.95), WHITE)
+        rect(s, left, top, Inches(0.12), Inches(1.95), LAGOON if i % 2 == 0 else FOREST)
+        textbox(s, left + Inches(0.4), top + Inches(0.25), Inches(1), Inches(0.35), num, size=18, bold=True, color=LAGOON)
+        textbox(s, left + Inches(1.2), top + Inches(0.28), Inches(4.5), Inches(0.35), title, size=16, bold=True, color=FOREST)
+        textbox(s, left + Inches(0.4), top + Inches(0.85), Inches(5.3), Inches(0.85), body, size=14, color=MUTED)
+    speaker_chip(s, 1, SPEAKERS[0], "55 seconds")
     footer(s, 2)
 
-    # 3 Aim
+    # 3 Speaker 2 — Aim & what we built
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "AIM OF THE PROJECT", "What we set out to build — in clear terms")
-    round_rect(s, Inches(0.5), Inches(1.65), Inches(12.3), Inches(1.35), WHITE)
-    textbox(s, Inches(0.75), Inches(1.8), Inches(11.8), Inches(0.3), "GENERAL OBJECTIVE", size=11, bold=True, color=LAGOON)
-    textbox(s, Inches(0.75), Inches(2.15), Inches(11.8), Inches(0.7),
-            "To develop an automated, data-driven ecosystem banking platform that leverages supply chain transaction data and machine learning techniques to provide accurate and inclusive credit risk assessments for SMEs in Tanzania.",
-            size=14, color=INK)
-    objs = [
-        ("01", "Preprocessing & features", "Build robust pipelines that convert raw supply-chain transactions into predictive variables."),
-        ("02", "Compare ML vs classical", "Evaluate ensemble learning (Random Forest) against classical Logistic Regression."),
-        ("03", "Validate with metrics", "Assess reliability using Accuracy, Precision, Recall, F1 and ROC-AUC."),
+    section_header(
+        s,
+        "SPEAKER 2 · AIM & SOLUTION  ·  ~55s",
+        "What we built: Ushirika",
+        "State the aim, then the live product in three breaths.",
+    )
+    round_rect(s, Inches(0.5), Inches(1.65), Inches(12.3), Inches(1.2), WHITE)
+    textbox(s, Inches(0.75), Inches(1.78), Inches(11.8), Inches(0.25), "GENERAL AIM", size=11, bold=True, color=LAGOON)
+    textbox(
+        s,
+        Inches(0.75),
+        Inches(2.1),
+        Inches(11.8),
+        Inches(0.55),
+        "An automated platform that uses supply-chain transactions and machine learning to give inclusive SME credit scores in Tanzania.",
+        size=15,
+        color=INK,
+    )
+    layers = [
+        ("Portal", "SME · Lender · Admin\nEnglish / Kiswahili"),
+        ("API", "Secure FastAPI\nJWT · rate limits"),
+        ("ML", "Random Forest\nplain-language signals"),
+        ("Safety", "PII protected\nconservative loans"),
     ]
-    for i, (num, title, body) in enumerate(objs):
-        left = Inches(0.5 + i * 4.2)
-        round_rect(s, left, Inches(3.3), Inches(4.0), Inches(3.1), WHITE)
-        rect(s, left, Inches(3.3), Inches(4.0), Inches(0.65), FOREST if i != 1 else LAGOON)
-        textbox(s, left + Inches(0.2), Inches(3.42), Inches(3.6), Inches(0.4), num + "  " + title, size=14, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
-        textbox(s, left + Inches(0.3), Inches(4.2), Inches(3.4), Inches(1.8), body, size=13, color=INK)
+    for i, (t, d) in enumerate(layers):
+        left = Inches(0.5 + i * 3.2)
+        round_rect(s, left, Inches(3.15), Inches(3.0), Inches(2.9), WHITE)
+        rect(s, left, Inches(3.15), Inches(3.0), Inches(0.55), FOREST if i % 2 else LAGOON)
+        textbox(s, left + Inches(0.15), Inches(3.25), Inches(2.7), Inches(0.35), t, size=15, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+        textbox(s, left + Inches(0.25), Inches(3.95), Inches(2.5), Inches(1.8), d, size=14, color=INK, align=PP_ALIGN.CENTER)
+    speaker_chip(s, 2, SPEAKERS[1], "55 seconds")
     footer(s, 3)
 
-    # 4 What was built
+    # 4 Speaker 3 — Method
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "WHAT WAS BUILT", "Ushirika — a working credit platform for SMEs and lenders", "Deliverables match proposal Section 3.10")
-    layers = [
-        ("Frontend", "Vite + JS/CSS\nSME · Lender · Admin\nCloud API wake-up\nSimple EN / Kiswahili UI", LAGOON),
-        ("API", "FastAPI + JWT\nRate limits + hardened headers\nNo public API docs in prod", FOREST),
-        ("ML Core", "Feature engineering\nRF (primary) + LR\nUpload scores immediately", LAGOON_BRIGHT),
-        ("Data & Ethics", "SQL storage\nHMAC PII hashes\n25% outlier rule\nConservative loans", FOREST_DEEP),
-    ]
-    for i, (t, d, c) in enumerate(layers):
-        left = Inches(0.45 + i * 3.2)
-        round_rect(s, left, Inches(1.75), Inches(3.0), Inches(3.4), WHITE)
-        rect(s, left, Inches(1.75), Inches(3.0), Inches(0.6), c)
-        textbox(s, left + Inches(0.15), Inches(1.88), Inches(2.7), Inches(0.35), t, size=15, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
-        textbox(s, left + Inches(0.25), Inches(2.6), Inches(2.5), Inches(2.2), d, size=13, color=INK, align=PP_ALIGN.CENTER)
-        if i < 3:
-            textbox(s, left + Inches(2.85), Inches(3.2), Inches(0.4), Inches(0.35), "→", size=20, bold=True, color=LAGOON, align=PP_ALIGN.CENTER)
-    textbox(s, Inches(0.55), Inches(5.45), Inches(12.2), Inches(1.2),
-            "Proposal fulfilment: operational ML backend · Vite interactive portal · technical performance report.\n"
-            "Lender workflow: progressive NIDA search → SME profile (incl. TIN) → tabs for ML metrics, signals, txs, history.\n"
-            "Inclusive controls: NIDA-DOB matching, +255 phone entry, cascading Tanzania region→district dropdowns, bilingual labels, live email checks, and clear forms.\n"
-            "Security: production API docs disabled, auth rate limits, short-lived JWTs, strict CORS, security headers, no production source maps, and no boot-time PIN resets.\n"
-            "Admin hard-delete removes accounts permanently; create-account flows return to the accounts list; ML uses stronger Random Forest tuning with plain-language repayment signals (no technical model-version chips in the UI).\n"
-            "Responsive UI: the same portal is usable on desktop computers and mobile phones.",
-            size=13, color=MUTED)
+    section_header(
+        s,
+        "SPEAKER 3 · METHOD  ·  ~55s",
+        "How we trained and tested fairly",
+        "Keep this technical but short — protocol, then two models.",
+    )
+    round_rect(s, Inches(0.5), Inches(1.65), Inches(6.1), Inches(4.5), WHITE)
+    textbox(s, Inches(0.75), Inches(1.85), Inches(5.6), Inches(0.35), "PROTOCOL", size=14, bold=True, color=LAGOON)
+    bullets(
+        s,
+        Inches(0.75),
+        Inches(2.35),
+        Inches(5.6),
+        Inches(3.5),
+        [
+            "Features from payments, delays, volume, partners.",
+            "80/20 stratified train–test split (seed 42).",
+            "Train models only on training data.",
+            "Report hold-out Accuracy, Precision, Recall, F1, ROC-AUC.",
+            "Score only after ≥5 SME transactions.",
+        ],
+        size=14,
+    )
+    round_rect(s, Inches(6.9), Inches(1.65), Inches(5.9), Inches(4.5), WHITE)
+    textbox(s, Inches(7.15), Inches(1.85), Inches(5.4), Inches(0.35), "TWO MODELS", size=14, bold=True, color=LAGOON)
+    bullets(
+        s,
+        Inches(7.15),
+        Inches(2.35),
+        Inches(5.4),
+        Inches(3.5),
+        [
+            "Baseline: Logistic Regression.",
+            "Primary: Random Forest (ensemble).",
+            "Choose by hold-out ROC-AUC.",
+            "Score range ~300–850 · Low ≥650 · Medium 500–649 · High <500.",
+            "Large one-off deals do not inflate loan size.",
+        ],
+        size=14,
+    )
+    speaker_chip(s, 3, SPEAKERS[2], "55 seconds")
     footer(s, 4)
 
-    # 5 Literature gap
+    # 5 Speaker 4 — Findings
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "LITERATURE REVIEW", "What the literature establishes, and what it leaves out")
-    cites = [
-        ("Breiman (2001)", "Ensemble Random Forests capture non-linear patterns better than single models."),
-        ("Lessmann et al. (2015)", "Ensemble classifiers outperform classical baselines on credit-scoring benchmarks."),
-        ("Khandani et al. (2010)", "Transactional / alternative data can proxy creditworthiness where statements are thin."),
-        ("Klapper (2006)", "Value-chain financing uses buyer–supplier relationships instead of collateral alone."),
-    ]
-    for i, (a, b) in enumerate(cites):
-        top = Inches(1.65 + i * 0.85)
-        round_rect(s, Inches(0.5), top, Inches(7.4), Inches(0.75), WHITE)
-        textbox(s, Inches(0.7), top + Inches(0.12), Inches(7.0), Inches(0.25), a, size=13, bold=True, color=FOREST)
-        textbox(s, Inches(0.7), top + Inches(0.4), Inches(7.0), Inches(0.3), b, size=12, color=MUTED)
-    round_rect(s, Inches(8.2), Inches(1.65), Inches(4.6), Inches(4.7), FOREST)
-    textbox(s, Inches(8.45), Inches(1.9), Inches(4.1), Inches(0.35), "THE GAP (TZ context)", size=14, bold=True, color=LAGOON_BRIGHT)
-    bullets(s, Inches(8.45), Inches(2.45), Inches(4.1), Inches(3.6), [
-        "Few integrated platforms join live SME transactions with ML scoring.",
-        "Most benchmarks use developed-market data, not informal Tanzanian chains.",
-        "Supply-chain signals remain under-used as alternative credit metrics.",
-        "Ushirika operationalises that gap as a working prototype.",
-    ], size=13, color=WHITE)
+    section_header(
+        s,
+        "SPEAKER 4 · FINDINGS  ·  ~60s",
+        "Random Forest is the stronger model",
+        "Lead with the headline numbers, then one interpretation sentence.",
+    )
+    metric(s, Inches(0.5), Inches(1.7), Inches(3.0), Inches(1.4), "95.8%", "RF ROC-AUC", SUCCESS)
+    metric(s, Inches(3.7), Inches(1.7), Inches(3.0), Inches(1.4), "88.6%", "RF Accuracy", LAGOON)
+    metric(s, Inches(6.9), Inches(1.7), Inches(3.0), Inches(1.4), "87.5%", "LR ROC-AUC", RGBColor(0x8A, 0x5A, 0x00))
+    metric(s, Inches(10.1), Inches(1.7), Inches(2.7), Inches(1.4), "RF wins", "Selected primary", FOREST)
+    round_rect(s, Inches(0.5), Inches(3.4), Inches(12.3), Inches(2.7), WHITE)
+    textbox(s, Inches(0.8), Inches(3.6), Inches(11.7), Inches(0.35), "Hold-out test (unseen data)", size=14, bold=True, color=FOREST)
+    bullets(
+        s,
+        Inches(0.8),
+        Inches(4.1),
+        Inches(11.7),
+        Inches(1.8),
+        [
+            "RF: Precision 93.0% · Recall 85.7% · F1 89.2%.",
+            "LR: Precision 75.8% · Recall 87.7% · F1 81.3%.",
+            "Plain signals users see: on-time payments, failed payments, late days, trading volume, sales trend.",
+            "Conclusion: ensemble learning beat classical regression on this task.",
+        ],
+        size=14,
+    )
+    speaker_chip(s, 4, SPEAKERS[3], "60 seconds")
     footer(s, 5)
 
-    # 6 Method
+    # 6 Speaker 5 — Objectives met + limits
     s = prs.slides.add_slide(blank)
     bg(s)
-    section_header(s, "EVALUATION METHOD", "How we trained and tested the models fairly")
-    round_rect(s, Inches(0.5), Inches(1.65), Inches(6.1), Inches(4.7), WHITE)
-    textbox(s, Inches(0.75), Inches(1.85), Inches(5.6), Inches(0.35), "TRAINING PROTOCOL", size=14, bold=True, color=LAGOON)
-    bullets(s, Inches(0.75), Inches(2.35), Inches(5.6), Inches(3.7), [
-        "Features from payment behaviour, volume, delays, partner diversity, intervals.",
-        "80/20 stratified train_test_split (random_state=42).",
-        "Models fit on training fold only; GridSearchCV (ROC-AUC).",
-        "Hold-out metrics on unseen test set: Acc, Precision, Recall, F1, ROC-AUC.",
-        "Live SME histories are mixed into retrain after enough transactions.",
-        "Outlier rule: rare large deals (<25% of txs) are excluded from loan sizing; frequent large deals count as pattern.",
-    ], size=13)
-    round_rect(s, Inches(6.9), Inches(1.65), Inches(5.9), Inches(4.7), WHITE)
-    textbox(s, Inches(7.15), Inches(1.85), Inches(5.4), Inches(0.35), "TWO MODELS COMPARED", size=14, bold=True, color=LAGOON)
-    bullets(s, Inches(7.15), Inches(2.35), Inches(5.4), Inches(3.7), [
-        "Baseline: Logistic Regression + StandardScaler.",
-        "Primary: Random Forest Classifier (ensemble).",
-        "Selection metric: ROC-AUC on hold-out test data.",
-        "Artifacts: .joblib models + model_meta.json.",
-        "Runtime: CreditPredictor maps probability → score (~300–680).",
-        "Risk bands: Low ≥580 · Medium 480–579 · High <480.",
-    ], size=13)
-    footer(s, 6)
-
-    # 7 Findings SO1
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    section_header(s, "FINDINGS — OBJECTIVE 1", "Raw supply-chain data → predictive variables")
-    feats = [
-        ("Payment reliability", "Consistency of completed payments"),
-        ("Delay & on-time rates", "Average/max delay; payments within due window"),
-        ("Volume & frequency", "Turnover (TZS), deals per month, volume trend"),
-        ("Partner diversity", "Unique counterparties / transaction mix"),
-        ("Interval risk", "Average days between consecutive deals"),
-        ("Outlier handling", "25% frequency guard: rare spikes excluded from loan; pattern large deals kept"),
-    ]
-    for i, (t, d) in enumerate(feats):
-        left = Inches(0.5 + (i % 3) * 4.2)
-        top = Inches(1.7 + (i // 3) * 2.35)
-        round_rect(s, left, top, Inches(4.0), Inches(2.1), WHITE)
-        rect(s, left, top, Inches(4.0), Inches(0.12), LAGOON_BRIGHT)
-        textbox(s, left + Inches(0.3), top + Inches(0.4), Inches(3.4), Inches(0.45), t, size=15, bold=True, color=FOREST)
-        textbox(s, left + Inches(0.3), top + Inches(1.0), Inches(3.4), Inches(0.8), d, size=13, color=MUTED)
-    footer(s, 7)
-
-    # 8 Findings SO2
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    section_header(s, "FINDINGS — OBJECTIVE 2", "Random Forest outperformed Logistic Regression on unseen test data")
-    metric(s, Inches(0.5), Inches(1.7), Inches(3.0), Inches(1.35), "95.8%", "RF ROC-AUC (primary)", SUCCESS)
-    metric(s, Inches(3.7), Inches(1.7), Inches(3.0), Inches(1.35), "88.6%", "RF Accuracy", LAGOON)
-    metric(s, Inches(6.9), Inches(1.7), Inches(3.0), Inches(1.35), "87.5%", "LR ROC-AUC (baseline)", RGBColor(0x8A, 0x5A, 0x00))
-    metric(s, Inches(10.1), Inches(1.7), Inches(2.7), Inches(1.35), "RF wins", "Outperforms baseline", FOREST)
-    round_rect(s, Inches(0.5), Inches(3.35), Inches(12.3), Inches(3.1), WHITE)
-    textbox(s, Inches(0.8), Inches(3.55), Inches(11.7), Inches(0.35), "Hold-out comparison: 280 unseen records · stratified split · seed=42", size=14, bold=True, color=FOREST)
-    bullets(s, Inches(0.8), Inches(4.1), Inches(11.7), Inches(2.1), [
-        "Random Forest: Accuracy 88.6% · Precision 93.0% · Recall 85.7% · F1 89.2% · ROC-AUC 95.8%.",
-        "Logistic Regression: Accuracy 77.9% · Precision 75.8% · Recall 87.7% · F1 81.3% · ROC-AUC 87.5%.",
-        "This answers Research Question 2: ensemble learning improves classification relative to classical regression on this task.",
-        "Interpretation: RF ranked higher-risk vs creditworthy cases more reliably; this supports its selection for the prototype.",
-    ], size=14)
-    footer(s, 8)
-
-    # 9 Findings SO3 + reliability
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    section_header(s, "FINDINGS — OBJECTIVE 3", "Industry-standard metrics support an objective scoring process")
-    round_rect(s, Inches(0.5), Inches(1.7), Inches(6.1), Inches(4.7), WHITE)
-    textbox(s, Inches(0.75), Inches(1.9), Inches(5.6), Inches(0.35), "RELIABILITY CONTROLS", size=14, bold=True, color=LAGOON)
-    bullets(s, Inches(0.75), Inches(2.4), Inches(5.6), Inches(3.7), [
-        "Hold-out ROC-AUC, Accuracy, Precision, Recall, F1 reported for both models.",
-        "5-fold GridSearchCV on training data only reduces leakage and overfitting risk.",
-        "Minimum 5 transactions before an SME is scored.",
-        "Score mapping (~300–680) uses explicit Low / Medium / High bands.",
-        "Financing capped at ~50% of typical non-outlier volume.",
-        "PII is excluded from ML features; counterparties are pseudonymised.",
-    ], size=13)
-    round_rect(s, Inches(6.9), Inches(1.7), Inches(5.9), Inches(4.7), WHITE)
-    textbox(s, Inches(7.15), Inches(1.9), Inches(5.4), Inches(0.35), "RUNTIME OUTPUTS", size=14, bold=True, color=LAGOON)
-    bullets(s, Inches(7.15), Inches(2.4), Inches(5.4), Inches(3.7), [
-        "Credit score + risk band (Low / Medium / High).",
-        "Creditworthy probability + indicative financing (TZS).",
-        "Explainable behavioural signals for each SME.",
-        "Bilingual SME, lender, admin and sub-admin workflows.",
-        "English / Kiswahili CSV templates and manual entry.",
-        "Optional counterparty TIN supports informal trading partners.",
-    ], size=13)
-    footer(s, 9)
-
-    # 10 Results against aim
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    section_header(s, "RESULTS AGAINST AIM", "All three specific objectives were achieved")
+    section_header(
+        s,
+        "SPEAKER 5 · RESULTS & CLOSE  ·  ~55s",
+        "Aim met — and what comes next",
+        "Confirm the three objectives, name one limit, invite questions.",
+    )
     rows = [
-        ("1", "Preprocessing & feature engineering", "Transaction pipelines produce 17 engineered predictors + outlier flags used for scoring and financing."),
-        ("2", "Ensemble vs classical regression", "RF and LR trained on identical split; RF wins on ROC-AUC (95.8% vs 87.5%)."),
-        ("3", "Industry-standard evaluation", "Accuracy, Precision, Recall, F1, ROC-AUC stored and used to select the primary model."),
+        ("1", "Features ready", "Transactions → clear behavioural predictors."),
+        ("2", "RF vs LR", "RF wins on ROC-AUC (95.8% vs 87.5%)."),
+        ("3", "Validated", "Accuracy, Precision, Recall, F1, ROC-AUC reported."),
     ]
     for i, (num, title, body) in enumerate(rows):
-        top = Inches(1.7 + i * 1.55)
-        round_rect(s, Inches(0.5), top, Inches(12.3), Inches(1.4), WHITE)
-        rect(s, Inches(0.5), top, Inches(0.7), Inches(1.4), FOREST if i != 1 else LAGOON)
-        textbox(s, Inches(0.55), top + Inches(0.45), Inches(0.6), Inches(0.45), num, size=22, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
-        textbox(s, Inches(1.5), top + Inches(0.25), Inches(9.5), Inches(0.35), title, size=16, bold=True, color=FOREST)
-        textbox(s, Inches(1.5), top + Inches(0.7), Inches(9.5), Inches(0.5), body, size=13, color=MUTED)
-        met_badge(s, Inches(11.6), top + Inches(0.5))
-    footer(s, 10)
+        left = Inches(0.5 + i * 4.2)
+        round_rect(s, left, Inches(1.7), Inches(4.0), Inches(2.35), WHITE)
+        rect(s, left, Inches(1.7), Inches(4.0), Inches(0.55), FOREST if i != 1 else LAGOON)
+        textbox(s, left + Inches(0.2), Inches(1.8), Inches(3.6), Inches(0.35), f"{num}  {title}", size=14, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+        textbox(s, left + Inches(0.3), Inches(2.5), Inches(3.4), Inches(1.2), body, size=14, color=INK, align=PP_ALIGN.CENTER)
+    round_rect(s, Inches(0.5), Inches(4.3), Inches(12.3), Inches(1.8), FOREST)
+    textbox(s, Inches(0.75), Inches(4.5), Inches(11.8), Inches(0.3), "ONE LIMIT + ONE ASK", size=13, bold=True, color=LAGOON_BRIGHT)
+    textbox(
+        s,
+        Inches(0.75),
+        Inches(4.95),
+        Inches(11.8),
+        Inches(0.9),
+        "Prototype is live, but not a bank-production system yet. Next: pilot with partner lenders on real SME ledgers, then strengthen identity checks and database hosting.",
+        size=14,
+        color=WHITE,
+    )
+    speaker_chip(s, 5, SPEAKERS[4], "55 seconds")
+    footer(s, 6)
 
-    # 11 Discussion
-    s = prs.slides.add_slide(blank)
-    bg(s)
-    section_header(s, "DISCUSSION", "How findings compare with the literature — and remaining limits")
-    round_rect(s, Inches(0.5), Inches(1.65), Inches(6.1), Inches(4.7), WHITE)
-    textbox(s, Inches(0.75), Inches(1.85), Inches(5.6), Inches(0.35), "CONFIRMED IN OUR PROTOTYPE", size=14, bold=True, color=LAGOON)
-    bullets(s, Inches(0.75), Inches(2.35), Inches(5.6), Inches(3.7), [
-        "Breiman / Lessmann: ensemble RF beats linear LR on this credit task.",
-        "Khandani: transaction behaviour can score SMEs without full statements.",
-        "Klapper: value-chain style signals (counterparties, intervals, volume) support lending decisions.",
-        "Altman tradition extended: from static ratios to dynamic behavioural classification.",
-    ], size=13)
-    round_rect(s, Inches(6.9), Inches(1.65), Inches(5.9), Inches(4.7), WHITE)
-    textbox(s, Inches(7.15), Inches(1.85), Inches(5.4), Inches(0.35), "LIMITATIONS & NEXT STEPS", size=14, bold=True, color=LAGOON)
-    bullets(s, Inches(7.15), Inches(2.35), Inches(5.4), Inches(3.7), [
-        "Online prototype is operational, but not yet a bank-production system.",
-        "Training still partly uses synthetic bootstrap and engineered labels.",
-        "Need longitudinal repayment outcomes from multiple Tanzanian sectors.",
-        "Pilot priorities: fairness, calibration, drift, security and human review.",
-        "Production: verified NIDA, managed Postgres, ERP/payment integrations.",
-    ], size=13)
-    footer(s, 11)
-
-    # 12 Conclusion
+    # 7 Thank you
     s = prs.slides.add_slide(blank)
     bg(s, FOREST_DEEP)
     rect(s, Inches(0), Inches(0), Inches(0.35), SLIDE_H, LAGOON_BRIGHT)
-    textbox(s, Inches(0.8), Inches(0.7), Inches(11.5), Inches(0.3), "CONCLUSION", size=12, bold=True, color=LAGOON_BRIGHT)
-    textbox(s, Inches(0.8), Inches(1.15), Inches(11.5), Inches(0.9), "The general objective was met", size=30, bold=True, color=WHITE, font="Georgia")
-    textbox(s, Inches(0.8), Inches(2.15), Inches(11.5), Inches(1.1),
-            "Ushirika is a working prototype that turns supply-chain transactions into objective credit scores — "
-            "with real train/test ML, RF vs LR evidence, and a live portal for Mfanyabiashara, Afisa mikopo, and Admin.",
-            size=15, color=MIST)
-    for i, (t, d) in enumerate([
-        ("Highest priority", "Pilot with partner lenders on real SME ledgers and monitor drift."),
-        ("Adopt incrementally", "Start with one supply-chain vertical before nationwide rollout."),
-        ("Before production", "Managed database, stronger identity checks, and continuous model audit."),
-    ]):
-        top = Inches(3.5 + i * 0.85)
-        textbox(s, Inches(0.8), top, Inches(3.2), Inches(0.35), t, size=14, bold=True, color=LAGOON_BRIGHT)
-        textbox(s, Inches(4.1), top, Inches(8.3), Inches(0.7), d, size=14, color=WHITE)
-    textbox(s, Inches(0.8), Inches(6.5), Inches(11.5), Inches(0.4), "Asanteni  ·  Questions and discussion", size=16, bold=True, color=LAGOON_BRIGHT)
-    textbox(s, Inches(11.4), Inches(6.5), Inches(1.5), Inches(0.4), "12  /  12", size=12, color=RGBColor(0xB8, 0xD0, 0xC8), align=PP_ALIGN.RIGHT)
+    textbox(s, Inches(0.8), Inches(1.6), Inches(11.5), Inches(0.35), "GROUP 15", size=14, bold=True, color=LAGOON_BRIGHT)
+    textbox(s, Inches(0.8), Inches(2.15), Inches(11.5), Inches(0.8), "Asanteni", size=40, bold=True, color=WHITE, font="Georgia")
+    textbox(
+        s,
+        Inches(0.8),
+        Inches(3.2),
+        Inches(11.5),
+        Inches(0.6),
+        "Questions and discussion",
+        size=20,
+        color=MIST,
+    )
+    textbox(
+        s,
+        Inches(0.8),
+        Inches(4.2),
+        Inches(11.5),
+        Inches(1.5),
+        "\n".join(SPEAKERS) + "\n\nSupervisor: Mr. Rajabu Msangi",
+        size=14,
+        color=RGBColor(0xB8, 0xD0, 0xC8),
+    )
+    textbox(
+        s,
+        Inches(0.8),
+        Inches(6.5),
+        Inches(11.5),
+        Inches(0.35),
+        "ushirika-sme-portal.vercel.app",
+        size=14,
+        bold=True,
+        color=LAGOON_BRIGHT,
+    )
+    textbox(s, Inches(11.4), Inches(6.5), Inches(1.5), Inches(0.35), "7  /  7", size=12, color=RGBColor(0xB8, 0xD0, 0xC8), align=PP_ALIGN.RIGHT)
 
-    try:
-        prs.save(str(OUT))
-        print(f"Saved: {OUT}")
-    except PermissionError:
-        prs.save(str(OUT_ALT))
-        print(f"Original PPT locked; saved: {OUT_ALT}")
+    saved = []
+    for path in (OUT, OUT_SEM2):
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            prs.save(str(path))
+            saved.append(str(path))
+            print(f"Saved: {path}")
+        except PermissionError:
+            if path == OUT:
+                prs.save(str(OUT_ALT))
+                saved.append(str(OUT_ALT))
+                print(f"Original PPT locked; saved: {OUT_ALT}")
+            else:
+                print(f"Could not write {path} (file open?) — close PowerPoint and re-run.")
+    return saved
 
 
 if __name__ == "__main__":

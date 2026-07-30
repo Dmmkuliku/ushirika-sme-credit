@@ -14,9 +14,9 @@ from app.schemas.credit import FeatureVector
 
 
 def risk_band_from_score(score: float) -> str:
-    if score >= 580:
+    if score >= 650:
         return "low"
-    if score >= 480:
+    if score >= 500:
         return "medium"
     return "high"
 
@@ -28,7 +28,7 @@ def financing_from_score(score: float, amounts: list[float]) -> tuple[float, dic
     """
     settings = get_settings()
     caps = robust_volume_and_caps(amounts)
-    normalized = max(0.0, min(1.0, (score - 300) / 500))
+    normalized = max(0.0, min(1.0, (score - 300) / 550))
     raw_amount = settings.min_financing_tzs + normalized * (
         settings.max_financing_tzs - settings.min_financing_tzs
     )
