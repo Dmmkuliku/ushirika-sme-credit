@@ -30,6 +30,7 @@ import { openProfileModal } from './profile.js';
 import { getLang, t, featureLabel } from '../i18n.js';
 import {
   bindExactDigitsValidation,
+  bindNotFutureDate,
   bindRequiredField,
   todayIso,
 } from '../form-validation.js';
@@ -128,7 +129,7 @@ function isScoreLocked(overview) {
   if (typeof overview?.score_eligible === 'boolean') return !overview.score_eligible || overview.latest_score == null;
   if (typeof overview?.is_locked === 'boolean') return overview.is_locked;
   if (overview?.score_available === false) return true;
-  return Number(transactionCount(overview)) < 5;
+  return Number(transactionCount(overview)) < 12;
 }
 
 /** Prefer score_components_display; fall back to snake_case map via featureLabel. */
@@ -314,7 +315,7 @@ function renderSmeOverview(session, overview, historyPayload, { onLogout }) {
           <div class="score-display-text">
             ${locked
               ? `<span class="score-locked-label">${escapeHtml(t('sme.locked'))}</span>
-                 <span class="score-locked-hint">${escapeHtml(`${txCount}/5`)}</span>`
+                 <span class="score-locked-hint">${escapeHtml(`${txCount}/12`)}</span>`
               : `<span class="score-number">${escapeHtml(formatScore(score))}</span>
                  <span class="score-hint">${escapeHtml(t('sme.outOf850'))}</span>`
             }
@@ -479,6 +480,7 @@ function bindTxFieldValidation(prefix) {
   bindRequiredField(el('amount'), t('sme.fillRequired'));
   bindRequiredField(el('status'), t('sme.fillRequired'));
   bindRequiredField(el('date'), t('sme.fillRequired'));
+  bindNotFutureDate(el('date'), t('sme.errFutureDate'));
 }
 
 function parseTxFormData(fd) {
@@ -575,10 +577,7 @@ export async function loadSmeTransactions(session, { onLogout }) {
 
   // Filter dates can never go past today, even if typed manually.
   ['tx-from', 'tx-to'].forEach((idAttr) => {
-    const input = document.getElementById(idAttr);
-    input?.addEventListener('change', () => {
-      if (input.value && input.value > todayIso()) input.value = todayIso();
-    });
+    bindNotFutureDate(document.getElementById(idAttr), t('sme.errFutureDate'));
   });
 
   recordForm?.addEventListener('submit', (e) => {
@@ -953,7 +952,7 @@ export function loadSmeUpload(session, { onLogout }) {
       resultHost.innerHTML = `
         <section class="ml-metrics-panel">
           <h4>${escapeHtml(t('sme.mlPendingTitle'))}</h4>
-          <p class="page-lead">${escapeHtml(result?.message || t('sme.mlNeedMore', { count: result?.transactions_needed ?? 5 }))}</p>
+          <p class="page-lead">${escapeHtml(result?.message || t('sme.mlNeedMore', { count: result?.transactions_needed ?? 12 }))}</p>
           <a class="btn btn-secondary" href="#/sme">${escapeHtml(t('sme.backOverview'))}</a>
         </section>`;
       return;

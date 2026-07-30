@@ -380,7 +380,7 @@ def build():
             "80/20 stratified train–test split (seed 42).",
             "Models fit on training data only; GridSearchCV uses ROC-AUC.",
             "Hold-out metrics: Accuracy, Precision, Recall, F1, ROC-AUC.",
-            "An SME is scored only after at least five transactions.",
+            "An SME is scored only after at least twelve transactions.",
             "Rare large deals are down-weighted so they do not inflate loan size.",
         ],
         size=15,

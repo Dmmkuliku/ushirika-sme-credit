@@ -274,7 +274,7 @@ function renderPortfolioList(rows, selectedId) {
         const risk = row.risk ?? row.risk_level ?? row.risk_band ?? '—';
         const eligible = row.estimated_eligible_financing ?? row.eligible_financing_tzs ?? row.eligible_amount ?? null;
         const tx = row.transaction_count ?? row.transactions_count ?? row.tx_count ?? null;
-        const locked = row.score_locked === true || row.is_locked === true || (tx != null && Number(tx) < 5 && score == null);
+        const locked = row.score_locked === true || row.is_locked === true || (tx != null && Number(tx) < 12 && score == null);
         const isActive = String(id) === String(selectedId);
         const riskLabel = locked ? t('risk.pending') : localizedRisk(risk);
         return `
@@ -301,7 +301,7 @@ function renderDetail(host, detail, txPayload, id) {
   const eligible = detail?.estimated_eligible_financing ?? detail?.eligible_financing_tzs ?? detail?.eligible_amount ?? null;
   const txCount = detail?.transaction_count ?? detail?.transactions_count ?? detail?.tx_count ?? null;
   const totalVolume = detail?.total_volume ?? detail?.total_volume_tzs ?? null;
-  const locked = detail?.score_locked === true || detail?.is_locked === true || (txCount != null && Number(txCount) < 5 && score == null);
+  const locked = detail?.score_locked === true || detail?.is_locked === true || (txCount != null && Number(txCount) < 12 && score == null);
   const proba = detail?.probability_creditworthy;
   const mlSummary = localizedMlSummary(detail?.ml_summary || '');
   const featureRows = Array.isArray(detail?.ml_features_display) ? detail.ml_features_display : [];

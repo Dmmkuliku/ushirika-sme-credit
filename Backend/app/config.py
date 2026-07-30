@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     )
 
     model_dir: str = "./models"
-    min_transactions_for_score: int = 5
+    min_transactions_for_score: int = 12
     random_seed: int = 42
 
     max_financing_tzs: float = 50_000_000.0
