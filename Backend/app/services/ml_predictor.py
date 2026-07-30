@@ -33,6 +33,18 @@ class CreditPredictor:
     def is_loaded(self) -> bool:
         return self.model is not None
 
+    @staticmethod
+    def calibrate_probability(raw: float) -> float:
+        """
+        Map raw classifier probability to an honest display range.
+
+        Tree ensembles can emit exactly 0.0 / 1.0 when every tree agrees — that
+        is overconfidence, not certainty. Shrink toward 0.5 and clip to 5%–95%.
+        """
+        p = max(0.0, min(1.0, float(raw)))
+        shrunk = 0.5 + (p - 0.5) * 0.85
+        return round(max(0.05, min(0.95, shrunk)), 4)
+
     def predict_credit_score(self, features: dict[str, float]) -> tuple[float, str]:
         details = self.predict_details(features)
         return details["score"], details["model_version"]
@@ -41,22 +53,25 @@ class CreditPredictor:
         """Score + probability for lender/SME explainability."""
         if self.model is None:
             score = self._heuristic_score(features)
+            raw_p = max(0.0, min(1.0, (score - 300) / 550))
             return {
                 "score": score,
                 "model_version": "heuristic-v1",
-                "probability_creditworthy": round(max(0.0, min(1.0, (score - 300) / 550)), 4),
+                "probability_creditworthy": self.calibrate_probability(raw_p),
+                "probability_raw": round(raw_p, 4),
                 "primary_model": "heuristic",
                 "model_loaded": False,
             }
 
         X = np.array([[features.get(col, 0.0) for col in self.feature_columns]])
-        proba = float(self.model.predict_proba(X)[0, 1])
-        # Map probability of good repayment to a clear 300–850 credit score
-        score = round(300.0 + max(0.0, min(1.0, proba)) * 550.0, 2)
+        raw_p = float(self.model.predict_proba(X)[0, 1])
+        # Map raw probability of good repayment to a clear 300–850 credit score
+        score = round(300.0 + max(0.0, min(1.0, raw_p)) * 550.0, 2)
         return {
             "score": score,
             "model_version": self.model_version,
-            "probability_creditworthy": round(proba, 4),
+            "probability_creditworthy": self.calibrate_probability(raw_p),
+            "probability_raw": round(raw_p, 4),
             "primary_model": "random_forest",
             "model_loaded": True,
         }
