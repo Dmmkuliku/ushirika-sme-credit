@@ -42,19 +42,35 @@ def test_probability_never_claims_certainty():
 
 def test_financing_follows_volume_and_probability():
     amounts = [800_000.0] * 12
+    total = sum(amounts)
     low, _ = financing_from_prediction(
         420,
         0.25,
         amounts,
-        {"on_time_rate": 0.4, "payment_consistency": 0.4, "default_rate": 0.3, "volume_trend": 0.0},
+        {
+            "on_time_rate": 0.4,
+            "payment_consistency": 0.4,
+            "default_rate": 0.3,
+            "volume_trend": 0.0,
+            "transaction_frequency": 2.0,
+            "compliance_rate": 0.5,
+        },
     )
     high, _ = financing_from_prediction(
         780,
         0.9,
         amounts,
-        {"on_time_rate": 0.95, "payment_consistency": 0.9, "default_rate": 0.02, "volume_trend": 0.2},
+        {
+            "on_time_rate": 0.95,
+            "payment_consistency": 0.9,
+            "default_rate": 0.02,
+            "volume_trend": 0.2,
+            "transaction_frequency": 6.0,
+            "compliance_rate": 0.95,
+        },
     )
     assert high > low
-    assert high <= sum(amounts) * 0.60
-    # Must not collapse to a flat 500k floor for every SME
+    # Strong patterns may exceed historical total money moved
+    assert high > total
+    assert high <= 50_000_000.0
     assert high != 500_000.0 or low != 500_000.0

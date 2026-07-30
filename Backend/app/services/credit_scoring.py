@@ -27,17 +27,19 @@ def financing_from_prediction(
     features: dict[str, float] | None = None,
 ) -> tuple[float, dict]:
     """
-    Indicative financing from model probability + observed trading pattern.
+    Indicative financing predicted from repayment and trading patterns.
 
-    Uses typical (non-outlier) volume and repayment behaviour — not a flat
-    500,000 TZS default. Higher creditworthiness and stronger payment history
-    unlock a larger share of the SME's own trading volume.
+    The estimate is driven by model probability, score, on-time behaviour,
+    growth, frequency and typical deal size. It is allowed to exceed the SME's
+    historical total money moved when the pattern supports higher capacity —
+    only the system max ceiling still applies.
     """
     settings = get_settings()
     caps = robust_volume_and_caps(amounts)
     features = features or {}
 
     typical = float(caps.get("typical_volume_tzs") or 0.0)
+    total_volume = float(caps.get("total_volume_tzs") or typical)
     median_amt = float(caps.get("median_typical_amount_tzs") or 0.0)
     proba = max(0.0, min(1.0, float(probability)))
     score_norm = max(0.0, min(1.0, (float(score) - 300.0) / 550.0))
@@ -45,45 +47,45 @@ def financing_from_prediction(
     on_time = max(0.0, min(1.0, float(features.get("on_time_rate", proba))))
     consistency = max(0.0, min(1.0, float(features.get("payment_consistency", proba))))
     default_rate = max(0.0, min(1.0, float(features.get("default_rate", 0.0))))
-    # volume_trend is a relative slope; map roughly into [-1, 1] then [0, 1]
+    compliance = max(0.0, min(1.0, float(features.get("compliance_rate", on_time))))
+    frequency = max(0.0, float(features.get("transaction_frequency", 0.0)))
     trend_raw = float(features.get("volume_trend", 0.0))
     trend = max(0.0, min(1.0, 0.5 + 0.5 * max(-1.0, min(1.0, trend_raw))))
 
     behaviour = (
-        0.40 * on_time
-        + 0.30 * consistency
+        0.35 * on_time
+        + 0.25 * consistency
         + 0.20 * (1.0 - default_rate)
+        + 0.10 * compliance
         + 0.10 * trend
     )
     model_strength = 0.55 * proba + 0.45 * score_norm
+    pattern = 0.55 * model_strength + 0.45 * behaviour
 
-    # Share of typical trading history offered as indicative financing (10%–55%).
-    share = 0.10 + 0.45 * (0.60 * model_strength + 0.40 * behaviour)
-    share = max(0.10, min(0.55, share))
+    # Pattern multiplier on historical volume: weak ~0.35x, strong up to ~2.4x
+    # so strong SMEs can be offered more than total money already moved.
+    volume_multiplier = 0.35 + 2.05 * pattern
 
-    from_volume = typical * share if typical > 0 else 0.0
-    # Alternate signal: a few median-sized deals scaled by model confidence.
-    from_median = median_amt * (1.5 + 4.5 * model_strength) if median_amt > 0 else 0.0
+    # Deal-capacity view: how many median-sized deals the pattern supports.
+    deal_count = 2.0 + 14.0 * pattern  # about 2–16 typical deals
+    freq_boost = 1.0 + min(1.0, frequency / 8.0) * 0.35  # active traders get a lift
+    from_deals = median_amt * deal_count * freq_boost if median_amt > 0 else 0.0
+    from_volume = (typical if typical > 0 else total_volume) * volume_multiplier
 
-    candidates = [v for v in (from_volume, from_median) if v > 0]
+    candidates = [v for v in (from_volume, from_deals) if v > 0]
     if not candidates:
         return 0.0, caps
 
-    financing = max(candidates)
-    # Never exceed conservative caps from the SME's own history.
-    hard_caps = []
-    if caps.get("cap_history_tzs"):
-        hard_caps.append(float(caps["cap_history_tzs"]))
-    if caps.get("cap_experience_tzs"):
-        hard_caps.append(float(caps["cap_experience_tzs"]))
-    if typical > 0:
-        hard_caps.append(typical * 0.60)
-    hard_caps.append(float(settings.max_financing_tzs))
-    financing = min([financing, *hard_caps])
+    # Blend both pattern views (not the minimum — prediction, not a hard history cap).
+    financing = 0.55 * max(candidates) + 0.45 * (sum(candidates) / len(candidates))
 
-    # Soft floor only when the SME's own volume can support it — never invent 500k.
-    if typical > 0:
-        soft_floor = min(float(settings.min_financing_tzs), typical * share)
+    # Absolute product ceiling only — do NOT force below total money moved.
+    financing = min(financing, float(settings.max_financing_tzs))
+
+    # Soft floor from pattern + volume when history exists (not a flat 500k).
+    base = typical if typical > 0 else total_volume
+    if base > 0:
+        soft_floor = base * (0.20 + 0.40 * pattern)
         financing = max(financing, soft_floor)
 
     return round(max(0.0, financing), 2), caps

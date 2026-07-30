@@ -1,3 +1,3 @@
 """SME vs Lender Credit Risk Backend."""
 
-__version__ = "1.6.7"
+__version__ = "1.6.8"
